@@ -1,4 +1,4 @@
-﻿@model FormFillViewModel
+@model FormFillViewModel
 
 <h2>@Model.Form.FormName</h2>
 <p>@Model.Form.Description</p>
@@ -22,7 +22,12 @@
                     break;
 
                 case "select":
-                    var opts = System.Text.Json.JsonSerializer.Deserialize<List<Option>>(field.FieldOptions ?? "[]");
+                    List<Option> opts;
+                    try {
+                        opts = System.Text.Json.JsonSerializer.Deserialize<List<Option>>(field.FieldOptions ?? "[]") ?? new List<Option>();
+                    } catch {
+                        opts = new List<Option>();
+                    }
                     <select name="@field.FieldKey" class="form-control" required="@(field.IsRequired)">
                         @foreach (var opt in opts)
                         {

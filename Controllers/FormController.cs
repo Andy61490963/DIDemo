@@ -1,7 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using DynamicForm.Models;
 using DynamicForm.Service.Interface;
-using DynamicForm.Service;
 using Microsoft.AspNetCore.Http;
 
 namespace DynamicForm.Controllers;
@@ -29,6 +28,7 @@ public class FormController : Controller
 
     // 接收送出
     [HttpPost]
+    [ValidateAntiForgeryToken]
     public IActionResult Submit(IFormCollection form)
     {
         int formId = Convert.ToInt32(form["FormId"]);

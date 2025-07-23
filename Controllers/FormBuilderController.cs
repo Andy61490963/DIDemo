@@ -1,4 +1,4 @@
-﻿using DynamicForm.Models;
+using DynamicForm.Models;
 using DynamicForm.Service.Interface;
 using Microsoft.AspNetCore.Mvc;
 
@@ -37,6 +37,7 @@ public class FormBuilderController : Controller
         });
     }
 
+    [ValidateAntiForgeryToken]
     [HttpPost]
     public IActionResult Edit(FormMaster form)
     {
@@ -64,6 +65,7 @@ public class FormBuilderController : Controller
     }
 
     [HttpPost]
+    [ValidateAntiForgeryToken]
     public IActionResult AddField(FormField field)
     {
         if (!ModelState.IsValid)
@@ -80,10 +82,12 @@ public class FormBuilderController : Controller
     public IActionResult EditField(int fieldId)
     {
         var field = _formBuilderService.GetFieldById(fieldId);
+        if (field == null) return NotFound();
         return View(field);
     }
 
     [HttpPost]
+    [ValidateAntiForgeryToken]
     public IActionResult EditField(FormField field)
     {
         if (!ModelState.IsValid)
@@ -95,9 +99,11 @@ public class FormBuilderController : Controller
 
     // 刪除欄位
     [HttpPost]
+    [ValidateAntiForgeryToken]
     public IActionResult DeleteField(int fieldId)
     {
         var field = _formBuilderService.GetFieldById(fieldId);
+        if (field == null) return NotFound();
         _formBuilderService.DeleteField(fieldId);
         return RedirectToAction("Edit", new { id = field.FormId });
     }
