@@ -1,0 +1,28 @@
+﻿@model List<FormMaster>
+
+<h2>表單管理</h2>
+<a asp-action="Edit" class="btn btn-success mb-3">➕ 建立新表單</a>
+
+<table class="table">
+    <thead>
+    <tr>
+        <th>表單名稱</th>
+        <th>描述</th>
+        <th>狀態</th>
+        <th>操作</th>
+    </tr>
+    </thead>
+    <tbody>
+    @foreach (var form in Model)
+    {
+        <tr>
+            <td>@form.FormName</td>
+            <td>@form.Description</td>
+            <td>@(form.IsActive ? "啟用" : "停用")</td>
+            <td>
+                <a asp-action="Edit" asp-route-id="@form.FormId" class="btn btn-primary btn-sm">編輯</a>
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>

@@ -1,0 +1,54 @@
+﻿@model FormFillViewModel
+
+<h2>@(Model.Form.FormId == 0 ? "新增表單" : "編輯表單")</h2>
+
+<form asp-action="Edit" method="post">
+    <input type="hidden" asp-for="Form.FormId" />
+
+    <div class="form-group">
+        <label asp-for="Form.FormName"></label>
+        <input asp-for="Form.FormName" class="form-control" />
+    </div>
+    <div class="form-group">
+        <label asp-for="Form.Description"></label>
+        <textarea asp-for="Form.Description" class="form-control"></textarea>
+    </div>
+
+    <button type="submit" class="btn btn-primary">儲存表單</button>
+</form>
+
+@if (Model.Form.FormId > 0)
+{
+    <hr />
+    <h4>欄位清單</h4>
+    <a asp-action="AddField" asp-route-formId="@Model.Form.FormId" class="btn btn-success mb-2">➕ 新增欄位</a>
+
+    <table class="table">
+        <thead>
+        <tr>
+            <th>順序</th>
+            <th>欄位名稱</th>
+            <th>欄位類型</th>
+            <th>必填</th>
+            <th>操作</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var field in Model.Fields.OrderBy(f => f.FieldOrder))
+        {
+            <tr>
+                <td>@field.FieldOrder</td>
+                <td>@field.FieldLabel</td>
+                <td>@field.FieldType</td>
+                <td>@(field.IsRequired ? "✅" : "")</td>
+                <td>
+                    <a asp-action="EditField" asp-route-fieldId="@field.FieldId" class="btn btn-sm btn-primary">編輯</a>
+                    <form asp-action="DeleteField" asp-route-fieldId="@field.FieldId" method="post" style="display:inline">
+                        <button type="submit" class="btn btn-sm btn-danger">刪除</button>
+                    </form>
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
