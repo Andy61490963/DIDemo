@@ -152,6 +152,12 @@ public class FormDesignerService : IFormDesignerService
         return _con.Query<FormFieldValidationRuleDto>(sql, new { fieldId }).ToList();
     }
 
+    public bool HasValidationRules(Guid fieldId)
+    {
+        const string sql = @"SELECT COUNT(1) FROM FORM_FIELD_VALIDATION_RULE WHERE FIELD_CONFIG_ID = @fieldId";
+        return _con.ExecuteScalar<int>(sql, new { fieldId }) > 0;
+    }
+
     public void InsertValidationRule(FormFieldValidationRuleDto model)
     {
         const string sql = @"
@@ -169,6 +175,12 @@ public class FormDesignerService : IFormDesignerService
     {
         const string sql = @"SELECT ISNULL(MAX(VALIDATION_ORDER), 0) + 1 FROM FORM_FIELD_VALIDATION_RULE WHERE FIELD_CONFIG_ID = @fieldId";
         return _con.ExecuteScalar<int>(sql, new { fieldId });
+    }
+
+    public FormControlType GetControlTypeByFieldId(Guid fieldId)
+    {
+        const string sql = @"SELECT CONTROL_TYPE FROM FORM_FIELD_CONFIG WHERE ID = @fieldId";
+        return _con.ExecuteScalar<FormControlType>(sql, new { fieldId });
     }
 
     

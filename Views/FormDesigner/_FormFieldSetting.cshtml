@@ -21,7 +21,7 @@
 
             <div class="col-md-6">
                 <label asp-for="CONTROL_TYPE" class="form-label">控制元件</label>
-                <select asp-for="CONTROL_TYPE" class="form-select">
+                <select asp-for="CONTROL_TYPE" class="form-select" @(Model?.IS_VALIDATION_RULE == true ? "disabled" : "")>
                     <option value="">請選擇</option>
                     @if (Model != null)
                     {
