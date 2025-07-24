@@ -51,12 +51,12 @@ $(document).on('change', '#field-setting-form input, #field-setting-form select'
         type: 'POST',
         data: formData,
         success: function () {
-            Swal.fire({
-                icon: 'success',
-                title: '儲存成功',
-                showConfirmButton: false,
-                timer: 1500
-            });
+            // Swal.fire({
+            //     icon: 'success',
+            //     title: '儲存成功',
+            //     showConfirmButton: false,
+            //     timer: 1500
+            // });
         },
         error: function (xhr) {
             alert('儲存失敗：' + xhr.responseText);

@@ -5,7 +5,7 @@ namespace DynamicForm.Service.Interface;
 
 public interface IFormDesignerService
 {
-    List<FormFieldViewModel> GetFieldsByTableName(string tableName);
+    FormFieldListViewModel GetFieldsByTableName(string tableName);
 
     void UpsertField(FormFieldViewModel model);
 
@@ -15,6 +15,7 @@ public interface IFormDesignerService
 
     bool HasValidationRules(Guid fieldId);
 
+    FormFieldValidationRuleDto CreateEmptyValidationRule(Guid fieldConfigId);
     void InsertValidationRule(FormFieldValidationRuleDto model);
     int GetNextValidationOrder(Guid fieldId);
 

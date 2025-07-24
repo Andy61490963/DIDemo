@@ -8,6 +8,7 @@ builder.Services.AddEndpointsApiExplorer();
 
 // Service
 builder.Services.AddScoped<IFormDesignerService, FormDesignerService>();
+builder.Services.AddScoped<IFormService, FormService>();
 
 builder.Services.AddScoped<SqlConnection, SqlConnection>(_ =>
 {
