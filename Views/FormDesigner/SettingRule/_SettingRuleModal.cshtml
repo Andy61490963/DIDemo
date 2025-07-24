@@ -1,4 +1,10 @@
-﻿@model List<FormFieldValidationRuleDto>
+﻿@using ClassLibrary
+@using Microsoft.AspNetCore.Mvc.Rendering
+@model List<FormFieldValidationRuleDto>
+@{
+    var options = ViewBag.ValidationTypeOptions as List<SelectListItem> ?? EnumExtensions.ToSelectList<ValidationType>();
+    var viewData = new ViewDataDictionary(ViewData) { { "ValidationTypeOptions", options } };
+}
 
 <table class="table table-bordered table-sm align-middle">
     <thead class="table-light">
@@ -12,7 +18,7 @@
         </tr>
     </thead>
     <tbody id="validationRuleRow">
-        @await Html.PartialAsync("SettingRule/_ValidationRuleRow", Model)
+        @await Html.PartialAsync("SettingRule/_ValidationRuleRow", Model, viewData)
     </tbody>
 </table>
 

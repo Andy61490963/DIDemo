@@ -181,6 +181,41 @@ $(document).on('click', '.save-rule', function () {
     });
 });
 
+// 刪除按鈕
+$(document).on('click', '.delete-rule', function () {
+    const $row = $(this).closest('tr');
+    const id = $row.data('id');
+    const fieldConfigId = $('#ID').val();
+
+    Swal.fire({
+        title: '確定要刪除嗎？',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: '確認',
+        cancelButtonText: '取消'
+    }).then((result) => {
+        if (!result.isConfirmed) return;
+
+        $.ajax({
+            url: '/FormDesigner/DeleteValidationRule',
+            type: 'POST',
+            data: { id: id, fieldConfigId: fieldConfigId },
+            success: function (response) {
+                $('#validationRuleRow').html(response);
+                Swal.fire({
+                    icon: 'success',
+                    title: '刪除成功',
+                    showConfirmButton: false,
+                    timer: 1500
+                });
+            },
+            error: function (xhr) {
+                alert('刪除失敗：' + xhr.responseText);
+            }
+        });
+    });
+});
+
 $(document).on('click', '.closeModal', function () {
     $(this).closest('.modal').modal('hide');
 });
