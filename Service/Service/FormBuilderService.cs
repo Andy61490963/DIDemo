@@ -171,6 +171,12 @@ public class FormDesignerService : IFormDesignerService
         return _con.ExecuteScalar<int>(sql, new { fieldId });
     }
 
+    public FormControlType GetControlTypeByFieldId(Guid fieldId)
+    {
+        const string sql = @"SELECT CONTROL_TYPE FROM FORM_FIELD_CONFIG WHERE ID = @fieldId";
+        return _con.ExecuteScalar<FormControlType>(sql, new { fieldId });
+    }
+
     
     public bool SaveValidationRule(FormFieldValidationRuleDto rule)
     {
