@@ -152,6 +152,12 @@ public class FormDesignerService : IFormDesignerService
         return _con.Query<FormFieldValidationRuleDto>(sql, new { fieldId }).ToList();
     }
 
+    public bool HasValidationRules(Guid fieldId)
+    {
+        const string sql = @"SELECT COUNT(1) FROM FORM_FIELD_VALIDATION_RULE WHERE FIELD_CONFIG_ID = @fieldId";
+        return _con.ExecuteScalar<int>(sql, new { fieldId }) > 0;
+    }
+
     public void InsertValidationRule(FormFieldValidationRuleDto model)
     {
         const string sql = @"

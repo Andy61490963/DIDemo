@@ -13,6 +13,8 @@ public interface IFormDesignerService
     
     List<FormFieldValidationRuleDto> GetValidationRulesByFieldId(Guid fieldId);
 
+    bool HasValidationRules(Guid fieldId);
+
     void InsertValidationRule(FormFieldValidationRuleDto model);
     int GetNextValidationOrder(Guid fieldId);
 

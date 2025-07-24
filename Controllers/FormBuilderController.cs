@@ -68,6 +68,16 @@ public class FormDesignerController : Controller
 
         try
         {
+            if (_formDesignerService.CheckFieldExists(model.ID))
+            {
+                var hasRules = _formDesignerService.HasValidationRules(model.ID);
+                var currentType = _formDesignerService.GetControlTypeByFieldId(model.ID);
+                if (hasRules && currentType != model.CONTROL_TYPE)
+                {
+                    return BadRequest("已有驗證規則，無法變更控制元件類型");
+                }
+            }
+
             _formDesignerService.UpdateField(model);
             return Json(new { success = true });
         }
