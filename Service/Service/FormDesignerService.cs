@@ -2,6 +2,7 @@
 using Dapper;
 using DynamicForm.Models;
 using DynamicForm.Service.Interface;
+using DynamicForm.Helper;
 using Microsoft.Data.SqlClient;
 
 namespace DynamicForm.Service.Service;
@@ -46,7 +47,7 @@ public class FormDesignerService : IFormDesignerService
                     COLUMN_NAME = columnName,
                     DATA_TYPE = dataType,
                     CONTROL_TYPE = config.CONTROL_TYPE,
-                    CONTROL_TYPE_WHITELIST = GetControlTypeWhitelist(dataType),
+                    CONTROL_TYPE_WHITELIST = FormFieldHelper.GetControlTypeWhitelist(dataType),
                     IS_VISIBLE = config.IS_VISIBLE ?? true,
                     IS_EDITABLE = config.IS_EDITABLE ?? true,
                     IS_VALIDATION_RULE = requiredFieldIds.Contains(fieldId),
@@ -62,12 +63,12 @@ public class FormDesignerService : IFormDesignerService
                     TableName = tableName,
                     COLUMN_NAME = columnName,
                     DATA_TYPE = dataType,
-                    CONTROL_TYPE_WHITELIST = GetControlTypeWhitelist(dataType),
+                    CONTROL_TYPE_WHITELIST = FormFieldHelper.GetControlTypeWhitelist(dataType),
                     IS_VISIBLE = true,
                     IS_EDITABLE = true,
                     IS_VALIDATION_RULE = false,
                     LANG_CODES = new(),
-                    EDITOR_WIDTH = GetDefaultEditorWidth(dataType)
+                    EDITOR_WIDTH = FormFieldHelper.GetDefaultEditorWidth(dataType)
                 });
             }
         }
@@ -228,38 +229,4 @@ public class FormDesignerService : IFormDesignerService
                    .ToDictionary(g => g.Key, g => g.Select(x => (string)x.LANG_CODE).ToList());
     }
     
-    // 根據資料型別給預設控制元件類型
-    private static readonly Dictionary<string, List<FormControlType>> ControlTypeWhitelistMap = new(StringComparer.OrdinalIgnoreCase)
-    {
-        { "datetime", new() { FormControlType.Date } },
-        { "bit", new() { FormControlType.Checkbox } },
-        { "int", new() { FormControlType.Number, FormControlType.Text, FormControlType.Dropdown } },
-        { "decimal", new() { FormControlType.Number, FormControlType.Text } },
-        { "nvarchar", new() { FormControlType.Number, FormControlType.Text, FormControlType.Dropdown } },
-        { "varchar", new() { FormControlType.Number, FormControlType.Text, FormControlType.Dropdown } },
-        { "default", new() { FormControlType.Text, FormControlType.Textarea } }
-    };
-
-
-    private List<FormControlType> GetControlTypeWhitelist(string dataType)
-    {
-        var res = ControlTypeWhitelistMap.TryGetValue(dataType, out var list)
-            ? list
-            : ControlTypeWhitelistMap["default"];
-        return res;
-    }
-    
-    // 根據資料型別給預設欄位寬度（可調整）
-    private int GetDefaultEditorWidth(string dataType)
-    {
-        var res = dataType switch
-        {
-            "nvarchar" => 200,
-            "varchar" => 200,
-            "text" => 300,
-            "int" or "decimal" => 100,
-            _ => 150
-        };
-        return res;
-    }
 }
