@@ -7,7 +7,7 @@ public interface IFormDesignerService
 {
     List<FormFieldViewModel> GetFieldsByTableName(string tableName);
 
-    void UpdateField(FormFieldViewModel model);
+    void UpsertField(FormFieldViewModel model);
 
     bool CheckFieldExists(Guid fieldId);
     

@@ -1,4 +1,5 @@
-﻿using DynamicForm.Models;
+﻿using ClassLibrary;
+using DynamicForm.Models;
 using DynamicForm.Service.Interface;
 using ClassLibrary;
 using Microsoft.AspNetCore.Mvc;
@@ -49,7 +50,7 @@ public class FormDesignerController : Controller
     {
         FormFieldViewModel? field = _formDesignerService.GetFieldsByTableName(tableName)
                        .FirstOrDefault(x => x.COLUMN_NAME == columnName);
-
+        
         if (field == null)
         {
             return NotFound();
@@ -61,28 +62,23 @@ public class FormDesignerController : Controller
     [HttpPost]
     public IActionResult UpdateFieldSetting(FormFieldViewModel model)
     {
-        if (string.IsNullOrEmpty(model.TableName) || string.IsNullOrEmpty(model.COLUMN_NAME))
-        {
+        if (string.IsNullOrWhiteSpace(model.TableName) || string.IsNullOrWhiteSpace(model.COLUMN_NAME))
             return BadRequest("TableName 與 ColumnName 為必填");
-        }
 
         try
         {
-            if (_formDesignerService.CheckFieldExists(model.ID))
+            if (_formDesignerService.HasValidationRules(model.ID) &&
+                _formDesignerService.GetControlTypeByFieldId(model.ID) != model.CONTROL_TYPE)
             {
-                var hasRules = _formDesignerService.HasValidationRules(model.ID);
-                var currentType = _formDesignerService.GetControlTypeByFieldId(model.ID);
-                if (hasRules && currentType != model.CONTROL_TYPE)
-                {
-                    return BadRequest("已有驗證規則，無法變更控制元件類型");
-                }
+                return Conflict("已有驗證規則，無法變更控制元件類型");
             }
-
-            _formDesignerService.UpdateField(model);
-            return Json(new { success = true });
+            
+            _formDesignerService.UpsertField(model);
+            return Ok(new { success = true });
         }
         catch (Exception ex)
         {
+            // TODO: log4net 紀錄 ex
             return StatusCode(500, ex.Message);
         }
     }
@@ -116,7 +112,7 @@ public class FormDesignerController : Controller
     }
  
     [HttpPost]
-    public IActionResult CreateEmptyValidationRule(Guid fieldConfigId,string VALIDATION_TYPE)
+    public IActionResult CreateEmptyValidationRule(Guid fieldConfigId)
     {
         var controlType = _formDesignerService.GetControlTypeByFieldId(fieldConfigId);
         var allowedValidations = ValidationRulesMap.GetValidations(controlType);

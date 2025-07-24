@@ -1,9 +1,9 @@
 ﻿@* 右側欄位詳細設定（validation、visible、required） *@
 
+@using ClassLibrary
 @model FormFieldViewModel?
 @{
     var isDisabled = Model == null;
-    var x = isDisabled ? "disabled" : "";
 }
 <form id="field-setting-form">
 <fieldset @(isDisabled ? "disabled" : "")>
@@ -21,13 +21,13 @@
 
             <div class="col-md-6">
                 <label asp-for="CONTROL_TYPE" class="form-label">控制元件</label>
-                <select asp-for="CONTROL_TYPE" class="form-select" @(Model?.IS_VALIDATION_RULE == true ? "disabled" : "")>
+                <select asp-for="CONTROL_TYPE" class="form-select" disabled=@Model?.IS_VALIDATION_RULE>
                     <option value="">請選擇</option>
                     @if (Model != null)
                     {
                         foreach (var option in Model.CONTROL_TYPE_WHITELIST)
                         {
-                            <option value="@option" selected="@(Model.CONTROL_TYPE == option ? "selected" : null)">
+                            <option value="@option.ToInt()" selected="@(Model.CONTROL_TYPE == option ? "selected" : null)">
                                 @option
                             </option>
                         }

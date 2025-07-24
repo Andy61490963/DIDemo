@@ -79,60 +79,39 @@ public class FormDesignerService : IFormDesignerService
     /// 儲存基本欄位設定(FORM_FIELD_CONFIG)
     /// </summary>
     /// <param name="model"></param>
-    public void UpdateField(FormFieldViewModel model)
+    public void UpsertField(FormFieldViewModel model)
     {
-        const string selectSql = @"
-        SELECT ID 
-        FROM FORM_FIELD_CONFIG 
-        WHERE TABLE_NAME = @TableName AND COLUMN_NAME = @ColumnName";
+        const string sql = @"
+    MERGE FORM_FIELD_CONFIG AS target
+    USING (VALUES (@ID, @TABLE_NAME, @COLUMN_NAME)) AS src(ID, TABLE_NAME, COLUMN_NAME)
+        ON target.ID = src.ID
+    WHEN MATCHED THEN
+        UPDATE SET
+            CONTROL_TYPE = @CONTROL_TYPE,
+            IS_VISIBLE   = @IS_VISIBLE,
+            IS_EDITABLE  = @IS_EDITABLE,
+            COLUMN_SPAN  = @COLUMN_SPAN,
+            DEFAULT_VALUE= @DEFAULT_VALUE,
+            EDIT_TIME    = GETDATE()
+    WHEN NOT MATCHED THEN
+        INSERT (ID, TABLE_NAME, COLUMN_NAME, CONTROL_TYPE, IS_VISIBLE, IS_EDITABLE, COLUMN_SPAN, DEFAULT_VALUE)
+        VALUES (NEWID(), @TABLE_NAME, @COLUMN_NAME, @CONTROL_TYPE, @IS_VISIBLE, @IS_EDITABLE, @COLUMN_SPAN, @DEFAULT_VALUE);";
 
-        var existingId = _con.QueryFirstOrDefault<Guid?>(selectSql, new { model.TableName, ColumnName = model.COLUMN_NAME });
+        var affected = _con.Execute(sql, new {
+            model.ID,
+            TABLE_NAME   = model.TableName,
+            model.COLUMN_NAME,
+            model.CONTROL_TYPE,
+            model.IS_VISIBLE,
+            model.IS_EDITABLE,
+            COLUMN_SPAN  = model.EDITOR_WIDTH,
+            model.DEFAULT_VALUE
+        });
 
-        if (existingId.HasValue)
-        {
-            // 更新
-            const string updateSql = @"
-            UPDATE FORM_FIELD_CONFIG SET
-                CONTROL_TYPE = @CONTROL_TYPE,
-                IS_VISIBLE = @IS_VISIBLE,
-                IS_EDITABLE = @IS_EDITABLE,
-                COLUMN_SPAN = @EDITOR_WIDTH,
-                DEFAULT_VALUE = @DEFAULT_VALUE
-            WHERE TABLE_NAME = @TableName AND COLUMN_NAME = @COLUMN_NAME AND ID = @ID";
-
-            _con.Execute(updateSql, new
-            {
-                model.ID,  // 使用來自 model 的原始 ID
-                model.TableName,
-                model.COLUMN_NAME,
-                model.CONTROL_TYPE,
-                model.IS_VISIBLE,
-                model.IS_EDITABLE,
-                model.EDITOR_WIDTH,
-                model.DEFAULT_VALUE
-            });
-        }
-        else
-        {
-            const string insertSql = @"
-            INSERT INTO FORM_FIELD_CONFIG 
-                (ID, TABLE_NAME, COLUMN_NAME, CONTROL_TYPE, IS_VISIBLE, IS_EDITABLE, COLUMN_SPAN, DEFAULT_VALUE)
-            VALUES 
-                (@ID, @TableName, @COLUMN_NAME, @CONTROL_TYPE, @IS_VISIBLE, @IS_EDITABLE, @EDITOR_WIDTH, @DEFAULT_VALUE)";
-
-            _con.Execute(insertSql, new
-            {
-                model.ID,
-                model.TableName,
-                model.COLUMN_NAME,
-                model.CONTROL_TYPE,
-                model.IS_VISIBLE,
-                model.IS_EDITABLE,
-                model.EDITOR_WIDTH,
-                model.DEFAULT_VALUE
-            });
-        }
+        if (affected == 0)
+            throw new InvalidOperationException("Upsert 失敗，找不到目標欄位。");
     }
+
 
     public bool CheckFieldExists(Guid fieldId)
     {
@@ -180,9 +159,10 @@ public class FormDesignerService : IFormDesignerService
     public FormControlType GetControlTypeByFieldId(Guid fieldId)
     {
         const string sql = @"SELECT CONTROL_TYPE FROM FORM_FIELD_CONFIG WHERE ID = @fieldId";
-        return _con.ExecuteScalar<FormControlType>(sql, new { fieldId });
-    }
+        var controlTypeValue = _con.ExecuteScalar<int?>(sql, new { fieldId });
 
+        return (FormControlType)controlTypeValue.Value;
+    }
     
     public bool SaveValidationRule(FormFieldValidationRuleDto rule)
     {

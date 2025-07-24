@@ -6,6 +6,16 @@ namespace ClassLibrary;
 
 public static class EnumExtensions
 {
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="obj">列舉物件</param>
+    /// <returns></returns>
+    public static int ToInt( this Enum obj )
+    {
+        return Convert.ToInt32( obj );
+    }
+    
     public static List<SelectListItem> ToSelectList<TEnum>() where TEnum : Enum
     {
         return Enum.GetValues(typeof(TEnum))
