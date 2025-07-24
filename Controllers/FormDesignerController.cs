@@ -1,8 +1,8 @@
-﻿using ClassLibrary;
+using ClassLibrary;
 using DynamicForm.Models;
 using DynamicForm.Service.Interface;
-using ClassLibrary;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace DynamicForm.Controllers;
 
@@ -14,7 +14,7 @@ public class FormDesignerController : Controller
     {
         _formDesignerService = formDesignerService;
     }
-    
+
     public IActionResult Index()
     {
         var model = new FormDesignerIndexViewModel
@@ -22,10 +22,9 @@ public class FormDesignerController : Controller
             FormHeader = new FormHeaderViewModel(),
             FormField = new FormFieldListViewModel()
         };
-
         return View(model);
     }
-    
+
     [HttpGet]
     public IActionResult QueryFields(string tableName)
     {
@@ -33,7 +32,7 @@ public class FormDesignerController : Controller
         {
             return BadRequest("Table name is required.");
         }
-        
+
         List<FormFieldViewModel> fields = _formDesignerService.GetFieldsByTableName(tableName);
 
         var result = new FormFieldListViewModel
@@ -44,13 +43,12 @@ public class FormDesignerController : Controller
 
         return PartialView("_FormFieldList", result);
     }
-    
+
     [HttpGet]
     public IActionResult GetFieldSetting(string tableName, string columnName)
     {
         FormFieldViewModel? field = _formDesignerService.GetFieldsByTableName(tableName)
-                       .FirstOrDefault(x => x.COLUMN_NAME == columnName);
-        
+            .FirstOrDefault(x => x.COLUMN_NAME == columnName);
         if (field == null)
         {
             return NotFound();
@@ -58,7 +56,7 @@ public class FormDesignerController : Controller
 
         return PartialView("_FormFieldSetting", field);
     }
-    
+
     [HttpPost]
     public IActionResult UpdateFieldSetting(FormFieldViewModel model)
     {
@@ -72,7 +70,7 @@ public class FormDesignerController : Controller
             {
                 return Conflict("已有驗證規則，無法變更控制元件類型");
             }
-            
+
             _formDesignerService.UpsertField(model);
             return Ok(new { success = true });
         }
@@ -94,7 +92,7 @@ public class FormDesignerController : Controller
         var exists = _formDesignerService.CheckFieldExists(fieldId);
         return Json(exists);
     }
-    
+
     [HttpPost]
     public IActionResult SettingRule(Guid fieldId)
     {
@@ -103,29 +101,24 @@ public class FormDesignerController : Controller
             return BadRequest("請先設定控制元件後再新增驗證條件。");
         }
 
-        var controlType = _formDesignerService.GetControlTypeByFieldId(fieldId);
-        var allowedValidations = ValidationRulesMap.GetValidations(controlType);
-        ViewBag.ValidationTypeOptions = EnumExtensions.ToSelectList(allowedValidations);
-
+        ViewBag.ValidationTypeOptions = GetValidationTypeOptions(fieldId);
         List<FormFieldValidationRuleDto> rules = _formDesignerService.GetValidationRulesByFieldId(fieldId);
         return PartialView("SettingRule/_SettingRuleModal", rules);
     }
- 
+
     [HttpPost]
     public IActionResult CreateEmptyValidationRule(Guid fieldConfigId)
     {
-        var controlType = _formDesignerService.GetControlTypeByFieldId(fieldConfigId);
-        var allowedValidations = ValidationRulesMap.GetValidations(controlType);
-        ViewBag.ValidationTypeOptions = EnumExtensions.ToSelectList(allowedValidations);
-        
+        ViewBag.ValidationTypeOptions = GetValidationTypeOptions(fieldConfigId);
+
         var newRule = new FormFieldValidationRuleDto
         {
             ID = Guid.NewGuid(),
             FIELD_CONFIG_ID = fieldConfigId,
-            VALIDATION_TYPE = "",
-            VALIDATION_VALUE = "",
-            MESSAGE_ZH = "",
-            MESSAGE_EN = "",
+            VALIDATION_TYPE = string.Empty,
+            VALIDATION_VALUE = string.Empty,
+            MESSAGE_ZH = string.Empty,
+            MESSAGE_EN = string.Empty,
             VALIDATION_ORDER = _formDesignerService.GetNextValidationOrder(fieldConfigId)
         };
 
@@ -135,11 +128,10 @@ public class FormDesignerController : Controller
         return PartialView("SettingRule/_ValidationRuleRow", rules);
     }
 
-    
     [HttpPost]
     public IActionResult SaveValidationRule([FromBody] FormFieldValidationRuleDto rule)
     {
-        bool x = _formDesignerService.SaveValidationRule(rule);
+        _formDesignerService.SaveValidationRule(rule);
         return Json(new { success = true });
     }
 
@@ -147,13 +139,15 @@ public class FormDesignerController : Controller
     public IActionResult DeleteValidationRule(Guid id, Guid fieldConfigId)
     {
         _formDesignerService.DeleteValidationRule(id);
-
-        var controlType = _formDesignerService.GetControlTypeByFieldId(fieldConfigId);
-        var allowedValidations = ValidationRulesMap.GetValidations(controlType);
-        ViewBag.ValidationTypeOptions = EnumExtensions.ToSelectList(allowedValidations);
-
+        ViewBag.ValidationTypeOptions = GetValidationTypeOptions(fieldConfigId);
         var rules = _formDesignerService.GetValidationRulesByFieldId(fieldConfigId);
         return PartialView("SettingRule/_ValidationRuleRow", rules);
     }
 
+    private List<SelectListItem> GetValidationTypeOptions(Guid fieldId)
+    {
+        var controlType = _formDesignerService.GetControlTypeByFieldId(fieldId);
+        var allowedValidations = ValidationRulesMap.GetValidations(controlType);
+        return EnumExtensions.ToSelectList(allowedValidations);
+    }
 }

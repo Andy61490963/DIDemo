@@ -161,6 +161,9 @@ public class FormDesignerService : IFormDesignerService
         const string sql = @"SELECT CONTROL_TYPE FROM FORM_FIELD_CONFIG WHERE ID = @fieldId";
         var controlTypeValue = _con.ExecuteScalar<int?>(sql, new { fieldId });
 
+        if (!controlTypeValue.HasValue)
+            throw new InvalidOperationException($"Field configuration not found for {fieldId}");
+
         return (FormControlType)controlTypeValue.Value;
     }
     
@@ -183,6 +186,7 @@ public class FormDesignerService : IFormDesignerService
         }
         catch (Exception ex)
         {
+            // TODO: add logging framework to record ex
             return false;
         }
     }
@@ -197,6 +201,7 @@ public class FormDesignerService : IFormDesignerService
         }
         catch (Exception)
         {
+            // TODO: add logging framework to record the failure
             return false;
         }
     }
