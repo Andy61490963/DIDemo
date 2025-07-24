@@ -1,93 +1,259 @@
-﻿using Dapper;
+﻿using ClassLibrary;
+using Dapper;
 using DynamicForm.Models;
 using DynamicForm.Service.Interface;
 using Microsoft.Data.SqlClient;
 
 namespace DynamicForm.Service.Service;
 
-public class FormBuilderService : IFormBuilderService
+public class FormDesignerService : IFormDesignerService
 {
     private readonly SqlConnection _con;
     
-    public FormBuilderService(SqlConnection connection)
+    public FormDesignerService(SqlConnection connection)
     {
         _con = connection;
     }
 
-    public List<FormMaster> GetAllForms()
+    public List<FormFieldViewModel> GetFieldsByTableName(string tableName)
     {
-        return _con.Query<FormMaster>("SELECT * FROM FormMaster ORDER BY CreateTime DESC").ToList();
+        // 1. 查詢欄位定義
+        var columns = GetTableSchema(tableName);
+        if (!columns.Any()) return new();
+
+        // 2. 查欄位設定與驗證/語系
+        var configs = GetFieldConfigs(tableName);
+        var requiredFieldIds = GetRequiredFieldIds();
+        var langLookup = GetLangCodeLookup();
+
+        // 3. 組成 ViewModel
+        var result = new List<FormFieldViewModel>();
+
+        foreach (var col in columns)
+        {
+            var columnName = col.COLUMN_NAME;
+            var dataType = col.DATA_TYPE;
+
+            // config Dictionary<string, FormFieldConfigDto>
+            if (configs.TryGetValue(columnName, out var config))
+            {
+                var fieldId = config.ID;
+
+                result.Add(new FormFieldViewModel
+                {
+                    ID = fieldId,
+                    TableName = tableName,
+                    COLUMN_NAME = columnName,
+                    DATA_TYPE = dataType,
+                    CONTROL_TYPE = config.CONTROL_TYPE,
+                    CONTROL_TYPE_WHITELIST = GetControlTypeWhitelist(dataType),
+                    IS_VISIBLE = config.IS_VISIBLE ?? true,
+                    IS_EDITABLE = config.IS_EDITABLE ?? true,
+                    IS_VALIDATION_RULE = requiredFieldIds.Contains(fieldId),
+                    LANG_CODES = langLookup.GetValueOrDefault(fieldId) ?? new(),
+                    EDITOR_WIDTH = config.COLUMN_SPAN ?? 100
+                });
+            }
+            else
+            {
+                result.Add(new FormFieldViewModel
+                {
+                    ID = Guid.NewGuid(),
+                    TableName = tableName,
+                    COLUMN_NAME = columnName,
+                    DATA_TYPE = dataType,
+                    CONTROL_TYPE_WHITELIST = GetControlTypeWhitelist(dataType),
+                    IS_VISIBLE = true,
+                    IS_EDITABLE = true,
+                    IS_VALIDATION_RULE = false,
+                    LANG_CODES = new(),
+                    EDITOR_WIDTH = GetDefaultEditorWidth(dataType)
+                });
+            }
+        }
+
+        return result;
     }
 
-    public FormMaster GetFormById(int id)
+    /// <summary>
+    /// 儲存基本欄位設定(FORM_FIELD_CONFIG)
+    /// </summary>
+    /// <param name="model"></param>
+    public void UpdateField(FormFieldViewModel model)
     {
-        return _con.QueryFirstOrDefault<FormMaster>("SELECT * FROM FormMaster WHERE FormId = @id", new { id });
+        const string selectSql = @"
+        SELECT ID 
+        FROM FORM_FIELD_CONFIG 
+        WHERE TABLE_NAME = @TableName AND COLUMN_NAME = @ColumnName";
+
+        var existingId = _con.QueryFirstOrDefault<Guid?>(selectSql, new { model.TableName, ColumnName = model.COLUMN_NAME });
+
+        if (existingId.HasValue)
+        {
+            // 更新
+            const string updateSql = @"
+            UPDATE FORM_FIELD_CONFIG SET
+                CONTROL_TYPE = @CONTROL_TYPE,
+                IS_VISIBLE = @IS_VISIBLE,
+                IS_EDITABLE = @IS_EDITABLE,
+                COLUMN_SPAN = @EDITOR_WIDTH,
+                DEFAULT_VALUE = @DEFAULT_VALUE
+            WHERE TABLE_NAME = @TableName AND COLUMN_NAME = @COLUMN_NAME AND ID = @ID";
+
+            _con.Execute(updateSql, new
+            {
+                model.ID,  // 使用來自 model 的原始 ID
+                model.TableName,
+                model.COLUMN_NAME,
+                model.CONTROL_TYPE,
+                model.IS_VISIBLE,
+                model.IS_EDITABLE,
+                model.EDITOR_WIDTH,
+                model.DEFAULT_VALUE
+            });
+        }
+        else
+        {
+            const string insertSql = @"
+            INSERT INTO FORM_FIELD_CONFIG 
+                (ID, TABLE_NAME, COLUMN_NAME, CONTROL_TYPE, IS_VISIBLE, IS_EDITABLE, COLUMN_SPAN, DEFAULT_VALUE)
+            VALUES 
+                (@ID, @TableName, @COLUMN_NAME, @CONTROL_TYPE, @IS_VISIBLE, @IS_EDITABLE, @EDITOR_WIDTH, @DEFAULT_VALUE)";
+
+            _con.Execute(insertSql, new
+            {
+                model.ID,
+                model.TableName,
+                model.COLUMN_NAME,
+                model.CONTROL_TYPE,
+                model.IS_VISIBLE,
+                model.IS_EDITABLE,
+                model.EDITOR_WIDTH,
+                model.DEFAULT_VALUE
+            });
+        }
     }
 
-    public void CreateForm(FormMaster form)
+    public bool CheckFieldExists(Guid fieldId)
     {
-        string sql = @"
-            INSERT INTO FormMaster (FormName, Description, IsActive)
-            VALUES (@FormName, @Description, @IsActive);";
+        const string sql = @"SELECT COUNT(1) FROM FORM_FIELD_CONFIG WHERE ID = @fieldId";
+        var exists = _con.ExecuteScalar<int>(sql, new { fieldId }) > 0;
+        return exists;
+    }
+    
+    public List<FormFieldValidationRuleDto> GetValidationRulesByFieldId(Guid fieldId)
+    {
+        const string sql = @"
+        SELECT *
+        FROM FORM_FIELD_VALIDATION_RULE
+        WHERE FIELD_CONFIG_ID = @fieldId
+        ORDER BY VALIDATION_ORDER";
 
-        _con.Execute(sql, form);
+        return _con.Query<FormFieldValidationRuleDto>(sql, new { fieldId }).ToList();
     }
 
-    public void UpdateForm(FormMaster form)
+    public void InsertValidationRule(FormFieldValidationRuleDto model)
     {
-        string sql = "UPDATE FormMaster SET FormName = @FormName, Description = @Description WHERE FormId = @FormId";
-        _con.Execute(sql, form);
+        const string sql = @"
+        INSERT INTO FORM_FIELD_VALIDATION_RULE (
+            ID, FIELD_CONFIG_ID, VALIDATION_TYPE, VALIDATION_VALUE, 
+            MESSAGE_ZH, MESSAGE_EN, VALIDATION_ORDER
+        ) VALUES (
+            @ID, @FIELD_CONFIG_ID, @VALIDATION_TYPE, @VALIDATION_VALUE, 
+            @MESSAGE_ZH, @MESSAGE_EN, @VALIDATION_ORDER
+        )";
+        _con.Execute(sql, model);
     }
 
-    public List<FormField> GetFieldsByFormId(int formId)
+    public int GetNextValidationOrder(Guid fieldId)
     {
-        return _con.Query<FormField>("SELECT * FROM FormField WHERE FormId = @formId ORDER BY FieldOrder", new { formId }).ToList();
+        const string sql = @"SELECT ISNULL(MAX(VALIDATION_ORDER), 0) + 1 FROM FORM_FIELD_VALIDATION_RULE WHERE FIELD_CONFIG_ID = @fieldId";
+        return _con.ExecuteScalar<int>(sql, new { fieldId });
     }
 
-    public FormField GetFieldById(int fieldId)
+    
+    public bool SaveValidationRule(FormFieldValidationRuleDto rule)
     {
-        return _con.QueryFirstOrDefault<FormField>("SELECT * FROM FormField WHERE FieldId = @fieldId", new { fieldId });
+        const string sql = @"
+        UPDATE FORM_FIELD_VALIDATION_RULE SET
+            VALIDATION_TYPE = @VALIDATION_TYPE,
+            VALIDATION_VALUE = @VALIDATION_VALUE,
+            MESSAGE_ZH = @MESSAGE_ZH,
+            MESSAGE_EN = @MESSAGE_EN,
+            VALIDATION_ORDER = @VALIDATION_ORDER,
+            EDIT_TIME = GETDATE()
+        WHERE ID = @ID";
+
+        try
+        {
+            int affectedRows = _con.Execute(sql, rule);
+            return affectedRows > 0;
+        }
+        catch (Exception ex)
+        {
+            return false;
+        }
+    }
+    
+    private List<DbColumnInfo> GetTableSchema(string tableName)
+    {
+        const string sql = @"SELECT COLUMN_NAME, DATA_TYPE, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @TableName ORDER BY ORDINAL_POSITION";
+        return _con.Query<DbColumnInfo>(sql, new { TableName = tableName }).ToList();
     }
 
-    public void AddField(FormField field)
+    private Dictionary<string, FormFieldConfigDto> GetFieldConfigs(string tableName)
     {
-        string sql = @"
-            INSERT INTO FormField (FormId, FieldLabel, FieldKey, FieldType, IsRequired, DefaultValue, FieldOptions, FieldOrder, Placeholder, CssClass, ValidationRules)
-            VALUES (@FormId, @FieldLabel, @FieldKey, @FieldType, @IsRequired, @DefaultValue, @FieldOptions, @FieldOrder, @Placeholder, @CssClass, @ValidationRules);";
-
-        _con.Execute(sql, field);
+        const string sql = @"SELECT * FROM FORM_FIELD_CONFIG WHERE TABLE_NAME = @TableName";
+        return _con.Query<FormFieldConfigDto>(sql, new { TableName = tableName })
+                   .ToDictionary(x => x.COLUMN_NAME);
     }
 
-    public void UpdateField(FormField field)
+    private HashSet<Guid> GetRequiredFieldIds()
     {
-        string sql = @"
-            UPDATE FormField SET
-                FieldLabel = @FieldLabel,
-                FieldKey = @FieldKey,
-                FieldType = @FieldType,
-                IsRequired = @IsRequired,
-                DefaultValue = @DefaultValue,
-                FieldOptions = @FieldOptions,
-                FieldOrder = @FieldOrder,
-                Placeholder = @Placeholder,
-                CssClass = @CssClass,
-                ValidationRules = @ValidationRules
-            WHERE FieldId = @FieldId";
-
-        _con.Execute(sql, field);
+        const string sql = @"SELECT FIELD_CONFIG_ID FROM FORM_FIELD_VALIDATION_RULE";
+        return _con.Query<Guid>(sql).ToHashSet();
     }
 
-    public void DeleteField(int fieldId)
+    private Dictionary<Guid, List<string>> GetLangCodeLookup()
     {
-        _con.Execute("DELETE FROM FormField WHERE FieldId = @fieldId", new { fieldId });
+        const string sql = @"SELECT FIELD_CONFIG_ID, LANG_CODE FROM FORM_FIELD_LANG";
+        return _con.Query(sql)
+                   .GroupBy(x => (Guid)x.FIELD_CONFIG_ID)
+                   .ToDictionary(g => g.Key, g => g.Select(x => (string)x.LANG_CODE).ToList());
     }
-
-    public void SaveResult(FormResult result)
+    
+    // 根據資料型別給預設控制元件類型
+    private static readonly Dictionary<string, List<FormControlType>> ControlTypeWhitelistMap = new(StringComparer.OrdinalIgnoreCase)
     {
-        string sql = @"
-            INSERT INTO FormResult (FormId, SubmitUser, ResultJson)
-            VALUES (@FormId, @SubmitUser, @ResultJson);";
+        { "datetime", new() { FormControlType.Date } },
+        { "bit", new() { FormControlType.Checkbox } },
+        { "int", new() { FormControlType.Number, FormControlType.Text, FormControlType.Dropdown } },
+        { "decimal", new() { FormControlType.Number, FormControlType.Text } },
+        { "nvarchar", new() { FormControlType.Number, FormControlType.Text, FormControlType.Dropdown } },
+        { "varchar", new() { FormControlType.Number, FormControlType.Text, FormControlType.Dropdown } },
+        { "default", new() { FormControlType.Text, FormControlType.Textarea } }
+    };
 
-        _con.Execute(sql, result);
+
+    private List<FormControlType> GetControlTypeWhitelist(string dataType)
+    {
+        var res = ControlTypeWhitelistMap.TryGetValue(dataType, out var list)
+            ? list
+            : ControlTypeWhitelistMap["default"];
+        return res;
+    }
+    
+    // 根據資料型別給預設欄位寬度（可調整）
+    private int GetDefaultEditorWidth(string dataType)
+    {
+        var res = dataType switch
+        {
+            "nvarchar" => 200,
+            "varchar" => 200,
+            "text" => 300,
+            "int" or "decimal" => 100,
+            _ => 150
+        };
+        return res;
     }
 }

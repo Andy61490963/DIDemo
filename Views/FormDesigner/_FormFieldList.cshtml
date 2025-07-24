@@ -1,0 +1,55 @@
+﻿@* 左側欄位清單（欄位、型別、編輯型別） *@
+
+@using ClassLibrary
+@model FormFieldListViewModel?
+
+<div style="max-height: 400px; overflow-y: auto;">
+    <table class="table table-bordered table-striped table-hover align-middle text-sm w-100" style="table-layout: fixed;">
+        <thead class="table-light" style="position: sticky; top: 0; z-index: 5;">
+        <tr>
+            <th style="min-width: 150px;">欄位名稱</th>
+            <th style="min-width: 100px;">型別</th>
+            <th style="min-width: 150px;">控制元件</th>
+            <th style="min-width: 60px;">顯示</th>
+            <th style="min-width: 60px;">編輯</th>
+            <th style="min-width: 60px;">限制條件</th>
+            <th style="min-width: 100px;">語系</th>
+            <th style="min-width: 80px;">寬度</th>
+        </tr>
+        </thead>
+        <tbody>
+        @if (Model != null && Model.Fields.Any())
+        {
+            foreach (var field in Model.Fields)
+            {
+                    <tr onclick="loadFieldSetting('@Model.TableName','@field.COLUMN_NAME')" style="cursor: pointer;">
+                    <td>@field.COLUMN_NAME</td>
+                    <td>@field.DATA_TYPE</td>
+                    <td>@(field.CONTROL_TYPE ?? FormControlType.Text)</td>
+                    <td>@Html.Raw(field.IS_VISIBLE ? "<i class=\"bi bi-check\"></i>" : "<i class=\"bi bi-x text-danger\"></i>")</td>
+                    <td>@Html.Raw(field.IS_EDITABLE ? "<i class=\"bi bi-check\"></i>" : "<i class=\"bi bi-x text-danger\"></i>")</td>
+                    <td>@Html.Raw(field.IS_VALIDATION_RULE ? "<i class=\"bi bi-check\"></i>" : "<i class=\"bi bi-x text-danger\"></i>")</td>
+
+                    <td>
+                        @if (field.LANG_CODES?.Any() == true)
+                        {
+                            <span>@string.Join(", ", field.LANG_CODES)</span>
+                        }
+                        else
+                        {
+                            <span class="text-muted">無</span>
+                        }
+                    </td>
+                    <td>@field.EDITOR_WIDTH</td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr>
+                <td colspan="9" class="text-center text-muted">尚無欄位資料或查無表名</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>

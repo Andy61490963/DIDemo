@@ -2,18 +2,18 @@
 
 namespace DynamicForm.Service.Interface;
 
-public interface IFormBuilderService
+public interface IFormDesignerService
 {
-    List<FormMaster> GetAllForms();
-    FormMaster GetFormById(int id);
-    void CreateForm(FormMaster form);
-    void UpdateForm(FormMaster form);
+    List<FormFieldViewModel> GetFieldsByTableName(string tableName);
 
-    List<FormField> GetFieldsByFormId(int formId);
-    FormField GetFieldById(int fieldId);
-    void AddField(FormField field);
-    void UpdateField(FormField field);
-    void DeleteField(int fieldId);
+    void UpdateField(FormFieldViewModel model);
 
-    void SaveResult(FormResult result);
+    bool CheckFieldExists(Guid fieldId);
+    
+    List<FormFieldValidationRuleDto> GetValidationRulesByFieldId(Guid fieldId);
+
+    void InsertValidationRule(FormFieldValidationRuleDto model);
+    int GetNextValidationOrder(Guid fieldId);
+
+    bool SaveValidationRule(FormFieldValidationRuleDto rule);
 }

@@ -4,102 +4,132 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DynamicForm.Controllers;
 
-public class FormBuilderController : Controller
+public class FormDesignerController : Controller
 {
-    private readonly IFormBuilderService _formBuilderService;
+    private readonly IFormDesignerService _formDesignerService;
 
-    public FormBuilderController(IFormBuilderService formBuilderService)
+    public FormDesignerController(IFormDesignerService formDesignerService)
     {
-        _formBuilderService = formBuilderService;
-    }
-
-    // 表單清單
-    public IActionResult Index()
-    {
-        var forms = _formBuilderService.GetAllForms();
-        return View(forms);
-    }
-
-    // 編輯/新增表單
-    [HttpGet]
-    public IActionResult Edit(int? id)
-    {
-        if (id.HasValue)
-        {
-            var form = _formBuilderService.GetFormById(id.Value);
-            var fields = _formBuilderService.GetFieldsByFormId(id.Value);
-            return View(new FormFillViewModel { Form = form, Fields = fields });
-        }
-        return View(new FormFillViewModel
-        {
-            Form = new FormMaster(),
-            Fields = new List<FormField>()
-        });
-    }
-
-    [HttpPost]
-    public IActionResult Edit(FormMaster form)
-    {
-        if (!ModelState.IsValid)
-            return View(new FormFillViewModel { Form = form });
-
-        if (form.FormId == 0)
-        {
-            _formBuilderService.CreateForm(form);
-            
-        }
-        else
-        {
-            _formBuilderService.UpdateForm(form);
-        }
-
-        return RedirectToAction("Index");
-    }
-
-    // 新增欄位
-    [HttpGet]
-    public IActionResult AddField(int formId)
-    {
-        return View(new FormField { FormId = formId });
-    }
-
-    [HttpPost]
-    public IActionResult AddField(FormField field)
-    {
-        if (!ModelState.IsValid)
-        {
-            return View(field);
-        }
-
-        _formBuilderService.AddField(field);
-        return RedirectToAction("Edit", new { id = field.FormId });
-    }
-
-    // 編輯欄位
-    [HttpGet]
-    public IActionResult EditField(int fieldId)
-    {
-        var field = _formBuilderService.GetFieldById(fieldId);
-        return View(field);
-    }
-
-    [HttpPost]
-    public IActionResult EditField(FormField field)
-    {
-        if (!ModelState.IsValid)
-            return View(field);
-
-        _formBuilderService.UpdateField(field);
-        return RedirectToAction("Edit", new { id = field.FormId });
-    }
-
-    // 刪除欄位
-    [HttpPost]
-    public IActionResult DeleteField(int fieldId)
-    {
-        var field = _formBuilderService.GetFieldById(fieldId);
-        _formBuilderService.DeleteField(fieldId);
-        return RedirectToAction("Edit", new { id = field.FormId });
+        _formDesignerService = formDesignerService;
     }
     
+    public IActionResult Index()
+    {
+        var model = new FormDesignerIndexViewModel
+        {
+            FormHeader = new FormHeaderViewModel(),
+            FormField = new FormFieldListViewModel()
+        };
+
+        return View(model);
+    }
+    
+    [HttpGet]
+    public IActionResult QueryFields(string tableName)
+    {
+        if (string.IsNullOrEmpty(tableName))
+        {
+            return BadRequest("Table name is required.");
+        }
+        
+        List<FormFieldViewModel> fields = _formDesignerService.GetFieldsByTableName(tableName);
+
+        var result = new FormFieldListViewModel
+        {
+            TableName = tableName,
+            Fields = fields
+        };
+
+        return PartialView("_FormFieldList", result);
+    }
+    
+    [HttpGet]
+    public IActionResult GetFieldSetting(string tableName, string columnName)
+    {
+        FormFieldViewModel? field = _formDesignerService.GetFieldsByTableName(tableName)
+                       .FirstOrDefault(x => x.COLUMN_NAME == columnName);
+
+        if (field == null)
+        {
+            return NotFound();
+        }
+
+        return PartialView("_FormFieldSetting", field);
+    }
+    
+    [HttpPost]
+    public IActionResult UpdateFieldSetting(FormFieldViewModel model)
+    {
+        if (string.IsNullOrEmpty(model.TableName) || string.IsNullOrEmpty(model.COLUMN_NAME))
+        {
+            return BadRequest("TableName 與 ColumnName 為必填");
+        }
+
+        try
+        {
+            _formDesignerService.UpdateField(model);
+            return Json(new { success = true });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ex.Message);
+        }
+    }
+
+    [HttpGet]
+    public IActionResult CheckFieldExists(Guid fieldId)
+    {
+        if (fieldId == Guid.Empty)
+        {
+            return Json(false);
+        }
+
+        var exists = _formDesignerService.CheckFieldExists(fieldId);
+        return Json(exists);
+    }
+    
+    [HttpPost]
+    public IActionResult SettingRule(Guid fieldId)
+    {
+        if (fieldId == Guid.Empty)
+        {
+            return BadRequest("請先設定控制元件後再新增驗證條件。");
+        }
+        
+        List<FormFieldValidationRuleDto> rules = _formDesignerService.GetValidationRulesByFieldId(fieldId);
+        return PartialView("SettingRule/_SettingRuleModal", rules);
+    }
+ 
+    [HttpPost]
+    public IActionResult CreateEmptyValidationRule(Guid fieldConfigId,string VALIDATION_TYPE)
+    {
+        var controlType = CONTROL_TYPE; // 假設轉成 Enum 了
+        var allowedValidations = ValidationRulesMap.GetValidations(controlType);
+        ViewBag.ValidationTypeOptions = EnumExtensions.ToSelectList(allowedValidations);
+        
+        var newRule = new FormFieldValidationRuleDto
+        {
+            ID = Guid.NewGuid(),
+            FIELD_CONFIG_ID = fieldConfigId,
+            VALIDATION_TYPE = "",
+            VALIDATION_VALUE = "",
+            MESSAGE_ZH = "",
+            MESSAGE_EN = "",
+            VALIDATION_ORDER = _formDesignerService.GetNextValidationOrder(fieldConfigId)
+        };
+
+        _formDesignerService.InsertValidationRule(newRule);
+        List<FormFieldValidationRuleDto> rules = _formDesignerService.GetValidationRulesByFieldId(fieldConfigId);
+
+        return PartialView("SettingRule/_ValidationRuleRow", rules);
+    }
+
+    
+    [HttpPost]
+    public IActionResult SaveValidationRule([FromBody] FormFieldValidationRuleDto rule)
+    {
+        bool x = _formDesignerService.SaveValidationRule(rule);
+        return Json(new { success = true });
+    }
+
 }

@@ -1,0 +1,85 @@
+﻿@* 右側欄位詳細設定（validation、visible、required） *@
+
+@model FormFieldViewModel?
+@{
+    var isDisabled = Model == null;
+    var x = isDisabled ? "disabled" : "";
+}
+<form id="field-setting-form">
+<fieldset @(isDisabled ? "disabled" : "")>
+    <input type="hidden" asp-for="TableName" />
+    <input type="hidden" asp-for="ID" />
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label asp-for="COLUMN_NAME" class="form-label">欄位名稱</label>
+                <input asp-for="COLUMN_NAME" class="form-control" readonly />
+            </div>
+            <div class="col-md-6">
+                <label asp-for="DATA_TYPE" class="form-label">欄位類型</label>
+                <input asp-for="DATA_TYPE" class="form-control" readonly />
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="CONTROL_TYPE" class="form-label">控制元件</label>
+                <select asp-for="CONTROL_TYPE" class="form-select">
+                    <option value="">請選擇</option>
+                    @if (Model != null)
+                    {
+                        foreach (var option in Model.CONTROL_TYPE_WHITELIST)
+                        {
+                            <option value="@option" selected="@(Model.CONTROL_TYPE == option ? "selected" : null)">
+                                @option
+                            </option>
+                        }
+                    }
+                </select>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="DEFAULT_VALUE" class="form-label">預設值</label>
+                <input asp-for="DEFAULT_VALUE" class="form-control" />
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="EDITOR_WIDTH" class="form-label">欄位寬度 (1~12)</label>
+                <input asp-for="EDITOR_WIDTH" type="number" class="form-control" min="1" max="12" />
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">語系支援</label>
+                @if (Model?.LANG_CODES?.Any() == true)
+                {
+                    <div class="form-control bg-light">
+                        @string.Join(", ", Model.LANG_CODES)
+                    </div>
+                }
+                else
+                {
+                    <div class="form-control text-muted">尚無語系資料</div>
+                }
+            </div>
+            
+            <div class="col-md-4 d-flex align-items-center">
+                <div class="form-check">
+                    <input type="checkbox" asp-for="IS_VISIBLE" class="form-check-input" id="visibleCheck" />
+                    <label class="form-check-label" for="visibleCheck">是否顯示</label>
+                </div>
+            </div>
+            <div class="col-md-4 d-flex align-items-center">
+                <div class="form-check">
+                    <input type="checkbox" asp-for="IS_EDITABLE" class="form-check-input" id="editableCheck" />
+                    <label class="form-check-label" for="editableCheck">可編輯</label>
+                </div>
+            </div>
+            <div class="col-md-4 d-flex align-items-center">
+                <button type="button"
+                        class="btn btn-outline-primary btn-sm setting-rule-btn"
+                        data-id="@Model?.ID"
+                        @(Model == null ? "disabled" : "")>
+                    設定限制條件
+                </button>
+            </div>
+
+        </div>
+</fieldset>
+</form>

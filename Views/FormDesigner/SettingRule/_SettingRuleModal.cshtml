@@ -1,0 +1,21 @@
+﻿@model List<FormFieldValidationRuleDto>
+
+<table class="table table-bordered table-sm align-middle">
+    <thead class="table-light">
+        <tr>
+            <th>驗證類型</th>
+            <th>值</th>
+            <th>錯誤訊息（ZH）</th>
+            <th>錯誤訊息（EN）</th>
+            <th>順序</th>
+            <th>操作</th>
+        </tr>
+    </thead>
+    <tbody id="validationRuleRow">
+        @await Html.PartialAsync("SettingRule/_ValidationRuleRow", Model)
+    </tbody>
+</table>
+
+<div class="text-end mt-2">
+    <button class="btn btn-success btn-sm btnAddRule">➕ 新增驗證</button>
+</div>

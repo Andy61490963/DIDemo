@@ -7,7 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 
 // Service
-builder.Services.AddScoped<IFormBuilderService, FormBuilderService>();
+builder.Services.AddScoped<IFormDesignerService, FormDesignerService>();
 
 builder.Services.AddScoped<SqlConnection, SqlConnection>(_ =>
 {
