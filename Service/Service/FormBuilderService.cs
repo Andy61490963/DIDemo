@@ -206,6 +206,20 @@ public class FormDesignerService : IFormDesignerService
             return false;
         }
     }
+
+    public bool DeleteValidationRule(Guid id)
+    {
+        const string sql = @"DELETE FROM FORM_FIELD_VALIDATION_RULE WHERE ID = @id";
+        try
+        {
+            int affectedRows = _con.Execute(sql, new { id });
+            return affectedRows > 0;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
     
     private List<DbColumnInfo> GetTableSchema(string tableName)
     {

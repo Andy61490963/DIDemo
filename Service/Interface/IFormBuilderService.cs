@@ -21,4 +21,6 @@ public interface IFormDesignerService
     FormControlType GetControlTypeByFieldId(Guid fieldId);
 
     bool SaveValidationRule(FormFieldValidationRuleDto rule);
+
+    bool DeleteValidationRule(Guid id);
 }
