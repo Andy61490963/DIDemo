@@ -147,4 +147,17 @@ public class FormDesignerController : Controller
         return Json(new { success = true });
     }
 
+    [HttpPost]
+    public IActionResult DeleteValidationRule(Guid id, Guid fieldConfigId)
+    {
+        _formDesignerService.DeleteValidationRule(id);
+
+        var controlType = _formDesignerService.GetControlTypeByFieldId(fieldConfigId);
+        var allowedValidations = ValidationRulesMap.GetValidations(controlType);
+        ViewBag.ValidationTypeOptions = EnumExtensions.ToSelectList(allowedValidations);
+
+        var rules = _formDesignerService.GetValidationRulesByFieldId(fieldConfigId);
+        return PartialView("SettingRule/_ValidationRuleRow", rules);
+    }
+
 }
