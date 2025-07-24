@@ -12,8 +12,19 @@ public static class EnumExtensions
             .Cast<TEnum>()
             .Select(e => new SelectListItem
             {
-                Value = Convert.ToInt32(e).ToString(),      
-                Text = GetDisplayName(e)                    
+                Value = Convert.ToInt32(e).ToString(),
+                Text = GetDisplayName(e)
+            })
+            .ToList();
+    }
+
+    public static List<SelectListItem> ToSelectList<TEnum>(IEnumerable<TEnum> values) where TEnum : Enum
+    {
+        return values
+            .Select(e => new SelectListItem
+            {
+                Value = Convert.ToInt32(e).ToString(),
+                Text = GetDisplayName(e)
             })
             .ToList();
     }

@@ -1,4 +1,5 @@
-﻿using DynamicForm.Models;
+using DynamicForm.Models;
+using ClassLibrary;
 
 namespace DynamicForm.Service.Interface;
 
@@ -14,6 +15,8 @@ public interface IFormDesignerService
 
     void InsertValidationRule(FormFieldValidationRuleDto model);
     int GetNextValidationOrder(Guid fieldId);
+
+    FormControlType GetControlTypeByFieldId(Guid fieldId);
 
     bool SaveValidationRule(FormFieldValidationRuleDto rule);
 }

@@ -1,5 +1,9 @@
 ﻿@using ClassLibrary
+@using Microsoft.AspNetCore.Mvc.Rendering
 @model List<FormFieldValidationRuleDto>
+@{
+    var options = ViewData["ValidationTypeOptions"] as List<SelectListItem> ?? EnumExtensions.ToSelectList<ValidationType>();
+}
 
 @if (Model.Any())
 {
@@ -10,7 +14,7 @@
                 <select class="form-select form-select-sm validation-type"
                         name="VALIDATION_TYPE"
                         disabled>
-                    @foreach (var item in EnumExtensions.ToSelectList<ValidationType>())
+                    @foreach (var item in options)
                     {
                         var selected = item.Value == rule.VALIDATION_TYPE ? "selected" : null;
                         <option value="@item.Value" selected="@selected">@item.Text</option>

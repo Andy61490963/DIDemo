@@ -1,5 +1,6 @@
 ﻿using DynamicForm.Models;
 using DynamicForm.Service.Interface;
+using ClassLibrary;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DynamicForm.Controllers;
@@ -95,7 +96,11 @@ public class FormDesignerController : Controller
         {
             return BadRequest("請先設定控制元件後再新增驗證條件。");
         }
-        
+
+        var controlType = _formDesignerService.GetControlTypeByFieldId(fieldId);
+        var allowedValidations = ValidationRulesMap.GetValidations(controlType);
+        ViewBag.ValidationTypeOptions = EnumExtensions.ToSelectList(allowedValidations);
+
         List<FormFieldValidationRuleDto> rules = _formDesignerService.GetValidationRulesByFieldId(fieldId);
         return PartialView("SettingRule/_SettingRuleModal", rules);
     }
@@ -103,7 +108,7 @@ public class FormDesignerController : Controller
     [HttpPost]
     public IActionResult CreateEmptyValidationRule(Guid fieldConfigId,string VALIDATION_TYPE)
     {
-        var controlType = CONTROL_TYPE; // 假設轉成 Enum 了
+        var controlType = _formDesignerService.GetControlTypeByFieldId(fieldConfigId);
         var allowedValidations = ValidationRulesMap.GetValidations(controlType);
         ViewBag.ValidationTypeOptions = EnumExtensions.ToSelectList(allowedValidations);
         
