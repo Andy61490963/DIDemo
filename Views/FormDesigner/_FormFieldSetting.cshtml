@@ -79,6 +79,14 @@
                     設定限制條件
                 </button>
             </div>
+            <div class="col-md-4 d-flex align-items-center">
+                <button type="button"
+                        class="btn btn-outline-secondary btn-sm setting-dropdown-btn @(Model?.CONTROL_TYPE == FormControlType.Dropdown ? "" : "d-none")"
+                        data-id="@Model?.ID"
+                        @(Model == null ? "disabled" : "")>
+                    下拉選單設定
+                </button>
+            </div>
 
         </div>
 </fieldset>
