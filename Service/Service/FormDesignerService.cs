@@ -3,6 +3,7 @@ using Dapper;
 using DynamicForm.Models;
 using DynamicForm.Service.Interface;
 using DynamicForm.Helper;
+using System.Collections.Generic;
 using Microsoft.Data.SqlClient;
 
 namespace DynamicForm.Service.Service;
@@ -192,6 +193,53 @@ public class FormDesignerService : IFormDesignerService
         var res = _con.Execute(Sql.DeleteValidationRule, new { id }) > 0;
         return res;
     }
+
+    public DropdownSettingDto GetDropdownSetting(Guid fieldId)
+    {
+        var rule = _con.QuerySingleOrDefault<FormFieldValidationRuleDto>(Sql.GetDropdownByFieldId, new { fieldId });
+        if (rule == null)
+        {
+            return new DropdownSettingDto();
+        }
+
+        var options = _con.Query<FormFieldValidationRuleDropdownDto>(Sql.GetDropdownOptions, new { ruleId = rule.ID }).ToList();
+
+        return new DropdownSettingDto
+        {
+            IsUseSql = rule.IS_USE_DROPDOWN_SQL,
+            DropdownSql = rule.DROPDOWN_SQL ?? string.Empty,
+            Options = options
+        };
+    }
+
+    public void SaveDropdownSql(Guid fieldId, string sql)
+    {
+        var rule = _con.QuerySingleOrDefault<FormFieldValidationRuleDto>(Sql.GetDropdownByFieldId, new { fieldId });
+        if (rule == null) return;
+
+        _con.Execute(Sql.UpdateDropdownSql, new
+        {
+            id = rule.ID,
+            sql,
+        });
+
+        _con.Execute(Sql.DeleteDropdownOptions, new { ruleId = rule.ID });
+    }
+
+    public void SaveDropdownOptions(Guid fieldId, IEnumerable<string> options)
+    {
+        var rule = _con.QuerySingleOrDefault<FormFieldValidationRuleDto>(Sql.GetDropdownByFieldId, new { fieldId });
+        if (rule == null) return;
+
+        _con.Execute(Sql.UpdateDropdownUseOptions, new { id = rule.ID });
+
+        _con.Execute(Sql.DeleteDropdownOptions, new { ruleId = rule.ID });
+
+        foreach (var text in options)
+        {
+            _con.Execute(Sql.InsertDropdownOption, new { ruleId = rule.ID, text });
+        }
+    }
     #endregion
 
     #region Private Helpers
@@ -312,9 +360,34 @@ UPDATE FORM_FIELD_VALIDATION_RULE SET
 WHERE ID = @ID";
         public const string DeleteValidationRule     = @"/**/
 DELETE FROM FORM_FIELD_VALIDATION_RULE WHERE ID = @id";
-        
+
         public const string GetRequiredFieldIds      = @"/**/
 SELECT FIELD_CONFIG_ID FROM FORM_FIELD_VALIDATION_RULE";
+
+        public const string GetDropdownByFieldId = @"/**/
+SELECT * FROM FORM_FIELD_VALIDATION_RULE WHERE FIELD_CONFIG_ID = @fieldId";
+
+        public const string GetDropdownOptions = @"/**/
+SELECT * FROM FORM_FIELD_VALIDATION_RULE_DROPDOWN WHERE FORM_FIELD_VALIDATION_RULE_ID = @ruleId";
+
+        public const string UpdateDropdownSql = @"/**/
+UPDATE FORM_FIELD_VALIDATION_RULE
+SET IS_USE_DROPDOWN_SQL = 1, DROPDOWN_SQL = @sql, EDIT_TIME = GETDATE()
+WHERE ID = @id";
+
+        public const string UpdateDropdownUseOptions = @"/**/
+UPDATE FORM_FIELD_VALIDATION_RULE
+SET IS_USE_DROPDOWN_SQL = 0, DROPDOWN_SQL = NULL, EDIT_TIME = GETDATE()
+WHERE ID = @id";
+
+        public const string InsertDropdownOption = @"/**/
+INSERT INTO FORM_FIELD_VALIDATION_RULE_DROPDOWN
+    (FORM_FIELD_VALIDATION_RULE_ID, OPTION_TEXT)
+VALUES (@ruleId, @text)";
+
+        public const string DeleteDropdownOptions = @"/**/
+DELETE FROM FORM_FIELD_VALIDATION_RULE_DROPDOWN
+WHERE FORM_FIELD_VALIDATION_RULE_ID = @ruleId";
         
     }
     #endregion
