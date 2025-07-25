@@ -19,10 +19,7 @@
     <ul class="list-group mt-2" id="optionList">
         @foreach (var opt in Model.Options)
         {
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-                <input type="text" class="form-control option-text" value="@opt.OPTION_TEXT" />
-                <button type="button" class="btn btn-sm btn-outline-danger ms-2 remove-opt">刪除</button>
-            </li>
+            <partial name="Dropdown/_DropdownOptionItem" model="opt" />
         }
     </ul>
     <button type="button" class="btn btn-sm btn-success mt-2" id="addOption">新增選項</button>
@@ -30,51 +27,3 @@
 <div class="text-end">
     <button type="button" class="btn btn-primary" id="saveDropdown">儲存</button>
 </div>
-
-<script>
-    $(function () {
-        function toggleMode() {
-            const mode = $('input[name="mode"]:checked').val();
-            if (mode === 'sql') {
-                $('#dropdownSql').prop('disabled', false);
-                $('#optionList').find('input').prop('disabled', true);
-                $('#addOption').prop('disabled', true);
-            } else {
-                $('#dropdownSql').prop('disabled', true);
-                $('#optionList').find('input').prop('disabled', false);
-                $('#addOption').prop('disabled', false);
-            }
-        }
-        toggleMode();
-        $('input[name="mode"]').change(toggleMode);
-
-        $('#addOption').click(function(){
-            $('#optionList').append('<li class="list-group-item d-flex justify-content-between align-items-center"><input type="text" class="form-control option-text" /><button type="button" class="btn btn-sm btn-outline-danger ms-2 remove-opt">刪除</button></li>');
-        });
-        $(document).on('click','.remove-opt', function(){
-            $(this).closest('li').remove();
-        });
-
-        $('#saveDropdown').click(function(){
-            const mode = $('input[name="mode"]:checked').val();
-            const fieldId = $('#ID').val();
-            if (mode === 'sql') {
-                const sql = $('#dropdownSql').val();
-                $.post('/FormDesigner/SaveDropdownSql', { fieldId: fieldId, sql: sql })
-                    .done(() => $('.closeModal').click());
-            } else {
-                const opts = [];
-                $('#optionList .option-text').each(function(){
-                    const val = $(this).val();
-                    if (val) opts.push(val);
-                });
-                $.ajax({
-                    url: '/FormDesigner/SaveDropdownOptions',
-                    type: 'POST',
-                    contentType: 'application/json',
-                    data: JSON.stringify({ fieldId: fieldId, options: opts })
-                }).done(() => $('.closeModal').click());
-            }
-        });
-    });
-</script>

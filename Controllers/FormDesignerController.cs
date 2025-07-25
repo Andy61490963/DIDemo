@@ -131,6 +131,13 @@ public class FormDesignerController : Controller
         return Json(new { success = true });
     }
 
+    [HttpGet]
+    public IActionResult NewDropdownOption()
+    {
+        var opt = new FormFieldValidationRuleDropdownDto();
+        return PartialView("Dropdown/_DropdownOptionItem", opt);
+    }
+
     public class DropdownOptionPostModel
     {
         public Guid FieldId { get; set; }
