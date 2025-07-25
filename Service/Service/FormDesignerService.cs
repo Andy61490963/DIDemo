@@ -83,6 +83,44 @@ public class FormDesignerService : IFormDesignerService
     }
 
     /// <summary>
+    /// 搜尋表格時，如設定檔不存在則先寫入預設欄位設定。
+    /// </summary>
+    /// <param name="tableName">資料表名稱</param>
+    /// <returns>包含欄位設定的 ViewModel</returns>
+    public FormFieldListViewModel EnsureFieldsSaved(string tableName)
+    {
+        var columns = GetTableSchema(tableName);
+        if (columns.Count == 0) return new();
+
+        var configs = GetFieldConfigs(tableName);
+        var masterId = configs.Values.FirstOrDefault()?.FORM_FIELD_Master_ID
+                       ?? GetOrCreateFormMasterId(Guid.Empty);
+
+        foreach (var col in columns)
+        {
+            if (!configs.ContainsKey(col.COLUMN_NAME))
+            {
+                var vm = new FormFieldViewModel
+                {
+                    ID = Guid.NewGuid(),
+                    FORM_FIELD_Master_ID = masterId,
+                    TableName = tableName,
+                    COLUMN_NAME = col.COLUMN_NAME,
+                    DATA_TYPE = col.DATA_TYPE,
+                    IS_VISIBLE = true,
+                    IS_EDITABLE = true,
+                    EDITOR_WIDTH = FormFieldHelper.GetDefaultEditorWidth(col.DATA_TYPE),
+                    DEFAULT_VALUE = string.Empty
+                };
+
+                UpsertField(vm, masterId);
+            }
+        }
+
+        return GetFieldsByTableName(tableName);
+    }
+
+    /// <summary>
     /// 新增或更新欄位設定，若已存在則更新，否則新增。
     /// </summary>
     /// <param name="model">表單欄位的 ViewModel</param>

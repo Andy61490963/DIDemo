@@ -30,8 +30,8 @@ public class FormDesignerController : Controller
     [HttpGet]
     public IActionResult QueryFields(string tableName)
     {
-        FormFieldListViewModel result = _formDesignerService.GetFieldsByTableName(tableName);
-        
+        FormFieldListViewModel result = _formDesignerService.EnsureFieldsSaved(tableName);
+
         return PartialView("_FormFieldList", result);
     }
     
