@@ -21,7 +21,7 @@ public class FormDesignerService : IFormDesignerService
     #region Public API
     public Guid GetOrCreateFormMasterId(Guid id)
     {
-        var sql = @"SELECT ID FROM FORM_FIELD_Master WHERE FORM_NAME = @id";
+        var sql = @"SELECT ID FROM FORM_FIELD_Master WHERE ID = @id";
         var res = _con.QueryFirstOrDefault<Guid?>(sql, new { id });
 
         if (res.HasValue)
@@ -48,7 +48,7 @@ public class FormDesignerService : IFormDesignerService
         var configs= GetFieldConfigs(tableName);
         var requiredFieldIds= GetRequiredFieldIds();
         var langLookup= GetLangCodeLookup();
-            
+        
         var res = columns.Select(col =>
         {
             var hasConfig = configs.TryGetValue(col.COLUMN_NAME, out var cfg);
@@ -58,6 +58,7 @@ public class FormDesignerService : IFormDesignerService
             return new FormFieldViewModel
             {
                 ID                     = fieldId,
+                FORM_FIELD_Master_ID   = cfg?.FORM_FIELD_Master_ID ?? Guid.Empty,
                 TableName              = tableName,
                 COLUMN_NAME            = col.COLUMN_NAME,
                 DATA_TYPE              = dataType,
