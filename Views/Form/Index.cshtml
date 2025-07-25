@@ -1,77 +1,229 @@
-﻿@using ClassLibrary
+﻿@* @using ClassLibrary *@
+@* @model FormSubmissionViewModel *@
+@* *@
+@* <form asp-action="SubmitForm" method="post" id="dynamic-form" class="container mt-4"> *@
+@*     <input type="hidden" name="FormName" value="@Model.FormName" /> *@
+@* *@
+@*     <div class="row gx-3 gy-4 d-flex flex-wrap align-items-start"> *@
+@*         @foreach (var field in Model.Fields) *@
+@*         { *@
+@*             if (!field.IS_VISIBLE) { continue; } *@
+@* *@
+@*             var colSize = field.COLUMN_SPAN switch *@
+@*             { *@
+@*                 <= 2 => "col-md-2", *@
+@*                 <= 4 => "col-md-3", *@
+@*                 <= 6 => "col-md-4", *@
+@*                 <= 8 => "col-md-6", *@
+@*                 <= 10 => "col-md-8", *@
+@*                 _ => "col-md-4" *@
+@*             }; *@
+@* *@
+@*             var isRequired = field.ValidationRules.Any(r => r.VALIDATION_TYPE == "required"); *@
+@*             var maxLength = field.ValidationRules.FirstOrDefault(r => r.VALIDATION_TYPE == "max")?.VALIDATION_VALUE; *@
+@*             var controlType = field.CONTROL_TYPE; *@
+@*              *@
+@*             <div class="@colSize"> *@
+@*                 <div class="mb-2"> *@
+@*                     <label class="form-label fw-bold"> *@
+@*                         @if (isRequired) *@
+@*                         { *@
+@*                             <span class="text-danger">*</span> *@
+@*                         } *@
+@*                     </label> *@
+@* *@
+@*                     @if (controlType == FormControlType.Textarea) *@
+@*                     { *@
+@*                         <div class="text-bg-danger">@field.COLUMN_NAME</div> *@
+@*                         <textarea name="UserInputs[@field.FieldConfigId]" *@
+@*                                   class="form-control" *@
+@*                                   maxlength="@maxLength" *@
+@*                                   @(field.IS_EDITABLE ? "" : "disabled")>@(field.DefaultValue)</textarea> *@
+@*                     } *@
+@*                     else if (controlType == FormControlType.Dropdown) *@
+@*                     { *@
+@*                         <div class="text-bg-danger">@field.COLUMN_NAME</div> *@
+@*                         <select name="UserInputs[@field]" *@
+@*                                 class="form-select dynamic-dropdown" *@
+@*                                 data-id="@field" *@
+@*                                 data-usesql="@field.ISUSESQL.ToString().ToLower()" *@
+@*                                 data-sql="@Html.Raw(field.DROPDOWNSQL)" *@
+@*                                 @(field.IS_EDITABLE ? "" : "disabled")> *@
+@*                             <option value="">-- 請選擇 --</option> *@
+@*                             @foreach (var opt in field.OptionList ?? new()) *@
+@*                             { *@
+@*                                 <option value="@opt.ID">@opt.OPTION_TEXT</option> *@
+@*                             } *@
+@*                         </select> *@
+@*                     } *@
+@*                     else if (controlType == FormControlType.Checkbox) *@
+@*                     { *@
+@*                         <div class="text-bg-danger">@field.COLUMN_NAME</div> *@
+@*                         <div class="form-check mt-1"> *@
+@*                             <input type="checkbox" *@
+@*                                    name="UserInputs[@field.FieldConfigId]" *@
+@*                                    value="true" *@
+@*                                    class="form-check-input" *@
+@*                                    @(field.IS_EDITABLE ? "" : "disabled") /> *@
+@*                             <label class="form-check-label">勾選</label> *@
+@*                         </div> *@
+@*                     } *@
+@*                     else *@
+@*                     { *@
+@*                         <div class="text-bg-danger">@field.COLUMN_NAME</div> *@
+@*                         <input type="text" *@
+@*                                name="UserInputs[@field.FieldConfigId]" *@
+@*                                class="form-control" *@
+@*                                maxlength="@maxLength" *@
+@*                                value="@(field.DefaultValue)" *@
+@*                                @(isRequired ? "required" : "") *@
+@*                                @(field.IS_EDITABLE ? "" : "disabled") /> *@
+@*                     } *@
+@*                 </div> *@
+@*             </div> *@
+@*         } *@
+@*     </div> *@
+@* *@
+@*     <div class="mt-4"> *@
+@*         <button type="submit" class="btn btn-primary px-4 py-2"> *@
+@*             <i class="bi bi-send-fill me-1"></i> 送出表單 *@
+@*         </button> *@
+@*     </div> *@
+@* </form> *@
+
+@using ClassLibrary
 @model FormSubmissionViewModel
 
-<form asp-action="SubmitForm" method="post" id="dynamic-form">
+<form asp-action="SubmitForm" method="post" id="dynamic-form" class="container mt-4">
     <input type="hidden" name="FormName" value="@Model.FormName" />
 
-    <div class="grid grid-cols-12 gap-4">
+    <div class="row g-4">
         @foreach (var field in Model.Fields)
         {
             if (!field.IS_VISIBLE) { continue; }
 
-            var spanClass = $"col-span-{field.COLUMN_SPAN}";
-            <div class="@spanClass">
-                @if (field.IS_SECTION_START)
+            var colSize = field.COLUMN_SPAN switch
+            {
+                <= 2 => "col-md-2",
+                <= 4 => "col-md-3",
+                <= 6 => "col-md-4",
+                <= 8 => "col-md-6",
+                <= 10 => "col-md-8",
+                _ => "col-md-4"
+            };
+
+            var isRequired = field.ValidationRules.Any(r => r.VALIDATION_TYPE == ValidationType.Required);
+            var maxLength = field.ValidationRules.FirstOrDefault(r => r.VALIDATION_TYPE == ValidationType.Max)?.VALIDATION_VALUE;
+            var controlType = field.CONTROL_TYPE;
+            
+            <div class="@colSize">
+                @if (controlType == FormControlType.Textarea)
                 {
-                    <div class="font-bold text-lg border-b pb-2 mb-2 mt-4">@field.Label</div>
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-body py-3 px-4">
+                            <!-- 放每個欄位的標籤 + 控制元件 -->
+                            <div class="row align-items-center">
+                                <!-- 左側標籤區 -->
+                                <div class="col-md-4 text-md-end text-muted fw-semibold">
+                                    @if (isRequired)
+                                    {
+                                        <span class="text-danger">*</span>
+                                    }
+                                    @field.COLUMN_NAME
+                                </div>
+
+                                <!-- 右側輸入區 -->
+                                <div class="col-md-8">
+                                    <textarea name="UserInputs[@field.FieldConfigId]"
+					                          class="form-control"
+					                          maxlength="@maxLength"
+					                          @(field.IS_EDITABLE ? "" : "disabled")>@(field.DefaultValue)</textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 }
-
-                <label class="block text-sm font-medium text-gray-700">@field.Label</label>
-
-                @switch ((FormControlType)field.CONTROL_TYPE)
+                else if (controlType == FormControlType.Dropdown)
                 {
-                    case FormControlType.Text:
-                        <input name="Fields[@field.FieldConfigId]" value="@field.UserValue"
-                               placeholder="@field.Placeholder"
-                               class="mt-1 block w-full rounded border-gray-300"
-                               @(field.IS_EDITABLE ? "" : "readonly") />
-                        break;
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-body py-3 px-4">
+                            <!-- 放每個欄位的標籤 + 控制元件 -->
+                            <div class="row align-items-center">
+                                <!-- 左側標籤區 -->
+                                <div class="col-md-4 text-md-end text-muted fw-semibold">
+                                    @if (isRequired)
+                                    {
+                                        <span class="text-danger">*</span>
+                                    }
+                                    @field.COLUMN_NAME
+                                </div>
 
-                    case FormControlType.Textarea:
-                        <textarea name="Fields[@field.FieldConfigId]"
-                                  placeholder="@field.Placeholder"
-                                  class="mt-1 block w-full rounded border-gray-300"
-                                  @(field.IS_EDITABLE ? "" : "readonly")>@field.UserValue</textarea>
-                        break;
-
-                    case FormControlType.Dropdown:
-                        <select name="Fields[@field.FieldConfigId]" class="mt-1 block w-full rounded border-gray-300"
-                                @(field.IS_EDITABLE ? "" : "disabled")>
-                            <option value="">-- 請選擇 --</option>
-                            @foreach (var opt in field.OptionList ?? new())
-                            {
-                                <option value="">
-                                    
-                                </option>
-                            }
-                        </select>
-                        break;
-
-                    case FormControlType.Checkbox:
-                        <input type="checkbox" name="Fields[@field.FieldConfigId]" value="true"
-                               @(field.UserValue == "true" ? "checked" : "")
+                                <!-- 右側輸入區 -->
+                                <div class="col-md-8">
+                                    <select name="UserInputs[@field.FieldConfigId]"
+                                            class="form-select dynamic-dropdown"
+                                            data-id="@field.FieldConfigId"
+                                            data-usesql="@field.ISUSESQL.ToString().ToLower()"
+                                            data-sql="@Html.Raw(field.DROPDOWNSQL)"
+                                            @(field.IS_EDITABLE ? "" : "disabled")>
+                                        <option value="">-- 請選擇 --</option>
+                                        @foreach (var opt in field.OptionList ?? new())
+                                        {
+                                            <option value="@opt.ID">@opt.OPTION_TEXT</option>
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+                else if (controlType == FormControlType.Checkbox)
+                {
+                    <div class="form-check mt-1">
+                        <input type="checkbox"
+                               name="UserInputs[@field.FieldConfigId]"
+                               value="true"
+                               class="form-check-input"
                                @(field.IS_EDITABLE ? "" : "disabled") />
-                        break;
-
-                    default:
-                        <input name="Fields[@field.FieldConfigId]" value="@field.UserValue"
-                               placeholder="@field.Placeholder"
-                               class="mt-1 block w-full rounded border-gray-300"
-                               @(field.IS_EDITABLE ? "" : "readonly") />
-                        break;
+                        <label class="form-check-label">啟用</label>
+                    </div>
                 }
-
-                @if (!string.IsNullOrEmpty(field.HelpText))
+                else
                 {
-                    <p class="text-xs text-gray-500 mt-1">@field.HelpText</p>
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-body py-3 px-4">
+                            <!-- 放每個欄位的標籤 + 控制元件 -->
+                            <div class="row align-items-center">
+                                <!-- 左側標籤區 -->
+                                <div class="col-md-4 text-md-end text-muted fw-semibold">
+                                    @if (isRequired)
+                                    {
+                                        <span class="text-danger">*</span>
+                                    }
+                                    @field.COLUMN_NAME
+                                </div>
+
+                                <!-- 右側輸入區 -->
+                                <div class="col-md-8">
+                                    <input type="text"
+                                           name="UserInputs[@field.FieldConfigId]"
+                                           class="form-control"
+                                           maxlength="@maxLength"
+                                           value="@(field.DefaultValue)"
+                                           @(isRequired ? "required" : "")
+                                           @(field.IS_EDITABLE ? "" : "disabled") />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 }
             </div>
         }
     </div>
 
-    <div class="mt-6">
-        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded">
-            送出表單
+    <div class="mt-5 text-center">
+        <button type="submit" class="btn btn-primary px-5 py-2 fs-5 shadow-sm">
+            <i class="bi bi-send-fill me-2"></i> 送出表單
         </button>
     </div>
 </form>

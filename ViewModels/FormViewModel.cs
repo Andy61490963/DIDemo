@@ -1,4 +1,6 @@
-﻿namespace DynamicForm.Models;
+﻿using ClassLibrary;
+
+namespace DynamicForm.Models;
 
 public class FormSubmissionViewModel
 {
@@ -10,15 +12,16 @@ public class FormFieldInputViewModel
 {
     public Guid FieldConfigId { get; set; }
     public string COLUMN_NAME { get; set; }
-    public int CONTROL_TYPE { get; set; } // input / select / textarea ...
-    public string Label { get; set; }
-    public string Placeholder { get; set; }
-    public string HelpText { get; set; }
+    public FormControlType CONTROL_TYPE { get; set; }
+    public string? DefaultValue { get; set; }
     public bool IS_VISIBLE { get; set; }
     public bool IS_EDITABLE { get; set; }
-    public int COLUMN_SPAN { get; set; } = 12;
+    public int? COLUMN_SPAN { get; set; }
     public bool IS_SECTION_START { get; set; }
-    public string? UserValue { get; set; }
-    public List<string>? OptionList { get; set; } // for select
-    public List<FormFieldValidationRuleDto> ValidationRules { get; set; }
+
+    public List<FormFieldValidationRuleDto> ValidationRules { get; set; } = new();
+    
+    public bool ISUSESQL { get; set; }
+    public string DROPDOWNSQL { get; set; } = string.Empty;
+    public List<FORM_FIELD_DROPDOWN_OPTIONS> OptionList { get; set; } = new();
 }

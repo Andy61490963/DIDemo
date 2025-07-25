@@ -1,29 +1,45 @@
-@model DropdownSettingDto
+@model DropDownViewModel
 
-<div class="mb-3">
-    <div class="form-check">
-        <input class="form-check-input" type="radio" name="mode" id="modeSql" value="sql" @(Model.IsUseSql ? "checked" : "")>
-        <label class="form-check-label" for="modeSql">
-            使用 SQL 取得選項
-        </label>
+<div id="dropdownModal"
+     data-field-id="@Model.FORM_FIELD_CONFIG_ID"
+     data-dropdown-id="@Model.ID">
+    <div class="mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="mode" id="modeSql" value="sql" @(Model.ISUSESQL ? "checked" : "")>
+                    <label class="form-check-label fw-bold" for="modeSql">
+                        使用 SQL 取得選項
+                    </label>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="validateSqlBtn">
+                    <i class="bi bi-check-circle"></i> 驗證 SQL
+                </button>
+            </div>
+            <div class="card-body bg-white">
+                <textarea class="form-control" id="dropdownSql" rows="4" @(Model.ISUSESQL ? "" : "disabled")>@Model.DROPDOWNSQL</textarea>
+                <div id="validateSqlResultContainer" class="mt-2 small">
+                </div>
+            </div>
+        </div>
     </div>
-    <textarea class="form-control mt-2" id="dropdownSql" rows="3" @(Model.IsUseSql ? "" : "disabled")>@Model.DropdownSql</textarea>
-</div>
-<div class="mb-3">
-    <div class="form-check">
-        <input class="form-check-input" type="radio" name="mode" id="modeManual" value="manual" @(Model.IsUseSql ? "" : "checked")>
-        <label class="form-check-label" for="modeManual">
-            手動輸入選項
-        </label>
+
+    <div class="mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="mode" id="modeManual" value="manual" @(Model.ISUSESQL ? "" : "checked")>
+                    <label class="form-check-label fw-bold" for="modeManual">
+                        手動輸入選項
+                    </label>
+                </div>
+            </div>
+            <div class="card-body bg-white">
+                <ul class="list-group dropdownOptionItem" id="optionList">
+                    <partial name="Dropdown/_DropdownOptionItem" model="Model.OPTION_TEXT"/>
+                </ul>
+                <button type="button" class="btn btn-sm btn-success mt-3" id="addOption">新增選項</button>
+            </div>
+        </div>
     </div>
-    <ul class="list-group mt-2" id="optionList">
-        @foreach (var opt in Model.Options)
-        {
-            <partial name="Dropdown/_DropdownOptionItem" model="opt" />
-        }
-    </ul>
-    <button type="button" class="btn btn-sm btn-success mt-2" id="addOption">新增選項</button>
-</div>
-<div class="text-end">
-    <button type="button" class="btn btn-primary" id="saveDropdown">儲存</button>
 </div>

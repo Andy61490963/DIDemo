@@ -30,6 +30,10 @@ public class FormHeaderViewModel
 
 public class FormFieldListViewModel
 {
+    /// <summary>
+    /// FORM_FIELD_Master
+    /// </summary>
+    public Guid ID { get; set; }
     public string TableName { get; set; } = string.Empty;
     public List<FormFieldViewModel> Fields { get; set; } = new ();
 }
@@ -40,6 +44,11 @@ public class FormFieldViewModel
     /// PK
     /// </summary>
     public Guid ID { get; set; }
+    
+    /// <summary>
+    /// parent
+    /// </summary>
+    public Guid FORM_FIELD_Master_ID { get; set; }
     
     /// <summary>
     /// 表名稱

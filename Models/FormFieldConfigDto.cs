@@ -6,6 +6,8 @@ public class FormFieldConfigDto
 {
     public Guid ID { get; set; }
 
+    public Guid FORM_FIELD_Master_ID { get; set; }
+
     public string FORM_NAME { get; set; } = string.Empty;
 
     public string TABLE_NAME { get; set; } = string.Empty;
@@ -16,9 +18,9 @@ public class FormFieldConfigDto
 
     public string? DEFAULT_VALUE { get; set; }
 
-    public bool? IS_VISIBLE { get; set; }
+    public bool IS_VISIBLE { get; set; }
 
-    public bool? IS_EDITABLE { get; set; }
+    public bool IS_EDITABLE { get; set; }
 
     public int FIELD_ORDER { get; set; }
 
@@ -26,7 +28,7 @@ public class FormFieldConfigDto
 
     public int? COLUMN_SPAN { get; set; }
 
-    public bool? IS_SECTION_START { get; set; }
+    public bool IS_SECTION_START { get; set; }
 
     public string? CREATE_USER { get; set; }
 

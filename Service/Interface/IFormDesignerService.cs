@@ -5,9 +5,10 @@ namespace DynamicForm.Service.Interface;
 
 public interface IFormDesignerService
 {
+    Guid GetOrCreateFormMasterId(Guid id);
     FormFieldListViewModel GetFieldsByTableName(string tableName);
 
-    void UpsertField(FormFieldViewModel model);
+    void UpsertField(FormFieldViewModel model, Guid formMasterId);
 
     bool CheckFieldExists(Guid fieldId);
     
@@ -26,7 +27,19 @@ public interface IFormDesignerService
     bool DeleteValidationRule(Guid id);
 
     // Dropdown option related
-    DropdownSettingDto GetDropdownSetting(Guid fieldId);
+    void EnsureDropdownCreated(Guid fieldId);
+    
+    DropDownViewModel GetDropdownSetting(Guid fieldId);
+
+    List<FORM_FIELD_DROPDOWN_OPTIONS> GetDropdownOptions(Guid dropDownId);
+    
     void SaveDropdownSql(Guid fieldId, string sql);
-    void SaveDropdownOptions(Guid fieldId, IEnumerable<string> options);
+    Guid SaveDropdownOption(Guid? id, Guid dropdownId, string optionText);
+
+    void DeleteDropdownOption(Guid optionId);
+
+    void SetDropdownMode(Guid dropdownId, bool isUseSql);
+
+    ValidateSqlResultViewModel ValidateDropdownSql(string sql);
+    // void NewDropdownOption(Guid dropdownId);
 }

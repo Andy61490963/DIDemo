@@ -5,5 +5,5 @@ namespace DynamicForm.Service.Interface;
 
 public interface IFormService
 {
-    FormSubmissionViewModel GetFormSubmission();
+    FormSubmissionViewModel GetFormSubmission(Guid ID);
 }

@@ -164,7 +164,7 @@ $(document).on('click', '.save-rule', function () {
     const id = $row.data('id');
     const data = {
         ID: id,
-        VALIDATION_TYPE: $row.find('select[name="VALIDATION_TYPE"]').val(),
+        VALIDATION_TYPE: parseInt($row.find('select[name="VALIDATION_TYPE"]').val()),
         VALIDATION_VALUE: $row.find('input[name="VALIDATION_VALUE"]').val(),
         MESSAGE_ZH: $row.find('input[name="MESSAGE_ZH"]').val(),
         MESSAGE_EN: $row.find('input[name="MESSAGE_EN"]').val(),
@@ -228,66 +228,6 @@ $(document).on('click', '.delete-rule', function () {
     });
 });
 
-$(document).on('click', '.setting-dropdown-btn', function () {
-    const id = $(this).data('id');
-    if (!id) return;
-
-    $.post('/FormDesigner/DropdownSetting', { fieldId: id })
-        .done(function (html) {
-            $(".modal-title").text("下拉選單設定");
-            $("#settingRuleModalBody").html(html);
-            $("#settingRuleModal").modal({ backdrop: "static" }).modal('show');
-            toggleDropdownMode();
-        });
-});
-
 $(document).on('click', '.closeModal', function () {
     $(this).closest('.modal').modal('hide');
-});
-
-function toggleDropdownMode() {
-    const mode = $('input[name="mode"]:checked').val();
-    if (mode === 'sql') {
-        $('#dropdownSql').prop('disabled', false);
-        $('#optionList').find('input').prop('disabled', true);
-        $('#addOption').prop('disabled', true);
-    } else {
-        $('#dropdownSql').prop('disabled', true);
-        $('#optionList').find('input').prop('disabled', false);
-        $('#addOption').prop('disabled', false);
-    }
-}
-
-$(document).on('change', 'input[name="mode"]', toggleDropdownMode);
-
-$(document).on('click', '#addOption', function () {
-    $.get('/FormDesigner/NewDropdownOption', function (html) {
-        $('#optionList').append(html);
-    });
-});
-
-$(document).on('click', '.remove-opt', function () {
-    $(this).closest('li').remove();
-});
-
-$(document).on('click', '#saveDropdown', function () {
-    const mode = $('input[name="mode"]:checked').val();
-    const fieldId = $('#ID').val();
-    if (mode === 'sql') {
-        const sql = $('#dropdownSql').val();
-        $.post('/FormDesigner/SaveDropdownSql', { fieldId: fieldId, sql: sql })
-            .done(() => $('.closeModal').click());
-    } else {
-        const opts = [];
-        $('#optionList .option-text').each(function () {
-            const val = $(this).val();
-            if (val) opts.push(val);
-        });
-        $.ajax({
-            url: '/FormDesigner/SaveDropdownOptions',
-            type: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({ fieldId: fieldId, options: opts })
-        }).done(() => $('.closeModal').click());
-    }
 });

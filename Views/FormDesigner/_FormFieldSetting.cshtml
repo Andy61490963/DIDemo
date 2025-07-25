@@ -9,6 +9,7 @@
 <fieldset @(isDisabled ? "disabled" : "")>
     <input type="hidden" asp-for="TableName" />
     <input type="hidden" asp-for="ID" />
+    <input type="hidden" asp-for="FORM_FIELD_Master_ID" />
         <div class="row g-3">
             <div class="col-md-6">
                 <label asp-for="COLUMN_NAME" class="form-label">欄位名稱</label>
@@ -21,7 +22,7 @@
 
             <div class="col-md-6">
                 <label asp-for="CONTROL_TYPE" class="form-label">控制元件</label>
-                <select asp-for="CONTROL_TYPE" class="form-select" disabled=@Model?.IS_VALIDATION_RULE>
+                <select asp-for="CONTROL_TYPE" class="form-select" readonly=@Model?.IS_VALIDATION_RULE>
                     <option value="">請選擇</option>
                     @if (Model != null)
                     {
@@ -71,6 +72,7 @@
                     <label class="form-check-label" for="editableCheck">可編輯</label>
                 </div>
             </div>
+            <div class="w-100"></div>
             <div class="col-md-4 d-flex align-items-center">
                 <button type="button"
                         class="btn btn-outline-primary btn-sm setting-rule-btn"
@@ -81,7 +83,7 @@
             </div>
             <div class="col-md-4 d-flex align-items-center">
                 <button type="button"
-                        class="btn btn-outline-secondary btn-sm setting-dropdown-btn @(Model?.CONTROL_TYPE == FormControlType.Dropdown ? "" : "d-none")"
+                        class="btn btn-outline-primary btn-sm setting-dropdown-btn @(Model?.CONTROL_TYPE == FormControlType.Dropdown ? "" : "d-none")"
                         data-id="@Model?.ID"
                         @(Model == null ? "disabled" : "")>
                     下拉選單設定

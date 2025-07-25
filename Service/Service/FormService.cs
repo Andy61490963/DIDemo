@@ -15,70 +15,121 @@ public class FormService : IFormService
         _con = connection;
     }
     
-    public FormSubmissionViewModel GetFormSubmission()
+    public FormSubmissionViewModel GetFormSubmission(Guid ID)
     {
-        string formName = "TOL_MASTER_View";
+        var sql = @"
+            SELECT FFM.FORM_NAME, FFC.* FROM FORM_FIELD_CONFIG FFC
+            JOIN FORM_FIELD_Master FFM
+            ON FFM.ID = FFC.FORM_FIELD_MASTER_ID
+            WHERE FFM.ID = @ID 
+            ORDER BY FIELD_ORDER;
 
-        string langCode = "zh-TW";
-        
-        // 1. 查欄位設定 + 語系
-        var sqlField = @"
-    SELECT 
-        C.ID AS FieldConfigId,
-        C.COLUMN_NAME,
-        C.CONTROL_TYPE,
-        C.IS_VISIBLE,
-        C.IS_EDITABLE,
-        C.COLUMN_SPAN,
-        C.IS_SECTION_START,
-        C.DEFAULT_VALUE,
-        L.LABEL,
-        L.PLACEHOLDER,
-        L.HELP_TEXT
-    FROM FORM_FIELD_CONFIG C
-    LEFT JOIN FORM_FIELD_LANG L
-        ON C.ID = L.FIELD_CONFIG_ID
-    WHERE C.FORM_NAME = @FormName
-    ORDER BY C.FIELD_ORDER";
+            SELECT R.* 
+            FROM FORM_FIELD_VALIDATION_RULE R
+            JOIN FORM_FIELD_CONFIG C ON R.FIELD_CONFIG_ID = C.ID
+            WHERE C.FORM_FIELD_MASTER_ID = @ID;
 
-        var fields = _con.Query<FormFieldInputViewModel>(sqlField, new { FormName = formName, LangCode = langCode }).ToList();
+            SELECT D.*
+            FROM FORM_FIELD_DROPDOWN D
+            JOIN FORM_FIELD_CONFIG C ON D.FORM_FIELD_CONFIG_ID = C.ID
+            WHERE C.FORM_FIELD_MASTER_ID = @ID;
 
-        var fieldIds = fields.Select(f => f.FieldConfigId).ToList();
+            SELECT O.*
+            FROM FORM_FIELD_DROPDOWN_OPTIONS O
+            JOIN FORM_FIELD_DROPDOWN D ON O.FORM_FIELD_DROPDOWN_ID = D.ID
+            JOIN FORM_FIELD_CONFIG C ON D.FORM_FIELD_CONFIG_ID = C.ID
+            WHERE C.FORM_FIELD_MASTER_ID = @ID;
+        ";
 
-        // 2. 查驗證規則
-        var validations = _con.Query<FormFieldValidationRuleDto>(@"
-    SELECT * FROM FORM_FIELD_VALIDATION_RULE
-    WHERE FIELD_CONFIG_ID IN @Ids
-    ORDER BY VALIDATION_ORDER", new { Ids = fieldIds }).ToList();
+        using var multi = _con.QueryMultiple(sql, new { ID });
 
-        // 3. 查下拉選單來源
-        var optionSources = _con.Query<FormFieldValidationRuleDto>(@"
-    SELECT * FROM FORM_FIELD_OPTION_SOURCE
-    WHERE FIELD_CONFIG_ID IN @Ids", new { Ids = fieldIds }).ToList();
+        var fieldConfigs = multi.Read<FormFieldConfigDto>().ToList();
+        var validationRules = multi.Read<FormFieldValidationRuleDto>().ToList();
+        var dropdownConfigs = multi.Read<FORM_FIELD_DROPDOWN>().ToList();
+        var dropdownOptions = multi.Read<FORM_FIELD_DROPDOWN_OPTIONS>().ToList();
 
-        // 4. 綁定驗證、選項清單到欄位
-        foreach (var field in fields)
+        // 映射表
+        var ruleMap = validationRules
+            .GroupBy(r => r.FIELD_CONFIG_ID)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<FormFieldValidationRuleDto>)g.ToList());
+
+        var dropdownConfigMap = dropdownConfigs
+            .GroupBy(d => d.FORM_FIELD_CONFIG_ID)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        var optionMap = dropdownOptions
+            .GroupBy(o => o.FORM_FIELD_DROPDOWN_ID)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<FORM_FIELD_DROPDOWN_OPTIONS>)g.ToList());
+
+        // 組裝欄位
+        var fieldViewModels = fieldConfigs.Select(field =>
         {
-            // 綁定驗證規則
-            field.ValidationRules = validations
-                .Where(v => v.FIELD_CONFIG_ID == field.FieldConfigId)
-                .ToList();
+            dropdownConfigMap.TryGetValue(field.ID, out var dropdown);
+            var isUseSql = dropdown?.ISUSESQL ?? false;
 
-            // 綁定選項資料
-            var opt = optionSources.FirstOrDefault(o => o.FIELD_CONFIG_ID == field.FieldConfigId);
-            if (opt != null)
+            var finalOptions = isUseSql && dropdown != null
+                ? ExecuteDynamicDropdownSql(dropdown)
+                : (optionMap.TryGetValue(dropdown?.ID ?? Guid.Empty, out var opts) ? opts.ToList() : new());
+
+            return new FormFieldInputViewModel
             {
-                field.OptionList = ["test","test1"];
-            }
-
-            field.UserValue = ""; // 初始值
-        }
+                FieldConfigId = field.ID,
+                COLUMN_NAME = field.COLUMN_NAME,
+                CONTROL_TYPE = field.CONTROL_TYPE,
+                DefaultValue = field.DEFAULT_VALUE,
+                IS_VISIBLE = field.IS_VISIBLE,
+                IS_EDITABLE = field.IS_EDITABLE,
+                COLUMN_SPAN = field.COLUMN_SPAN,
+                IS_SECTION_START = field.IS_SECTION_START,
+                ValidationRules = ruleMap.TryGetValue(field.ID, out var rules) ? rules.ToList() : new(),
+                OptionList = finalOptions,
+                ISUSESQL = isUseSql,
+                DROPDOWNSQL = dropdown?.DROPDOWNSQL ?? ""
+            };
+        }).ToList();
 
         return new FormSubmissionViewModel
         {
-            FormName = formName,
-            Fields = fields
+            FormName = fieldConfigs.Select(x => x.FORM_NAME).First(),
+            Fields = fieldViewModels
         };
+    }
+
+
+    private List<FORM_FIELD_DROPDOWN_OPTIONS> ExecuteDynamicDropdownSql(FORM_FIELD_DROPDOWN dropdown)
+    {
+        var finalOptions = new List<FORM_FIELD_DROPDOWN_OPTIONS>();
+
+        try
+        {
+            var trimmedSql = dropdown.DROPDOWNSQL?.TrimStart();
+            if (string.IsNullOrWhiteSpace(trimmedSql) || !trimmedSql.StartsWith("SELECT", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("只允許 SELECT 查詢");
+
+            // 執行 SQL
+            var rows = _con.Query(dropdown.DROPDOWNSQL);
+
+            foreach (var row in rows)
+            {
+                var dict = (IDictionary<string, object>)row;
+
+                // 自動抓第一個欄位作為顯示文字
+                var optionText = dict.Values.FirstOrDefault()?.ToString() ?? "";
+
+                finalOptions.Add(new FORM_FIELD_DROPDOWN_OPTIONS
+                {
+                    ID = Guid.NewGuid(),
+                    FORM_FIELD_DROPDOWN_ID = dropdown.ID,
+                    OPTION_TEXT = optionText,
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"⚠️ Dropdown SQL 查詢失敗: {ex.Message}");
+        }
+
+        return finalOptions;
     }
 
 }

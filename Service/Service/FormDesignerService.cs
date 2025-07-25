@@ -4,6 +4,7 @@ using DynamicForm.Models;
 using DynamicForm.Service.Interface;
 using DynamicForm.Helper;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using Microsoft.Data.SqlClient;
 
 namespace DynamicForm.Service.Service;
@@ -18,6 +19,22 @@ public class FormDesignerService : IFormDesignerService
     }
 
     #region Public API
+    public Guid GetOrCreateFormMasterId(Guid id)
+    {
+        var sql = @"SELECT ID FROM FORM_FIELD_Master WHERE FORM_NAME = @id";
+        var res = _con.QueryFirstOrDefault<Guid?>(sql, new { id });
+
+        if (res.HasValue)
+            return res.Value;
+
+        var newId = Guid.NewGuid();
+        _con.Execute(@"
+        INSERT INTO FORM_FIELD_Master (ID, FORM_NAME)
+        VALUES (@ID, @FormName)", new { ID = newId, FormName = "" });
+
+        return newId;
+    }
+
     /// <summary>
     /// 根據資料表名稱，取得所有欄位資訊並合併 欄位設定、驗證、語系資訊。
     /// </summary>
@@ -31,7 +48,7 @@ public class FormDesignerService : IFormDesignerService
         var configs= GetFieldConfigs(tableName);
         var requiredFieldIds= GetRequiredFieldIds();
         var langLookup= GetLangCodeLookup();
-
+            
         var res = columns.Select(col =>
         {
             var hasConfig = configs.TryGetValue(col.COLUMN_NAME, out var cfg);
@@ -68,23 +85,26 @@ public class FormDesignerService : IFormDesignerService
     /// 新增或更新欄位設定，若已存在則更新，否則新增。
     /// </summary>
     /// <param name="model">表單欄位的 ViewModel</param>
-    public void UpsertField(FormFieldViewModel model)
+    public void UpsertField(FormFieldViewModel model, Guid formMasterId)
     {
-        var affected = _con.Execute(Sql.UpsertField, new
+        var param = new
         {
-            model.ID,
+            ID = model.ID == Guid.Empty ? Guid.NewGuid() : model.ID,
+            FORM_FIELD_Master_ID = formMasterId,
             TABLE_NAME = model.TableName,
             model.COLUMN_NAME,
             model.CONTROL_TYPE,
             model.IS_VISIBLE,
             model.IS_EDITABLE,
-            COLUMN_SPAN   = model.EDITOR_WIDTH,
+            COLUMN_SPAN = model.EDITOR_WIDTH,
             model.DEFAULT_VALUE
-        });
+        };
+
+        var affected = _con.Execute(Sql.UpsertField, param);
 
         if (affected == 0)
         {
-            throw new InvalidOperationException($"Upsert 失敗，找不到目標欄位: {model.COLUMN_NAME}");
+            throw new InvalidOperationException($"Upsert 失敗：{model.COLUMN_NAME} 無法新增或更新");
         }
     }
 
@@ -132,7 +152,6 @@ public class FormDesignerService : IFormDesignerService
         {
             ID = Guid.NewGuid(),
             FIELD_CONFIG_ID = fieldConfigId,
-            VALIDATION_TYPE = "",
             VALIDATION_VALUE = "",
             MESSAGE_ZH = "",
             MESSAGE_EN = "",
@@ -194,52 +213,98 @@ public class FormDesignerService : IFormDesignerService
         return res;
     }
 
-    public DropdownSettingDto GetDropdownSetting(Guid fieldId)
+    public void EnsureDropdownCreated(Guid fieldId)
     {
-        var rule = _con.QuerySingleOrDefault<FormFieldValidationRuleDto>(Sql.GetDropdownByFieldId, new { fieldId });
-        if (rule == null)
+        _con.Execute(Sql.EnsureDropdownExists, new { fieldId });
+    }
+    
+    public DropDownViewModel GetDropdownSetting(Guid fieldId)
+    {
+        var dropDown = _con.QueryFirstOrDefault<DropDownViewModel>(Sql.GetDropdownByFieldId, new { fieldId });
+
+        if (dropDown == null)
         {
-            return new DropdownSettingDto();
+            return new DropDownViewModel();
         }
+        var optionTexts = GetDropdownOptions(dropDown.ID);
+        dropDown.OPTION_TEXT = optionTexts;
 
-        var options = _con.Query<FormFieldValidationRuleDropdownDto>(Sql.GetDropdownOptions, new { ruleId = rule.ID }).ToList();
-
-        return new DropdownSettingDto
-        {
-            IsUseSql = rule.IS_USE_DROPDOWN_SQL,
-            DropdownSql = rule.DROPDOWN_SQL ?? string.Empty,
-            Options = options
-        };
+        return dropDown;
+    }
+    
+    public List<FORM_FIELD_DROPDOWN_OPTIONS> GetDropdownOptions(Guid dropDownId)
+    {
+        var optionTexts = _con.Query<FORM_FIELD_DROPDOWN_OPTIONS>(Sql.GetOptionByDropdownId, new { dropDownId }).ToList();
+        
+        return optionTexts;
     }
 
+    public Guid SaveDropdownOption(Guid? id, Guid dropdownId, string optionText)
+    {
+        var param = new
+        {
+            Id = (id == Guid.Empty ? null : id),
+            DropdownId = dropdownId,
+            OptionText = optionText
+        };
+
+        // ExecuteScalar 直接拿回 OUTPUT 的 Guid
+        return _con.ExecuteScalar<Guid>(Sql.UpsertDropdownOption, param);
+    }
+
+    public void DeleteDropdownOption(Guid optionId)
+    {
+        _con.Execute(Sql.DeleteDropdownOption, new { optionId });
+    }
+    
     public void SaveDropdownSql(Guid fieldId, string sql)
     {
-        var rule = _con.QuerySingleOrDefault<FormFieldValidationRuleDto>(Sql.GetDropdownByFieldId, new { fieldId });
-        if (rule == null) return;
-
-        _con.Execute(Sql.UpdateDropdownSql, new
-        {
-            id = rule.ID,
-            sql,
-        });
-
-        _con.Execute(Sql.DeleteDropdownOptions, new { ruleId = rule.ID });
+        _con.Execute(Sql.UpsertDropdownSql, new { fieldId, sql });
     }
-
-    public void SaveDropdownOptions(Guid fieldId, IEnumerable<string> options)
+    
+    public void SetDropdownMode(Guid dropdownId, bool isUseSql)
     {
-        var rule = _con.QuerySingleOrDefault<FormFieldValidationRuleDto>(Sql.GetDropdownByFieldId, new { fieldId });
-        if (rule == null) return;
-
-        _con.Execute(Sql.UpdateDropdownUseOptions, new { id = rule.ID });
-
-        _con.Execute(Sql.DeleteDropdownOptions, new { ruleId = rule.ID });
-
-        foreach (var text in options)
-        {
-            _con.Execute(Sql.InsertDropdownOption, new { ruleId = rule.ID, text });
-        }
+        _con.Execute(Sql.SetDropdownMode, new { DropdownId = dropdownId, IsUseSql = isUseSql });
     }
+    
+    public ValidateSqlResultViewModel ValidateDropdownSql(string sql)
+    {
+        var result = new ValidateSqlResultViewModel();
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(sql))
+            {
+                result.Success = false;
+                result.Message = "SQL 不可為空。";
+                return result;
+            }
+
+            if (Regex.IsMatch(sql, @"\b(insert|update|delete|drop|alter|truncate|exec|merge)\b", RegexOptions.IgnoreCase))
+            {
+                result.Success = false;
+                result.Message = "僅允許查詢類 SQL。";
+                return result;
+            }
+            
+            var rows = _con.Query(sql).Select(row => 
+                ((IDictionary<string, object>)row).ToDictionary(
+                    kv => kv.Key, kv => kv.Value)).ToList();
+
+            result.Success = true;
+            result.RowCount = rows.Count;
+            result.Rows = rows.Take(10).ToList(); // 最多回傳前 10 筆
+        }
+        catch (Exception ex)
+        {
+            result.Success = false;
+            result.Message = ex.Message;
+        }
+
+        return result;
+    }
+
+
     #endregion
 
     #region Private Helpers
@@ -314,8 +379,8 @@ FROM INFORMATION_SCHEMA.COLUMNS";
         
         public const string UpsertField = @"
 MERGE FORM_FIELD_CONFIG AS target
-USING (VALUES (@ID, @TABLE_NAME, @COLUMN_NAME)) AS src(ID, TABLE_NAME, COLUMN_NAME)
-    ON target.ID = src.ID
+USING (VALUES (@ID)) AS src(ID)
+ON target.ID = src.ID
 WHEN MATCHED THEN
     UPDATE SET
         CONTROL_TYPE   = @CONTROL_TYPE,
@@ -325,8 +390,14 @@ WHEN MATCHED THEN
         DEFAULT_VALUE  = @DEFAULT_VALUE,
         EDIT_TIME      = GETDATE()
 WHEN NOT MATCHED THEN
-    INSERT (ID, TABLE_NAME, COLUMN_NAME, CONTROL_TYPE, IS_VISIBLE, IS_EDITABLE, COLUMN_SPAN, DEFAULT_VALUE)
-    VALUES (NEWID(), @TABLE_NAME, @COLUMN_NAME, @CONTROL_TYPE, @IS_VISIBLE, @IS_EDITABLE, @COLUMN_SPAN, @DEFAULT_VALUE);";
+    INSERT (
+        ID, FORM_FIELD_Master_ID, TABLE_NAME, COLUMN_NAME,
+        CONTROL_TYPE, IS_VISIBLE, IS_EDITABLE, COLUMN_SPAN, DEFAULT_VALUE, CREATE_TIME
+    )
+    VALUES (
+        @ID, @FORM_FIELD_Master_ID, @TABLE_NAME, @COLUMN_NAME,
+        @CONTROL_TYPE, @IS_VISIBLE, @IS_EDITABLE, @COLUMN_SPAN, @DEFAULT_VALUE, GETDATE()
+    );";
 
         public const string CheckFieldExists         = @"/**/
 SELECT COUNT(1) FROM FORM_FIELD_CONFIG WHERE ID = @fieldId";
@@ -364,31 +435,73 @@ DELETE FROM FORM_FIELD_VALIDATION_RULE WHERE ID = @id";
         public const string GetRequiredFieldIds      = @"/**/
 SELECT FIELD_CONFIG_ID FROM FORM_FIELD_VALIDATION_RULE";
 
-        public const string GetDropdownByFieldId = @"/**/
-SELECT * FROM FORM_FIELD_VALIDATION_RULE WHERE FIELD_CONFIG_ID = @fieldId";
-
-        public const string GetDropdownOptions = @"/**/
-SELECT * FROM FORM_FIELD_VALIDATION_RULE_DROPDOWN WHERE FORM_FIELD_VALIDATION_RULE_ID = @ruleId";
-
-        public const string UpdateDropdownSql = @"/**/
-UPDATE FORM_FIELD_VALIDATION_RULE
-SET IS_USE_DROPDOWN_SQL = 1, DROPDOWN_SQL = @sql, EDIT_TIME = GETDATE()
-WHERE ID = @id";
-
-        public const string UpdateDropdownUseOptions = @"/**/
-UPDATE FORM_FIELD_VALIDATION_RULE
-SET IS_USE_DROPDOWN_SQL = 0, DROPDOWN_SQL = NULL, EDIT_TIME = GETDATE()
-WHERE ID = @id";
-
-        public const string InsertDropdownOption = @"/**/
-INSERT INTO FORM_FIELD_VALIDATION_RULE_DROPDOWN
-    (FORM_FIELD_VALIDATION_RULE_ID, OPTION_TEXT)
-VALUES (@ruleId, @text)";
-
-        public const string DeleteDropdownOptions = @"/**/
-DELETE FROM FORM_FIELD_VALIDATION_RULE_DROPDOWN
-WHERE FORM_FIELD_VALIDATION_RULE_ID = @ruleId";
+        public const string EnsureDropdownExists = @"
+/* 僅在尚未存在時插入 dropdown 主檔 */
+IF NOT EXISTS (
+    SELECT 1 FROM FORM_FIELD_DROPDOWN WHERE FORM_FIELD_CONFIG_ID = @fieldId
+)
+BEGIN
+    INSERT INTO FORM_FIELD_DROPDOWN (ID, FORM_FIELD_CONFIG_ID, ISUSESQL)
+    VALUES (NEWID(), @fieldId, 0)
+END
+";
         
+        public const string GetDropdownByFieldId = @"/**/
+SELECT * FROM FORM_FIELD_DROPDOWN WHERE FORM_FIELD_CONFIG_ID = @fieldId";
+        
+        public const string GetOptionByDropdownId = @"/**/
+SELECT * FROM FORM_FIELD_DROPDOWN_OPTIONS WHERE FORM_FIELD_DROPDOWN_ID = @dropDownId
+";
+
+        public const string UpsertDropdownSql = @"/**/
+MERGE FORM_FIELD_DROPDOWN AS target
+USING (
+    SELECT 
+        @fieldId AS FORM_FIELD_CONFIG_ID,
+        @sql AS DROPDOWNSQL
+) AS source
+ON target.FORM_FIELD_CONFIG_ID = source.FORM_FIELD_CONFIG_ID
+
+WHEN MATCHED THEN
+    UPDATE SET 
+        target.DROPDOWNSQL = source.DROPDOWNSQL,
+        target.ISUSESQL = 1
+
+WHEN NOT MATCHED THEN
+    INSERT (ID, FORM_FIELD_CONFIG_ID, DROPDOWNSQL, ISUSESQL)
+    VALUES (NEWID(), source.FORM_FIELD_CONFIG_ID, source.DROPDOWNSQL, 1);
+";
+        
+        public const string UpsertDropdownOption = @"/**/
+MERGE dbo.FORM_FIELD_DROPDOWN_OPTIONS AS target
+USING (
+    SELECT
+        @Id             AS ID,                 -- Guid (可能是空)
+        @DropdownId     AS FORM_FIELD_DROPDOWN_ID,
+        @OptionText     AS OPTION_TEXT
+) AS source
+ON target.ID = source.ID                     -- 只比對 PK
+WHEN MATCHED THEN
+    UPDATE SET
+        OPTION_TEXT = source.OPTION_TEXT
+WHEN NOT MATCHED THEN
+    INSERT (ID, FORM_FIELD_DROPDOWN_ID, OPTION_TEXT)
+    VALUES (ISNULL(source.ID, NEWID()),       -- 若 Guid.Empty → 直接 NEWID()
+            source.FORM_FIELD_DROPDOWN_ID,
+            source.OPTION_TEXT)
+OUTPUT INSERTED.ID;                          -- 把 ID 回傳給 Dapper
+";
+
+        public const string DeleteDropdownOption = @"/**/
+DELETE FROM FORM_FIELD_DROPDOWN_OPTIONS WHERE ID = @optionId;
+";
+        
+        public const string SetDropdownMode = @"
+UPDATE dbo.FORM_FIELD_DROPDOWN
+SET ISUSESQL   = @IsUseSql
+WHERE ID = @DropdownId;
+";
+
     }
     #endregion
 }

@@ -47,13 +47,17 @@ public class FormDesignerController : Controller
     [HttpPost]
     public IActionResult UpdateFieldSetting(FormFieldViewModel model)
     {
+        // 1. 取得 FORM_FIELD_Master ID，如果不存在就新增
+        var formMasterId = _formDesignerService.GetOrCreateFormMasterId(model.FORM_FIELD_Master_ID);
+        
+        // 2. 驗證控制類型變更是否合法（不能改已有驗證規則的欄位）
         if (_formDesignerService.HasValidationRules(model.ID) &&
             _formDesignerService.GetControlTypeByFieldId(model.ID) != model.CONTROL_TYPE)
         {
             return Conflict("已有驗證規則，無法變更控制元件類型");
         }
         
-        _formDesignerService.UpsertField(model);
+        _formDesignerService.UpsertField(model, formMasterId);
         return Json(new { success = true });
     }
 
@@ -109,10 +113,13 @@ public class FormDesignerController : Controller
         var rules = _formDesignerService.GetValidationRulesByFieldId(fieldConfigId);
         return PartialView("SettingRule/_ValidationRuleRow", rules);
     }
-
+    
+    
+    
     [HttpPost]
     public IActionResult DropdownSetting(Guid fieldId)
     {
+        _formDesignerService.EnsureDropdownCreated(fieldId);
         var setting = _formDesignerService.GetDropdownSetting(fieldId);
         return PartialView("Dropdown/_DropdownModal", setting);
     }
@@ -124,26 +131,46 @@ public class FormDesignerController : Controller
         return Json(new { success = true });
     }
 
+    // 新增空白選項
     [HttpPost]
-    public IActionResult SaveDropdownOptions([FromBody] DropdownOptionPostModel model)
+    public IActionResult NewDropdownOption(Guid dropdownId)
     {
-        _formDesignerService.SaveDropdownOptions(model.FieldId, model.Options);
+        Guid newId = _formDesignerService.SaveDropdownOption(null, dropdownId, "");
+        var options = _formDesignerService.GetDropdownOptions(dropdownId);
+        return PartialView("Dropdown/_DropdownOptionItem", options);
+    }
+
+    // 編輯既有選項
+    [HttpPost]
+    public IActionResult SaveDropdownOption(Guid id, Guid dropdownId, string optionText)
+    {
+        _formDesignerService.SaveDropdownOption(id, dropdownId, optionText);
         return Json(new { success = true });
     }
-
-    [HttpGet]
-    public IActionResult NewDropdownOption()
+    
+    [HttpPost]
+    public IActionResult DeleteOption(Guid optionId, Guid dropdownId)
     {
-        var opt = new FormFieldValidationRuleDropdownDto();
-        return PartialView("Dropdown/_DropdownOptionItem", opt);
+        _formDesignerService.DeleteDropdownOption(optionId);
+        var options = _formDesignerService.GetDropdownOptions(dropdownId);
+        return PartialView("Dropdown/_DropdownOptionItem", options);
     }
 
-    public class DropdownOptionPostModel
+    [HttpPost]
+    public IActionResult SetDropdownMode(Guid dropdownId, bool isUseSql)
     {
-        public Guid FieldId { get; set; }
-        public List<string> Options { get; set; } = new();
+        _formDesignerService.SetDropdownMode(dropdownId, isUseSql);
+        return Json(new { success = true });
     }
-
+    
+    [HttpPost]
+    public IActionResult ValidateDropdownSql(string sql)
+    {
+        var res = _formDesignerService.ValidateDropdownSql(sql);
+       
+        return PartialView("Dropdown/_ValidateSqlResult", res);
+    }
+    
     private List<SelectListItem> GetValidationTypeOptions(Guid fieldId)
     {
         var controlType = _formDesignerService.GetControlTypeByFieldId(fieldId);

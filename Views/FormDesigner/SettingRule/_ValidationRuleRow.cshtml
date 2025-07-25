@@ -16,7 +16,7 @@
                         disabled>
                     @foreach (var item in options)
                     {
-                        var selected = item.Value == rule.VALIDATION_TYPE ? "selected" : null;
+                        var selected = item.Value == rule.VALIDATION_TYPE?.ToString() ? "selected" : null;
                         <option value="@item.Value" selected="@selected">@item.Text</option>
                     }
                 </select>
