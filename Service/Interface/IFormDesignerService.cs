@@ -24,4 +24,9 @@ public interface IFormDesignerService
     bool SaveValidationRule(FormFieldValidationRuleDto rule);
 
     bool DeleteValidationRule(Guid id);
+
+    // Dropdown option related
+    DropdownSettingDto GetDropdownSetting(Guid fieldId);
+    void SaveDropdownSql(Guid fieldId, string sql);
+    void SaveDropdownOptions(Guid fieldId, IEnumerable<string> options);
 }

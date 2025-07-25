@@ -3,6 +3,7 @@ using DynamicForm.Models;
 using DynamicForm.Service.Interface;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using System.Collections.Generic;
 
 namespace DynamicForm.Controllers;
 
@@ -107,6 +108,40 @@ public class FormDesignerController : Controller
 
         var rules = _formDesignerService.GetValidationRulesByFieldId(fieldConfigId);
         return PartialView("SettingRule/_ValidationRuleRow", rules);
+    }
+
+    [HttpPost]
+    public IActionResult DropdownSetting(Guid fieldId)
+    {
+        var setting = _formDesignerService.GetDropdownSetting(fieldId);
+        return PartialView("Dropdown/_DropdownModal", setting);
+    }
+
+    [HttpPost]
+    public IActionResult SaveDropdownSql(Guid fieldId, string sql)
+    {
+        _formDesignerService.SaveDropdownSql(fieldId, sql);
+        return Json(new { success = true });
+    }
+
+    [HttpPost]
+    public IActionResult SaveDropdownOptions([FromBody] DropdownOptionPostModel model)
+    {
+        _formDesignerService.SaveDropdownOptions(model.FieldId, model.Options);
+        return Json(new { success = true });
+    }
+
+    [HttpGet]
+    public IActionResult NewDropdownOption()
+    {
+        var opt = new FormFieldValidationRuleDropdownDto();
+        return PartialView("Dropdown/_DropdownOptionItem", opt);
+    }
+
+    public class DropdownOptionPostModel
+    {
+        public Guid FieldId { get; set; }
+        public List<string> Options { get; set; } = new();
     }
 
     private List<SelectListItem> GetValidationTypeOptions(Guid fieldId)
