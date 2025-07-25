@@ -32,12 +32,24 @@ function loadFieldSetting(tableName, columnName) {
         data: { tableName: tableName, columnName: columnName },
         success: function (html) {
             $('#formFieldSetting').html(html);
+            toggleDropdownButton();
         },
         error: function () {
             alert('載入欄位設定失敗');
         }
     });
 }
+
+function toggleDropdownButton() {
+    const val = $('#CONTROL_TYPE').val();
+    if (val == '5') {
+        $('.setting-dropdown-btn').removeClass('d-none');
+    } else {
+        $('.setting-dropdown-btn').addClass('d-none');
+    }
+}
+
+$(document).on('change', '#CONTROL_TYPE', toggleDropdownButton);
 
 /*
 * 更新設定
@@ -214,6 +226,18 @@ $(document).on('click', '.delete-rule', function () {
             }
         });
     });
+});
+
+$(document).on('click', '.setting-dropdown-btn', function () {
+    const id = $(this).data('id');
+    if (!id) return;
+
+    $.post('/FormDesigner/DropdownSetting', { fieldId: id })
+        .done(function (html) {
+            $(".modal-title").text("下拉選單設定");
+            $("#settingRuleModalBody").html(html);
+            $("#settingRuleModal").modal({ backdrop: "static" }).modal('show');
+        });
 });
 
 $(document).on('click', '.closeModal', function () {
