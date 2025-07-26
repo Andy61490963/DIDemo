@@ -48,7 +48,8 @@ public class FormDesignerController : Controller
     public IActionResult UpdateFieldSetting(FormFieldViewModel model)
     {
         // 1. 取得 FORM_FIELD_Master ID，如果不存在就新增
-        var formMasterId = _formDesignerService.GetOrCreateFormMasterId(model.FORM_FIELD_Master_ID);
+        var master = new FORM_FIELD_Master { ID = model.FORM_FIELD_Master_ID };
+        var formMasterId = _formDesignerService.GetOrCreateFormMasterId(master);
         
         // 2. 驗證控制類型變更是否合法（不能改已有驗證規則的欄位）
         if (_formDesignerService.HasValidationRules(model.ID) &&
