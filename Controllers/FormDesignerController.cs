@@ -28,17 +28,17 @@ public class FormDesignerController : Controller
     }
     
     [HttpGet]
-    public IActionResult QueryFields(string tableName)
+    public IActionResult QueryFields(string tableName, TableSchemaQueryType schemaType)
     {
-        FormFieldListViewModel result = _formDesignerService.EnsureFieldsSaved(tableName);
+        FormFieldListViewModel result = _formDesignerService.EnsureFieldsSaved(tableName, schemaType);
 
         return PartialView("_FormFieldList", result);
     }
     
     [HttpGet]
-    public IActionResult GetFieldSetting(string tableName, string columnName)
+    public IActionResult GetFieldSetting(string tableName, string columnName, TableSchemaQueryType schemaType)
     {
-        FormFieldViewModel? field = _formDesignerService.GetFieldsByTableName(tableName).Fields
+        FormFieldViewModel? field = _formDesignerService.GetFieldsByTableName(tableName, schemaType).Fields
                        .FirstOrDefault(x => x.COLUMN_NAME == columnName);
         
         return PartialView("_FormFieldSetting", field);

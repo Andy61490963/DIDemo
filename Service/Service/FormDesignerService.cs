@@ -19,18 +19,18 @@ public class FormDesignerService : IFormDesignerService
     }
 
     #region Public API
-    public Guid GetOrCreateFormMasterId(Guid id)
+    public Guid GetOrCreateFormMasterId(FORM_FIELD_Master model)
     {
         var sql = @"SELECT ID FROM FORM_FIELD_Master WHERE ID = @id";
-        var res = _con.QueryFirstOrDefault<Guid?>(sql, new { id });
+        var res = _con.QueryFirstOrDefault<Guid?>(sql, new { id = model.ID });
 
         if (res.HasValue)
             return res.Value;
 
         var newId = Guid.NewGuid();
         _con.Execute(@"
-        INSERT INTO FORM_FIELD_Master (ID, FORM_NAME)
-        VALUES (@ID, @FormName)", new { ID = newId, FormName = "" });
+        INSERT INTO FORM_FIELD_Master (ID, FORM_NAME, STATUS, SCHEMA_TYPE)
+        VALUES (@ID, @FORM_NAME, @STATUS, @SCHEMA_TYPE)", new { ID = newId, model.FORM_NAME, model.STATUS, model.SCHEMA_TYPE });
 
         return newId;
     }
@@ -40,14 +40,13 @@ public class FormDesignerService : IFormDesignerService
     /// </summary>
     /// <param name="tableName">使用者輸入的表名稱</param>
     /// <returns>回傳多筆 FormFieldViewModel</returns>
-    public FormFieldListViewModel GetFieldsByTableName(string tableName)
+    public FormFieldListViewModel GetFieldsByTableName(string tableName, TableSchemaQueryType schemaType)
     {
-        var columns = GetTableSchema(tableName);
+        var columns = GetTableSchema(tableName, schemaType);
         if (columns.Count == 0) return new();
 
         var configs= GetFieldConfigs(tableName);
         var requiredFieldIds= GetRequiredFieldIds();
-        var langLookup= GetLangCodeLookup();
         
         var res = columns.Select(col =>
         {
@@ -67,7 +66,6 @@ public class FormDesignerService : IFormDesignerService
                 IS_VISIBLE             = cfg?.IS_VISIBLE  ?? true,
                 IS_EDITABLE            = cfg?.IS_EDITABLE ?? true,
                 IS_VALIDATION_RULE     = requiredFieldIds.Contains(fieldId),
-                LANG_CODES             = langLookup.GetValueOrDefault(fieldId) ?? new(),
                 EDITOR_WIDTH           = cfg?.COLUMN_SPAN ?? FormFieldHelper.GetDefaultEditorWidth(dataType),
                 DEFAULT_VALUE          = cfg?.DEFAULT_VALUE ??  string.Empty
             };
@@ -87,14 +85,15 @@ public class FormDesignerService : IFormDesignerService
     /// </summary>
     /// <param name="tableName">資料表名稱</param>
     /// <returns>包含欄位設定的 ViewModel</returns>
-    public FormFieldListViewModel EnsureFieldsSaved(string tableName)
+    public FormFieldListViewModel EnsureFieldsSaved(string tableName, TableSchemaQueryType schemaType)
     {
-        var columns = GetTableSchema(tableName);
+        var columns = GetTableSchema(tableName, schemaType);
         if (columns.Count == 0) return new();
 
+        FORM_FIELD_Master model = new FORM_FIELD_Master();
         var configs = GetFieldConfigs(tableName);
         var masterId = configs.Values.FirstOrDefault()?.FORM_FIELD_Master_ID
-                       ?? GetOrCreateFormMasterId(Guid.Empty);
+                       ?? GetOrCreateFormMasterId(model);
 
         foreach (var col in columns)
         {
@@ -117,7 +116,7 @@ public class FormDesignerService : IFormDesignerService
             }
         }
 
-        return GetFieldsByTableName(tableName);
+        return GetFieldsByTableName(tableName, schemaType);
     }
 
     /// <summary>
@@ -353,10 +352,10 @@ public class FormDesignerService : IFormDesignerService
     /// </summary>
     /// <param name="tableName">資料表名稱</param>
     /// <returns>回傳欄位定義清單</returns>
-    private List<DbColumnInfo> GetTableSchema(string tableName)
+    private List<DbColumnInfo> GetTableSchema(string tableName, TableSchemaQueryType type)
     {
-        var sql = Sql.TableSchemaSelect + " WHERE TABLE_NAME = @TableName ORDER BY ORDINAL_POSITION";
-        return _con.Query<DbColumnInfo>(sql, new { TableName = tableName }).ToList();
+        var sql = Sql.TableSchemaSelect;
+        return _con.Query<DbColumnInfo>(sql, new { TableName = tableName, Type = (int)type }).ToList();
     }
 
     /// <summary>
@@ -382,19 +381,6 @@ public class FormDesignerService : IFormDesignerService
         return res;
     }
 
-    /// <summary>
-    /// 取得欄位對應的語系資料（欄位翻譯等）。
-    /// </summary>
-    /// <returns>回傳 Dictionary：欄位 ID -> 語系清單</returns>
-    private Dictionary<Guid, List<string>> GetLangCodeLookup()
-    {
-        var sql = Sql.LangCodeLookupSelect;
-        var res = _con.Query(sql)
-            .GroupBy(x => (Guid)x.FIELD_CONFIG_ID)
-            .ToDictionary(g => g.Key, g => g.Select(x => (string)x.LANG_CODE).ToList());
-        return res;
-    }
-
     #endregion
 
     #region SQL
@@ -408,13 +394,15 @@ FROM FORM_FIELD_CONFIG";
 SELECT *
 FROM FORM_FIELD_VALIDATION_RULE";
 
-        public const string LangCodeLookupSelect = @"/**/
-SELECT FIELD_CONFIG_ID, LANG_CODE
-FROM FORM_FIELD_LANG";
-
         public const string TableSchemaSelect = @"/**/
 SELECT COLUMN_NAME, DATA_TYPE, ORDINAL_POSITION
-FROM INFORMATION_SCHEMA.COLUMNS";
+FROM INFORMATION_SCHEMA.COLUMNS 
+WHERE TABLE_NAME = @TableName
+  AND (
+      (@Type = 0 AND TABLE_NAME NOT LIKE 'V_%')
+      OR (@Type = 1 AND TABLE_NAME LIKE 'V_%')
+  )
+ORDER BY ORDINAL_POSITION";
         
         public const string UpsertField = @"
 MERGE FORM_FIELD_CONFIG AS target

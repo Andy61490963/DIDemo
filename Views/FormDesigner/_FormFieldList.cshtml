@@ -22,7 +22,7 @@
         {
             foreach (var field in Model.Fields)
             {
-                    <tr onclick="loadFieldSetting('@Model.TableName','@field.COLUMN_NAME')" style="cursor: pointer;">
+                    <tr onclick="loadFieldSetting('@Model.TableName','@field.COLUMN_NAME','@Model.type')" style="cursor: pointer;">
                     <td>@field.COLUMN_NAME</td>
                     <td>@field.DATA_TYPE</td>
                     <td>@(field.CONTROL_TYPE ?? FormControlType.Text)</td>

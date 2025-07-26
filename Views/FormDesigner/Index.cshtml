@@ -20,6 +20,15 @@
                     </div>
                 </div>
             </div>
+            <br><br>
+            <div class="card shadow-sm rounded-3">
+                <div class="card-body">
+                    <h5 class="card-title fw-bold mb-3">檢視欄位清單</h5>
+                    <div id="formViewFieldList">
+                        @await Html.PartialAsync("_FormFieldList", Model.FormField)
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- 右側：欄位設定 -->

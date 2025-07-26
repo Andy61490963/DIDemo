@@ -5,8 +5,9 @@ namespace DynamicForm.Service.Interface;
 
 public interface IFormDesignerService
 {
-    Guid GetOrCreateFormMasterId(Guid id);
-    FormFieldListViewModel GetFieldsByTableName(string tableName);
+    Guid GetOrCreateFormMasterId(FORM_FIELD_Master model);
+    FormFieldListViewModel EnsureFieldsSaved(string tableName, TableSchemaQueryType type);
+    FormFieldListViewModel GetFieldsByTableName(string tableName, TableSchemaQueryType schemaType);
 
     void UpsertField(FormFieldViewModel model, Guid formMasterId);
 

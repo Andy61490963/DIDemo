@@ -1,35 +1,51 @@
 ﻿/*
 * 搜尋特定表
 * */
-$('#btnSearchTable').click(function () {
-    const tableName = $('#tableNameInput').val();
+function handleTableSearch(inputSelector, nameKey, targetSelector) {
+    const $input = $(inputSelector);
+    const value = $input.val();
+    const dataType = $input.data('type');
 
-    if (!tableName) {
-        alert('請輸入表格名稱');
+    if (!value) {
+        alert(nameKey === 'tableName' ? '請輸入表格名稱' : '請輸入檢視表格名稱');
         return;
     }
+
+    const data = {};
+    data['tableName'] = value;
+    data['schemaType'] = dataType;
 
     $.ajax({
         url: '/FormDesigner/QueryFields',
         type: 'GET',
-        data: { tableName: tableName },
+        data: data,
         success: function (partialHtml) {
-            $('#formFieldList').html(partialHtml);
+            $(targetSelector).html(partialHtml); // 指定要更新的區塊
         },
         error: function () {
             alert('查詢失敗，請確認表格名稱');
         }
     });
+}
+
+// 綁定事件：主表
+$('#btnSearchTable').click(function () {
+    handleTableSearch('#tableNameInput', 'tableName', '#formFieldList');
 });
+// 綁定事件：View
+$('#btnSearchViewTable').click(function () {
+    handleTableSearch('#viewTableNameInput', 'viewTableName', '#formViewFieldList');
+});
+
 
 /*
 * 載入單一欄位詳細資料設定
 * */
-function loadFieldSetting(tableName, columnName) {
+function loadFieldSetting(tableName, columnName, schemaType) {
     $.ajax({
         url: '/FormDesigner/GetFieldSetting',
         type: 'GET',
-        data: { tableName: tableName, columnName: columnName },
+        data: { tableName: tableName, columnName: columnName, schemaType: schemaType },
         success: function (html) {
             $('#formFieldSetting').html(html);
             toggleDropdownButton();
