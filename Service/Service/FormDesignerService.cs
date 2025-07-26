@@ -27,12 +27,18 @@ public class FormDesignerService : IFormDesignerService
         if (res.HasValue)
             return res.Value;
 
-        var newId = Guid.NewGuid();
+        var insertId = model.ID == Guid.Empty ? Guid.NewGuid() : model.ID;
         _con.Execute(@"
         INSERT INTO FORM_FIELD_Master (ID, FORM_NAME, STATUS, SCHEMA_TYPE)
-        VALUES (@ID, @FORM_NAME, @STATUS, @SCHEMA_TYPE)", new { ID = newId, model.FORM_NAME, model.STATUS, model.SCHEMA_TYPE });
+        VALUES (@ID, @FORM_NAME, @STATUS, @SCHEMA_TYPE)", new
+        {
+            ID = insertId,
+            model.FORM_NAME,
+            model.STATUS,
+            model.SCHEMA_TYPE
+        });
 
-        return newId;
+        return insertId;
     }
 
     /// <summary>
@@ -90,7 +96,12 @@ public class FormDesignerService : IFormDesignerService
         var columns = GetTableSchema(tableName, schemaType);
         if (columns.Count == 0) return new();
 
-        FORM_FIELD_Master model = new FORM_FIELD_Master();
+        FORM_FIELD_Master model = new FORM_FIELD_Master
+        {
+            FORM_NAME = tableName,
+            STATUS = (int)TableStatusType.Draft,
+            SCHEMA_TYPE = (int)schemaType
+        };
         var configs = GetFieldConfigs(tableName);
         var masterId = configs.Values.FirstOrDefault()?.FORM_FIELD_Master_ID
                        ?? GetOrCreateFormMasterId(model);
