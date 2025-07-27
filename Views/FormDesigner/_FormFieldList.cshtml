@@ -10,7 +10,8 @@
             <th style="min-width: 150px;">欄位名稱</th>
             <th style="min-width: 100px;">型別</th>
             <th style="min-width: 150px;">控制元件</th>
-            <th style="min-width: 60px;">顯示</th>
+            @* <th style="min-width: 60px;">顯示</th> *@
+            <th style="min-width: 60px;">必填</th>
             <th style="min-width: 60px;">編輯</th>
             <th style="min-width: 60px;">限制條件</th>
             <th style="min-width: 100px;">語系</th>
@@ -26,7 +27,8 @@
                     <td>@field.COLUMN_NAME</td>
                     <td>@field.DATA_TYPE</td>
                     <td>@(field.CONTROL_TYPE ?? FormControlType.Text)</td>
-                    <td>@Html.Raw(field.IS_VISIBLE ? "<i class=\"bi bi-check\"></i>" : "<i class=\"bi bi-x text-danger\"></i>")</td>
+                    <td>@Html.Raw(field.IS_REQUIRED ? "<i class=\"bi bi-check\"></i>" : "<i class=\"bi bi-x text-danger\"></i>")</td>
+                    @* <td>@Html.Raw(field.IS_VISIBLE ? "<i class=\"bi bi-check\"></i>" : "<i class=\"bi bi-x text-danger\"></i>")</td> *@
                     <td>@Html.Raw(field.IS_EDITABLE ? "<i class=\"bi bi-check\"></i>" : "<i class=\"bi bi-x text-danger\"></i>")</td>
                     <td>@Html.Raw(field.IS_VALIDATION_RULE ? "<i class=\"bi bi-check\"></i>" : "<i class=\"bi bi-x text-danger\"></i>")</td>
 

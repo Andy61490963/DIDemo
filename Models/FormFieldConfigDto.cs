@@ -18,6 +18,7 @@ public class FormFieldConfigDto
 
     public string? DEFAULT_VALUE { get; set; }
 
+    public bool IS_REQUIRED { get; set; }
     public bool IS_VISIBLE { get; set; }
 
     public bool IS_EDITABLE { get; set; }

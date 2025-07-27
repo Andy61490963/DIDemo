@@ -102,6 +102,11 @@ public class FormFieldViewModel
     public bool IS_EDITABLE { get; set; } = true;
     
     /// <summary>
+    /// 是否必填
+    /// </summary>
+    public bool IS_REQUIRED { get; set; } = true;
+    
+    /// <summary>
     /// 是否有輸入限制條件
     /// </summary>
     public bool IS_VALIDATION_RULE { get; set; }

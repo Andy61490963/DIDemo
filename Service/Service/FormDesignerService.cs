@@ -69,6 +69,7 @@ public class FormDesignerService : IFormDesignerService
                 DATA_TYPE              = dataType,
                 CONTROL_TYPE           = cfg?.CONTROL_TYPE,
                 CONTROL_TYPE_WHITELIST = FormFieldHelper.GetControlTypeWhitelist(dataType),
+                IS_REQUIRED             = cfg?.IS_REQUIRED  ?? true,
                 IS_VISIBLE             = cfg?.IS_VISIBLE  ?? true,
                 IS_EDITABLE            = cfg?.IS_EDITABLE ?? true,
                 IS_VALIDATION_RULE     = requiredFieldIds.Contains(fieldId),
@@ -122,6 +123,7 @@ public class FormDesignerService : IFormDesignerService
                     DATA_TYPE = col.DATA_TYPE,
                     // CONTROL_TYPE = FormFieldHelper.GetDefaultControlType(col.DATA_TYPE),
                     CONTROL_TYPE = FormControlType.Text,
+                    IS_REQUIRED = true,
                     IS_VISIBLE = true,
                     IS_EDITABLE = true,
                     EDITOR_WIDTH = FormFieldHelper.GetDefaultEditorWidth(col.DATA_TYPE),
@@ -152,6 +154,7 @@ public class FormDesignerService : IFormDesignerService
             TABLE_NAME = model.TableName,
             model.COLUMN_NAME,
             CONTROL_TYPE = controlType,
+            model.IS_REQUIRED,
             model.IS_VISIBLE,
             model.IS_EDITABLE,
             COLUMN_SPAN = model.EDITOR_WIDTH,
@@ -480,6 +483,7 @@ ON target.ID = src.ID
 WHEN MATCHED THEN
     UPDATE SET
         CONTROL_TYPE   = @CONTROL_TYPE,
+        IS_REQUIRED     = @IS_REQUIRED,
         IS_VISIBLE     = @IS_VISIBLE,
         IS_EDITABLE    = @IS_EDITABLE,
         COLUMN_SPAN    = @COLUMN_SPAN,
@@ -488,11 +492,11 @@ WHEN MATCHED THEN
 WHEN NOT MATCHED THEN
     INSERT (
         ID, FORM_FIELD_Master_ID, TABLE_NAME, COLUMN_NAME,
-        CONTROL_TYPE, IS_VISIBLE, IS_EDITABLE, COLUMN_SPAN, DEFAULT_VALUE, CREATE_TIME
+        CONTROL_TYPE, IS_REQUIRED, IS_VISIBLE, IS_EDITABLE, COLUMN_SPAN, DEFAULT_VALUE, CREATE_TIME
     )
     VALUES (
         @ID, @FORM_FIELD_Master_ID, @TABLE_NAME, @COLUMN_NAME,
-        @CONTROL_TYPE, @IS_VISIBLE, @IS_EDITABLE, @COLUMN_SPAN, @DEFAULT_VALUE, GETDATE()
+        @CONTROL_TYPE, @IS_REQUIRED, @IS_VISIBLE, @IS_EDITABLE, @COLUMN_SPAN, @DEFAULT_VALUE, GETDATE()
     );";
 
         public const string CheckFieldExists         = @"/**/
