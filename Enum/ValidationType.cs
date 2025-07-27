@@ -4,9 +4,6 @@ namespace ClassLibrary;
 
 public enum ValidationType
 {
-    [Display(Name = "必填")]
-    Required = 0,
-
     [Display(Name = "最大值")]
     Max = 1,
 

@@ -112,7 +112,8 @@
                 _ => "col-md-4"
             };
 
-            var isRequired = field.ValidationRules.Any(r => r.VALIDATION_TYPE == ValidationType.Required);
+            // var isRequired = field.ValidationRules.Any(r => r.VALIDATION_TYPE == ValidationType.Required);
+            var isRequired = false;
             var maxLength = field.ValidationRules.FirstOrDefault(r => r.VALIDATION_TYPE == ValidationType.Max)?.VALIDATION_VALUE;
             var controlType = field.CONTROL_TYPE;
             
