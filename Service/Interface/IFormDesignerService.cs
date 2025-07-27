@@ -43,5 +43,10 @@ public interface IFormDesignerService
 
     ValidateSqlResultViewModel ValidateDropdownSql(string sql);
     Guid SaveFormHeader(FORM_FIELD_Master model);
+
+    // Form master operations
+    List<FORM_FIELD_Master> GetFormMasters();
+    FORM_FIELD_Master? GetFormMaster(Guid id);
+    void DeleteFormMaster(Guid id);
     // void NewDropdownOption(Guid dropdownId);
 }

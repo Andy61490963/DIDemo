@@ -16,13 +16,34 @@ public class FormDesignerController : Controller
         _formDesignerService = formDesignerService;
     }
     
-    public IActionResult Index()
+    public IActionResult Index(Guid? id)
     {
         var model = new FormDesignerIndexViewModel
         {
             FormHeader = new FormHeaderViewModel(),
             FormField = new FormFieldListViewModel()
         };
+
+        if (id.HasValue)
+        {
+            var master = _formDesignerService.GetFormMaster(id.Value);
+            if (master != null)
+            {
+                model.FormHeader = new FormHeaderViewModel
+                {
+                    ID = master.ID,
+                    FORM_NAME = master.FORM_NAME,
+                    TABLE_NAME = master.BASE_TABLE_NAME,
+                    DISPLAY_VIEW_NAME = master.VIEW_NAME
+                };
+
+                var type = (TableSchemaQueryType)master.SCHEMA_TYPE;
+                var fields = _formDesignerService.GetFieldsByTableName(master.BASE_TABLE_NAME, type);
+                fields.ID = master.ID;
+                fields.type = type;
+                model.FormField = fields;
+            }
+        }
 
         return View(model);
     }
