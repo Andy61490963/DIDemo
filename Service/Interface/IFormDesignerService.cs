@@ -42,5 +42,6 @@ public interface IFormDesignerService
     void SetDropdownMode(Guid dropdownId, bool isUseSql);
 
     ValidateSqlResultViewModel ValidateDropdownSql(string sql);
+    Guid SaveFormHeader(FORM_FIELD_Master model);
     // void NewDropdownOption(Guid dropdownId);
 }
