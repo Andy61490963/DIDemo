@@ -365,6 +365,21 @@ public class FormDesignerService : IFormDesignerService
         return id;
     }
 
+    public List<FORM_FIELD_Master> GetFormMasters()
+    {
+        return _con.Query<FORM_FIELD_Master>(Sql.FormMasterSelect).ToList();
+    }
+
+    public FORM_FIELD_Master? GetFormMaster(Guid id)
+    {
+        return _con.QueryFirstOrDefault<FORM_FIELD_Master>(Sql.FormMasterById, new { id });
+    }
+
+    public void DeleteFormMaster(Guid id)
+    {
+        _con.Execute(Sql.DeleteFormMaster, new { id });
+    }
+
 
     #endregion
 
@@ -565,6 +580,24 @@ DELETE FROM FORM_FIELD_DROPDOWN_OPTIONS WHERE ID = @optionId;
 UPDATE dbo.FORM_FIELD_DROPDOWN
 SET ISUSESQL   = @IsUseSql
 WHERE ID = @DropdownId;
+";
+
+        public const string FormMasterSelect = @"SELECT * FROM FORM_FIELD_Master";
+        public const string FormMasterById   = @"SELECT * FROM FORM_FIELD_Master WHERE ID = @id";
+        public const string DeleteFormMaster = @"
+DELETE FROM FORM_FIELD_DROPDOWN_OPTIONS WHERE FORM_FIELD_DROPDOWN_ID IN (
+    SELECT ID FROM FORM_FIELD_DROPDOWN WHERE FORM_FIELD_CONFIG_ID IN (
+        SELECT ID FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @id
+    )
+);
+DELETE FROM FORM_FIELD_DROPDOWN WHERE FORM_FIELD_CONFIG_ID IN (
+    SELECT ID FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @id
+);
+DELETE FROM FORM_FIELD_VALIDATION_RULE WHERE FIELD_CONFIG_ID IN (
+    SELECT ID FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @id
+);
+DELETE FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @id;
+DELETE FROM FORM_FIELD_Master WHERE ID = @id;
 ";
 
     }
