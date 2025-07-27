@@ -10,10 +10,12 @@ namespace DynamicForm.Controllers;
 public class FormDesignerController : Controller
 {
     private readonly IFormDesignerService _formDesignerService;
+    private readonly IFormListService _formListService;
 
-    public FormDesignerController(IFormDesignerService formDesignerService)
+    public FormDesignerController(IFormDesignerService formDesignerService, IFormListService formListService)
     {
         _formDesignerService = formDesignerService;
+        _formListService = formListService;
     }
     
     public IActionResult Index(Guid? id)
@@ -26,7 +28,7 @@ public class FormDesignerController : Controller
 
         if (id.HasValue)
         {
-            var master = _formDesignerService.GetFormMaster(id.Value);
+            var master = _formListService.GetFormMaster(id.Value);
             if (master != null)
             {
                 model.FormHeader = new FormHeaderViewModel
@@ -213,7 +215,7 @@ public class FormDesignerController : Controller
             BASE_TABLE_NAME = model.TABLE_NAME,
             VIEW_NAME = model.DISPLAY_VIEW_NAME,
             PRIMARY_KEY = string.Empty,
-            STATUS = (int)TableStatusType.Draft,
+            STATUS = (int)TableStatusType.Active,
             SCHEMA_TYPE = (int)TableSchemaQueryType.All
         };
 

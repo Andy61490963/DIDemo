@@ -367,7 +367,8 @@ public class FormDesignerService : IFormDesignerService
 
     public List<FORM_FIELD_Master> GetFormMasters()
     {
-        return _con.Query<FORM_FIELD_Master>(Sql.FormMasterSelect).ToList();
+        var statusList = new[] { TableStatusType.Active, TableStatusType.Disabled };
+        return _con.Query<FORM_FIELD_Master>(Sql.FormMasterSelect, new{ STATUS = statusList }).ToList();
     }
 
     public FORM_FIELD_Master? GetFormMaster(Guid id)
@@ -582,7 +583,7 @@ SET ISUSESQL   = @IsUseSql
 WHERE ID = @DropdownId;
 ";
 
-        public const string FormMasterSelect = @"SELECT * FROM FORM_FIELD_Master";
+        public const string FormMasterSelect = @"SELECT * FROM FORM_FIELD_Master WHERE STATUS IN @STATUS";
         public const string FormMasterById   = @"SELECT * FROM FORM_FIELD_Master WHERE ID = @id";
         public const string DeleteFormMaster = @"
 DELETE FROM FORM_FIELD_DROPDOWN_OPTIONS WHERE FORM_FIELD_DROPDOWN_ID IN (

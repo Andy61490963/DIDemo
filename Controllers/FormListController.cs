@@ -6,9 +6,9 @@ namespace DynamicForm.Controllers;
 
 public class FormListController : Controller
 {
-    private readonly IFormDesignerService _service;
+    private readonly IFormListService _service;
 
-    public FormListController(IFormDesignerService service)
+    public FormListController(IFormListService service)
     {
         _service = service;
     }
