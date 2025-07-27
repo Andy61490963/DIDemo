@@ -106,25 +106,7 @@ $(document).on('change', '#CONTROL_TYPE', toggleDropdownButton);
 * 更新設定
 * */
 $(document).on('change', '#field-setting-form input, #field-setting-form select', function () {
-    const formData = $('#field-setting-form').serialize();
-    console.log('Form changed:', formData);
-
-    $.ajax({
-        url: '/FormDesigner/UpdateFieldSetting',
-        type: 'POST',
-        data: formData,
-        success: function () {
-            // Swal.fire({
-            //     icon: 'success',
-            //     title: '儲存成功',
-            //     showConfirmButton: false,
-            //     timer: 1500
-            // });
-        },
-        error: function (xhr) {
-            alert('儲存失敗：' + xhr.responseText);
-        }
-    });
+    $('#field-setting-form').submit(); // 交由 MVC unobtrusive Ajax 處理
 });
 
 /*
