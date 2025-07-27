@@ -29,7 +29,17 @@ public class FormHeaderViewModel
     /// <summary>
     /// 前台顯示表名稱
     /// </summary>
-    public string DISPLAY_VIEW_NAME { get; set; }
+    public string VIEW_TABLE_NAME { get; set; }
+
+    /// <summary>
+    /// 主要表單 Master ID
+    /// </summary>
+    public Guid? BASE_TABLE_ID { get; set; }
+
+    /// <summary>
+    /// View 表單 Master ID
+    /// </summary>
+    public Guid? VIEW_TABLE_ID { get; set; }
 }
 
 public class FormFieldListViewModel

@@ -43,7 +43,9 @@ $('#btnSaveFormHeader').click(function () {
         ID: $('#formMasterId').val(),
         FORM_NAME: $('#FORM_NAME').val(),
         TABLE_NAME: $('#tableNameInput').val(),
-        DISPLAY_VIEW_NAME: $('#viewTableNameInput').val()
+        VIEW_TABLE_NAME: $('#viewTableNameInput').val(),
+        BASE_TABLE_ID: $('#baseTableId').val(),
+        VIEW_TABLE_ID: $('#viewTableId').val()
     };
 
     $.ajax({
