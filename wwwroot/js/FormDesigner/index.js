@@ -37,6 +37,32 @@ $('#btnSearchViewTable').click(function () {
     handleTableSearch('#viewTableNameInput', 'viewTableName', '#formViewFieldList');
 });
 
+// 儲存 Form Header
+$('#btnSaveFormHeader').click(function () {
+    const data = {
+        ID: $('#formMasterId').val(),
+        FORM_NAME: $('#FORM_NAME').val(),
+        TABLE_NAME: $('#tableNameInput').val(),
+        DISPLAY_VIEW_NAME: $('#viewTableNameInput').val()
+    };
+
+    $.ajax({
+        url: '/FormDesigner/SaveFormHeader',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function (res) {
+            if (res && res.id) {
+                $('#formMasterId').val(res.id);
+            }
+            alert('儲存成功');
+        },
+        error: function (xhr) {
+            alert(xhr.responseText || '儲存失敗');
+        }
+    });
+});
+
 
 /*
 * 載入單一欄位詳細資料設定

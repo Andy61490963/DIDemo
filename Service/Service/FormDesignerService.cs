@@ -353,6 +353,18 @@ public class FormDesignerService : IFormDesignerService
         return result;
     }
 
+    public Guid SaveFormHeader(FORM_FIELD_Master model)
+    {
+        // 若不存在則產生新 ID
+        if (model.ID == Guid.Empty)
+        {
+            model.ID = Guid.NewGuid();
+        }
+
+        var id = _con.ExecuteScalar<Guid>(Sql.UpsertFormMaster, model);
+        return id;
+    }
+
 
     #endregion
 
@@ -407,13 +419,28 @@ FROM FORM_FIELD_VALIDATION_RULE";
 
         public const string TableSchemaSelect = @"/**/
 SELECT COLUMN_NAME, DATA_TYPE, ORDINAL_POSITION
-FROM INFORMATION_SCHEMA.COLUMNS 
+FROM INFORMATION_SCHEMA.COLUMNS
 WHERE TABLE_NAME = @TableName
   AND (
       (@Type = 0 AND TABLE_NAME NOT LIKE 'V_%')
       OR (@Type = 1 AND TABLE_NAME LIKE 'V_%')
   )
 ORDER BY ORDINAL_POSITION";
+
+        public const string UpsertFormMaster = @"/**/
+MERGE FORM_FIELD_Master AS target
+USING (SELECT @ID AS ID) AS src
+ON target.ID = src.ID
+WHEN MATCHED THEN
+    UPDATE SET
+        FORM_NAME       = @FORM_NAME,
+        BASE_TABLE_NAME = @BASE_TABLE_NAME,
+        VIEW_NAME       = @VIEW_NAME,
+        PRIMARY_KEY     = @PRIMARY_KEY
+WHEN NOT MATCHED THEN
+    INSERT (ID, FORM_NAME, BASE_TABLE_NAME, VIEW_NAME, PRIMARY_KEY, STATUS, SCHEMA_TYPE)
+    VALUES (@ID, @FORM_NAME, @BASE_TABLE_NAME, @VIEW_NAME, @PRIMARY_KEY, @STATUS, @SCHEMA_TYPE)
+OUTPUT INSERTED.ID;";
         
         public const string UpsertField = @"
 MERGE FORM_FIELD_CONFIG AS target
