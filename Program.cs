@@ -1,5 +1,7 @@
 using DynamicForm.Service.Interface;
 using DynamicForm.Service.Service;
+using DynamicForm.Repository.Interface;
+using DynamicForm.Repository;
 using Microsoft.Data.SqlClient;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,6 +12,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddScoped<IFormListService, FormListService>();
 builder.Services.AddScoped<IFormDesignerService, FormDesignerService>();
 builder.Services.AddScoped<IFormService, FormService>();
+builder.Services.AddScoped<IFormRepository, FormRepository>();
 
 
 builder.Services.AddScoped<SqlConnection, SqlConnection>(_ =>

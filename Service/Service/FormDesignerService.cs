@@ -2,6 +2,7 @@
 using Dapper;
 using DynamicForm.Models;
 using DynamicForm.Service.Interface;
+using DynamicForm.Repository.Interface;
 using DynamicForm.Helper;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
@@ -12,10 +13,12 @@ namespace DynamicForm.Service.Service;
 public class FormDesignerService : IFormDesignerService
 {
     private readonly SqlConnection _con;
-    
-    public FormDesignerService(SqlConnection connection)
+    private readonly IFormRepository _repository;
+
+    public FormDesignerService(SqlConnection connection, IFormRepository repository)
     {
         _con = connection;
+        _repository = repository;
     }
 
     #region Public API
@@ -372,18 +375,17 @@ public class FormDesignerService : IFormDesignerService
 
     public List<FORM_FIELD_Master> GetFormMasters()
     {
-        var statusList = new[] { TableStatusType.Active, TableStatusType.Disabled };
-        return _con.Query<FORM_FIELD_Master>(Sql.FormMasterSelect, new{ STATUS = statusList }).ToList();
+        return _repository.GetFormMasters();
     }
 
     public FORM_FIELD_Master? GetFormMaster(Guid id)
     {
-        return _con.QueryFirstOrDefault<FORM_FIELD_Master>(Sql.FormMasterById, new { id });
+        return _repository.GetFormMaster(id);
     }
 
     public void DeleteFormMaster(Guid id)
     {
-        _con.Execute(Sql.DeleteFormMaster, new { id });
+        _repository.DeleteFormMaster(id);
     }
 
 
@@ -594,23 +596,6 @@ SET ISUSESQL   = @IsUseSql
 WHERE ID = @DropdownId;
 ";
 
-        public const string FormMasterSelect = @"SELECT * FROM FORM_FIELD_Master WHERE STATUS IN @STATUS";
-        public const string FormMasterById   = @"SELECT * FROM FORM_FIELD_Master WHERE ID = @id";
-        public const string DeleteFormMaster = @"
-DELETE FROM FORM_FIELD_DROPDOWN_OPTIONS WHERE FORM_FIELD_DROPDOWN_ID IN (
-    SELECT ID FROM FORM_FIELD_DROPDOWN WHERE FORM_FIELD_CONFIG_ID IN (
-        SELECT ID FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @id
-    )
-);
-DELETE FROM FORM_FIELD_DROPDOWN WHERE FORM_FIELD_CONFIG_ID IN (
-    SELECT ID FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @id
-);
-DELETE FROM FORM_FIELD_VALIDATION_RULE WHERE FIELD_CONFIG_ID IN (
-    SELECT ID FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @id
-);
-DELETE FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @id;
-DELETE FROM FORM_FIELD_Master WHERE ID = @id;
-";
 
     }
     #endregion
