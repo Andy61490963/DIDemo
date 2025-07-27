@@ -35,7 +35,6 @@
             <th>FORM_NAME</th>
             <th>BASE_TABLE_NAME</th>
             <th>VIEW_NAME</th>
-            <th>PRIMARY_KEY</th>
             <th>STATUS</th>
             <th>SCHEMA_TYPE</th>
             <th>操作</th>
@@ -50,7 +49,6 @@
                     <td>@item.FORM_NAME</td>
                     <td>@item.BASE_TABLE_NAME</td>
                     <td>@item.VIEW_NAME</td>
-                    <td>@item.PRIMARY_KEY</td>
                     <td>@statusMap.GetValueOrDefault(item.STATUS, item.STATUS.ToString())</td>
                     <td>@typeMap.GetValueOrDefault(item.SCHEMA_TYPE, item.SCHEMA_TYPE.ToString())</td>
                     <td>
@@ -64,7 +62,7 @@
         }
         else
         {
-            <tr><td colspan="7" class="text-center text-muted">尚無表單資料</td></tr>
+            <tr><td colspan="6" class="text-center text-muted">尚無表單資料</td></tr>
         }
         </tbody>
     </table>

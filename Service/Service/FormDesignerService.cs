@@ -29,11 +29,13 @@ public class FormDesignerService : IFormDesignerService
 
         var insertId = model.ID == Guid.Empty ? Guid.NewGuid() : model.ID;
         _con.Execute(@"
-        INSERT INTO FORM_FIELD_Master (ID, FORM_NAME, STATUS, SCHEMA_TYPE)
-        VALUES (@ID, @FORM_NAME, @STATUS, @SCHEMA_TYPE)", new
+        INSERT INTO FORM_FIELD_Master (ID, FORM_NAME, BASE_TABLE_ID, VIEW_ID, STATUS, SCHEMA_TYPE)
+        VALUES (@ID, @FORM_NAME, @BASE_TABLE_ID, @VIEW_ID, @STATUS, @SCHEMA_TYPE)", new
         {
             ID = insertId,
             model.FORM_NAME,
+            model.BASE_TABLE_ID,
+            model.VIEW_ID,
             model.STATUS,
             model.SCHEMA_TYPE
         });
@@ -96,9 +98,13 @@ public class FormDesignerService : IFormDesignerService
         var columns = GetTableSchema(tableName, schemaType);
         if (columns.Count == 0) return new();
 
+        var baseId = GetOrCreateDataSourceId(tableName, schemaType);
+
         FORM_FIELD_Master model = new FORM_FIELD_Master
         {
             FORM_NAME = tableName,
+            BASE_TABLE_ID = baseId,
+            VIEW_ID = null,
             STATUS = (int)TableStatusType.Draft,
             SCHEMA_TYPE = (int)schemaType
         };
@@ -353,7 +359,7 @@ public class FormDesignerService : IFormDesignerService
         return result;
     }
 
-    public Guid SaveFormHeader(FORM_FIELD_Master model)
+    public Guid SaveFormHeader(FormHeaderViewModel model)
     {
         // 若不存在則產生新 ID
         if (model.ID == Guid.Empty)
@@ -361,7 +367,20 @@ public class FormDesignerService : IFormDesignerService
             model.ID = Guid.NewGuid();
         }
 
-        var id = _con.ExecuteScalar<Guid>(Sql.UpsertFormMaster, model);
+        var baseId = GetOrCreateDataSourceId(model.TABLE_NAME, TableSchemaQueryType.OnlyTable);
+        var viewId = GetOrCreateDataSourceId(model.DISPLAY_VIEW_NAME, TableSchemaQueryType.OnlyView);
+
+        var master = new FORM_FIELD_Master
+        {
+            ID = model.ID,
+            FORM_NAME = model.FORM_NAME,
+            BASE_TABLE_ID = baseId,
+            VIEW_ID = viewId,
+            STATUS = (int)TableStatusType.Active,
+            SCHEMA_TYPE = (int)TableSchemaQueryType.All
+        };
+
+        var id = _con.ExecuteScalar<Guid>(Sql.UpsertFormMaster, master);
         return id;
     }
 
@@ -420,6 +439,23 @@ public class FormDesignerService : IFormDesignerService
         return res;
     }
 
+    private Guid GetOrCreateDataSourceId(string name, TableSchemaQueryType type)
+    {
+        var existing = _con.QueryFirstOrDefault<Guid?>(Sql.GetDataSourceIdByName, new { SOURCE_NAME = name });
+        if (existing.HasValue)
+            return existing.Value;
+
+        var newId = Guid.NewGuid();
+        _con.Execute(Sql.InsertDataSource, new
+        {
+            ID = newId,
+            SOURCE_NAME = name,
+            SOURCE_TYPE = (byte)(type == TableSchemaQueryType.OnlyView ? 1 : 0),
+            PRIMARY_KEY = (string?)null
+        });
+        return newId;
+    }
+
     #endregion
 
     #region SQL
@@ -449,13 +485,12 @@ USING (SELECT @ID AS ID) AS src
 ON target.ID = src.ID
 WHEN MATCHED THEN
     UPDATE SET
-        FORM_NAME       = @FORM_NAME,
-        BASE_TABLE_NAME = @BASE_TABLE_NAME,
-        VIEW_NAME       = @VIEW_NAME,
-        PRIMARY_KEY     = @PRIMARY_KEY
+        FORM_NAME     = @FORM_NAME,
+        BASE_TABLE_ID = @BASE_TABLE_ID,
+        VIEW_ID       = @VIEW_ID
 WHEN NOT MATCHED THEN
-    INSERT (ID, FORM_NAME, BASE_TABLE_NAME, VIEW_NAME, PRIMARY_KEY, STATUS, SCHEMA_TYPE)
-    VALUES (@ID, @FORM_NAME, @BASE_TABLE_NAME, @VIEW_NAME, @PRIMARY_KEY, @STATUS, @SCHEMA_TYPE)
+    INSERT (ID, FORM_NAME, BASE_TABLE_ID, VIEW_ID, STATUS, SCHEMA_TYPE)
+    VALUES (@ID, @FORM_NAME, @BASE_TABLE_ID, @VIEW_ID, @STATUS, @SCHEMA_TYPE)
 OUTPUT INSERTED.ID;";
         
         public const string UpsertField = @"
@@ -583,8 +618,22 @@ SET ISUSESQL   = @IsUseSql
 WHERE ID = @DropdownId;
 ";
 
-        public const string FormMasterSelect = @"SELECT * FROM FORM_FIELD_Master WHERE STATUS IN @STATUS";
-        public const string FormMasterById   = @"SELECT * FROM FORM_FIELD_Master WHERE ID = @id";
+        public const string GetDataSourceIdByName = @"SELECT ID FROM DATA_SOURCE_MASTER WHERE SOURCE_NAME = @SOURCE_NAME";
+
+        public const string InsertDataSource = @"INSERT INTO DATA_SOURCE_MASTER (ID, SOURCE_NAME, SOURCE_TYPE, PRIMARY_KEY)
+VALUES (@ID, @SOURCE_NAME, @SOURCE_TYPE, @PRIMARY_KEY)";
+
+        public const string FormMasterSelect = @"SELECT M.*, BT.SOURCE_NAME AS BASE_TABLE_NAME, V.SOURCE_NAME AS VIEW_NAME
+FROM FORM_FIELD_Master M
+LEFT JOIN DATA_SOURCE_MASTER BT ON M.BASE_TABLE_ID = BT.ID
+LEFT JOIN DATA_SOURCE_MASTER V  ON M.VIEW_ID = V.ID
+WHERE M.STATUS IN @STATUS";
+
+        public const string FormMasterById   = @"SELECT M.*, BT.SOURCE_NAME AS BASE_TABLE_NAME, V.SOURCE_NAME AS VIEW_NAME
+FROM FORM_FIELD_Master M
+LEFT JOIN DATA_SOURCE_MASTER BT ON M.BASE_TABLE_ID = BT.ID
+LEFT JOIN DATA_SOURCE_MASTER V  ON M.VIEW_ID = V.ID
+WHERE M.ID = @id";
         public const string DeleteFormMaster = @"
 DELETE FROM FORM_FIELD_DROPDOWN_OPTIONS WHERE FORM_FIELD_DROPDOWN_ID IN (
     SELECT ID FROM FORM_FIELD_DROPDOWN WHERE FORM_FIELD_CONFIG_ID IN (

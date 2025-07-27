@@ -70,9 +70,7 @@ public class FormDesignerController : Controller
     [HttpPost]
     public IActionResult UpdateFieldSetting(FormFieldViewModel model)
     {
-        // 1. 取得 FORM_FIELD_Master ID，如果不存在就新增
-        var master = new FORM_FIELD_Master { ID = model.FORM_FIELD_Master_ID };
-        var formMasterId = _formDesignerService.GetOrCreateFormMasterId(master);
+        var formMasterId = model.FORM_FIELD_Master_ID;
         
         // 2. 驗證控制類型變更是否合法（不能改已有驗證規則的欄位）
         if (_formDesignerService.HasValidationRules(model.ID) &&
@@ -208,18 +206,7 @@ public class FormDesignerController : Controller
             return BadRequest("VIEW_NAME 不可為空");
         }
 
-        var master = new FORM_FIELD_Master
-        {
-            ID = model.ID,
-            FORM_NAME = model.FORM_NAME,
-            BASE_TABLE_NAME = model.TABLE_NAME,
-            VIEW_NAME = model.DISPLAY_VIEW_NAME,
-            PRIMARY_KEY = string.Empty,
-            STATUS = (int)TableStatusType.Active,
-            SCHEMA_TYPE = (int)TableSchemaQueryType.All
-        };
-
-        var id = _formDesignerService.SaveFormHeader(master);
+        var id = _formDesignerService.SaveFormHeader(model);
 
         return Json(new { success = true, id });
     }

@@ -36,8 +36,17 @@ public class FormListService : IFormListService
 
     private static class Sql
     {
-        public const string FormMasterSelect = @"SELECT * FROM FORM_FIELD_Master WHERE STATUS IN @STATUS";
-        public const string FormMasterById   = @"SELECT * FROM FORM_FIELD_Master WHERE ID = @id";
+        public const string FormMasterSelect = @"SELECT M.*, BT.SOURCE_NAME AS BASE_TABLE_NAME, V.SOURCE_NAME AS VIEW_NAME
+FROM FORM_FIELD_Master M
+LEFT JOIN DATA_SOURCE_MASTER BT ON M.BASE_TABLE_ID = BT.ID
+LEFT JOIN DATA_SOURCE_MASTER V  ON M.VIEW_ID = V.ID
+WHERE M.STATUS IN @STATUS";
+
+        public const string FormMasterById   = @"SELECT M.*, BT.SOURCE_NAME AS BASE_TABLE_NAME, V.SOURCE_NAME AS VIEW_NAME
+FROM FORM_FIELD_Master M
+LEFT JOIN DATA_SOURCE_MASTER BT ON M.BASE_TABLE_ID = BT.ID
+LEFT JOIN DATA_SOURCE_MASTER V  ON M.VIEW_ID = V.ID
+WHERE M.ID = @id";
         public const string DeleteFormMaster = @"
 DELETE FROM FORM_FIELD_DROPDOWN_OPTIONS WHERE FORM_FIELD_DROPDOWN_ID IN (
     SELECT ID FROM FORM_FIELD_DROPDOWN WHERE FORM_FIELD_CONFIG_ID IN (
