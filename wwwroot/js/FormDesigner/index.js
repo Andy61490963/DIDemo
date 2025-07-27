@@ -50,6 +50,7 @@ $('#btnSaveFormHeader').click(function () {
         FORM_NAME: $('#FORM_NAME').val(),
         TABLE_NAME: $('#tableNameInput').val(),
         VIEW_TABLE_NAME: $('#viewTableNameInput').val(),
+        PRIMARY_KEY: $('#PRIMARY_KEY').val(),
         BASE_TABLE_ID: $('#baseTableId').val(),
         VIEW_TABLE_ID: $('#viewTableId').val()
     };

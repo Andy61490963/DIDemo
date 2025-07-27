@@ -32,6 +32,11 @@ public class FormHeaderViewModel
     public string VIEW_TABLE_NAME { get; set; }
 
     /// <summary>
+    /// 主資料表主鍵欄位
+    /// </summary>
+    public string PRIMARY_KEY { get; set; }
+
+    /// <summary>
     /// 主要表單 Master ID
     /// </summary>
     public Guid? BASE_TABLE_ID { get; set; }
