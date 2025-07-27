@@ -15,6 +15,17 @@ public static class FormFieldHelper
         { "default",  new() { FormControlType.Text, FormControlType.Textarea } }
     };
 
+    private static readonly Dictionary<string, FormControlType> DefaultControlTypeMap = new(StringComparer.OrdinalIgnoreCase)
+    {
+        { "datetime", FormControlType.Date },
+        { "bit",      FormControlType.Checkbox },
+        { "int",      FormControlType.Number },
+        { "decimal",  FormControlType.Number },
+        { "nvarchar", FormControlType.Text },
+        { "varchar",  FormControlType.Text },
+        { "default",  FormControlType.Text }
+    };
+
     public static List<FormControlType> GetControlTypeWhitelist(string dataType)
     {
         return ControlTypeWhitelistMap.TryGetValue(dataType, out var list)
@@ -32,5 +43,12 @@ public static class FormFieldHelper
             "int" or "decimal" => 100,
             _ => 150
         };
+    }
+
+    public static FormControlType GetDefaultControlType(string dataType)
+    {
+        return DefaultControlTypeMap.TryGetValue(dataType, out var type)
+            ? type
+            : DefaultControlTypeMap["default"];
     }
 }

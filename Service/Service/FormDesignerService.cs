@@ -120,6 +120,7 @@ public class FormDesignerService : IFormDesignerService
                     TableName = tableName,
                     COLUMN_NAME = col.COLUMN_NAME,
                     DATA_TYPE = col.DATA_TYPE,
+                    CONTROL_TYPE = FormFieldHelper.GetDefaultControlType(col.DATA_TYPE),
                     IS_VISIBLE = true,
                     IS_EDITABLE = true,
                     EDITOR_WIDTH = FormFieldHelper.GetDefaultEditorWidth(col.DATA_TYPE),
@@ -141,13 +142,15 @@ public class FormDesignerService : IFormDesignerService
     /// <param name="model">表單欄位的 ViewModel</param>
     public void UpsertField(FormFieldViewModel model, Guid formMasterId)
     {
+        var controlType = model.CONTROL_TYPE ?? FormFieldHelper.GetDefaultControlType(model.DATA_TYPE);
+
         var param = new
         {
             ID = model.ID == Guid.Empty ? Guid.NewGuid() : model.ID,
             FORM_FIELD_Master_ID = formMasterId,
             TABLE_NAME = model.TableName,
             model.COLUMN_NAME,
-            model.CONTROL_TYPE,
+            CONTROL_TYPE = controlType,
             model.IS_VISIBLE,
             model.IS_EDITABLE,
             COLUMN_SPAN = model.EDITOR_WIDTH,
