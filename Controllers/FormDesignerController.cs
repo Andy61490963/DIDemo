@@ -168,8 +168,36 @@ public class FormDesignerController : Controller
     public IActionResult ValidateDropdownSql(string sql)
     {
         var res = _formDesignerService.ValidateDropdownSql(sql);
-       
+
         return PartialView("Dropdown/_ValidateSqlResult", res);
+    }
+
+    [HttpPost]
+    public IActionResult SaveFormHeader([FromBody] FormHeaderViewModel model)
+    {
+        if (string.IsNullOrWhiteSpace(model.TABLE_NAME))
+        {
+            return BadRequest("BASE_TABLE_NAME 不可為空");
+        }
+
+        if (string.IsNullOrWhiteSpace(model.DISPLAY_VIEW_NAME))
+        {
+            return BadRequest("VIEW_NAME 不可為空");
+        }
+
+        var master = new FORM_FIELD_Master
+        {
+            FORM_NAME = model.FORM_NAME,
+            BASE_TABLE_NAME = model.TABLE_NAME,
+            VIEW_NAME = model.DISPLAY_VIEW_NAME,
+            PRIMARY_KEY = string.Empty,
+            STATUS = (int)TableStatusType.Draft,
+            SCHEMA_TYPE = (int)TableSchemaQueryType.All
+        };
+
+        _formDesignerService.SaveFormHeader(master);
+
+        return Json(new { success = true });
     }
     
     private List<SelectListItem> GetValidationTypeOptions(Guid fieldId)
