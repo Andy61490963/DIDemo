@@ -4,16 +4,21 @@ public static class ValidationRulesMap
 {
     private static readonly Dictionary<FormControlType, ValidationType[]> _map = new()
     {
-        { FormControlType.Text,     new[] { ValidationType.Required, ValidationType.Regex, ValidationType.Email, ValidationType.Number } },
-        { FormControlType.Number,   new[] { ValidationType.Required, ValidationType.Min, ValidationType.Max, ValidationType.Number } },
-        { FormControlType.Date,     new[] { ValidationType.Required, ValidationType.Min, ValidationType.Max } },
-        { FormControlType.Checkbox, new[] { ValidationType.Required } },
-        { FormControlType.Textarea, new[] { ValidationType.Required, ValidationType.Regex, ValidationType.Email, ValidationType.Number } },
-        { FormControlType.Dropdown, new[] { ValidationType.Required } },
+        { FormControlType.Text,     new[] { ValidationType.Regex, ValidationType.Email, ValidationType.Number } },
+        { FormControlType.Number,   new[] { ValidationType.Min, ValidationType.Max, ValidationType.Number } },
+        { FormControlType.Date,     new[] { ValidationType.Min, ValidationType.Max } },
+        { FormControlType.Checkbox, Array.Empty<ValidationType>() },
+        { FormControlType.Textarea, new[] { ValidationType.Regex, ValidationType.Email, ValidationType.Number } },
+        { FormControlType.Dropdown, Array.Empty<ValidationType>() },
     };
 
     public static ValidationType[] GetValidations(FormControlType controlType)
     {
         return _map.TryGetValue(controlType, out var types) ? types : Array.Empty<ValidationType>();
+    }
+
+    public static bool HasValidations(FormControlType controlType)
+    {
+        return _map.TryGetValue(controlType, out var types) && types.Length > 0;
     }
 }
