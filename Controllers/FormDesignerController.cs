@@ -37,6 +37,7 @@ public class FormDesignerController : Controller
                     FORM_NAME = master.FORM_NAME,
                     TABLE_NAME = master.BASE_TABLE_NAME,
                     VIEW_TABLE_NAME = master.VIEW_TABLE_NAME,
+                    PRIMARY_KEY = master.PRIMARY_KEY,
                     BASE_TABLE_ID = master.BASE_TABLE_ID,
                     VIEW_TABLE_ID = master.VIEW_TABLE_ID
                 };
@@ -218,7 +219,7 @@ public class FormDesignerController : Controller
             VIEW_TABLE_NAME = model.VIEW_TABLE_NAME,
             BASE_TABLE_ID = model.BASE_TABLE_ID,
             VIEW_TABLE_ID = model.VIEW_TABLE_ID,
-            PRIMARY_KEY = string.Empty,
+            PRIMARY_KEY = model.PRIMARY_KEY,
             STATUS = (int)TableStatusType.Active,
             SCHEMA_TYPE = (int)TableSchemaQueryType.All
         };

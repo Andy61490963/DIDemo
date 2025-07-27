@@ -7,7 +7,7 @@
     <input asp-for="ID" type="hidden" id="formMasterId" />
     <input asp-for="BASE_TABLE_ID" type="hidden" id="baseTableId" />
     <input asp-for="VIEW_TABLE_ID" type="hidden" id="viewTableId" />
-    <div class="col-md-6 col-lg-3">
+    <div class="col-md-6 col-lg-2">
         <label asp-for="FORM_NAME" class="form-label">表單代碼</label>
         <input asp-for="FORM_NAME" class="form-control" />
     </div>
@@ -29,7 +29,11 @@
             </button>
         </div>
     </div>
-    <div class="col-md-6 col-lg-3">
+    <div class="col-md-6 col-lg-2">
+        <label asp-for="PRIMARY_KEY" class="form-label">主鍵欄位</label>
+        <input asp-for="PRIMARY_KEY" class="form-control" />
+    </div>
+    <div class="col-md-6 col-lg-2">
         <button class="btn btn-primary" type="button" id="btnSaveFormHeader">
             <i class="bi bi-save"></i> 儲存
         </button>
