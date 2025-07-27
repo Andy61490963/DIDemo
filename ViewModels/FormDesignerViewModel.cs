@@ -130,4 +130,9 @@ public class FormFieldViewModel
     /// 控制選擇白名單
     /// </summary>
     public List<FormControlType> CONTROL_TYPE_WHITELIST { get; set; } = new();
+
+    /// <summary>
+    /// 資料表查詢類型，更新欄位設定後重新載入清單時使用
+    /// </summary>
+    public TableSchemaQueryType SchemaType { get; set; }
 }

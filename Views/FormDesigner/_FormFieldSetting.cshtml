@@ -4,12 +4,16 @@
 @model FormFieldViewModel?
 @{
     var isDisabled = Model == null;
+    var schemaType = Model?.SchemaType ?? (ViewBag.SchemaType != null ? (TableSchemaQueryType)ViewBag.SchemaType : TableSchemaQueryType.OnlyTable);
+    var updateTarget = schemaType == TableSchemaQueryType.OnlyView ? "#formViewFieldList" : "#formFieldList";
 }
-<form id="field-setting-form">
+<form id="field-setting-form" asp-action="UpdateFieldSetting" asp-controller="FormDesigner"
+      data-ajax="true" data-ajax-method="post" data-ajax-mode="replace" data-ajax-update="@updateTarget">
 <fieldset @(isDisabled ? "disabled" : "")>
     <input type="hidden" asp-for="TableName" />
     <input type="hidden" asp-for="ID" />
     <input type="hidden" asp-for="FORM_FIELD_Master_ID" />
+    <input type="hidden" asp-for="SchemaType" value="@schemaType" />
         <div class="row g-3">
             <div class="col-md-6">
                 <label asp-for="COLUMN_NAME" class="form-label">欄位名稱</label>

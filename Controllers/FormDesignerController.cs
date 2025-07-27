@@ -66,12 +66,16 @@ public class FormDesignerController : Controller
     {
         FormFieldViewModel? field = _formDesignerService.GetFieldsByTableName(tableName, schemaType).Fields
                        .FirstOrDefault(x => x.COLUMN_NAME == columnName);
-        
+        if (field != null)
+        {
+            field.SchemaType = schemaType;
+        }
+        ViewBag.SchemaType = schemaType;
         return PartialView("_FormFieldSetting", field);
     }
     
     [HttpPost]
-    public IActionResult UpdateFieldSetting(FormFieldViewModel model)
+    public IActionResult UpdateFieldSetting(FormFieldViewModel model, TableSchemaQueryType schemaType)
     {
         // 1. 取得 FORM_FIELD_Master ID，如果不存在就新增
         var master = new FORM_FIELD_Master { ID = model.FORM_FIELD_Master_ID };
@@ -85,7 +89,10 @@ public class FormDesignerController : Controller
         }
         
         _formDesignerService.UpsertField(model, formMasterId);
-        return Json(new { success = true });
+        var fields = _formDesignerService.EnsureFieldsSaved(model.TableName, schemaType);
+        fields.ID = formMasterId;
+        fields.type = schemaType;
+        return PartialView("_FormFieldList", fields);
     }
 
     [HttpGet]

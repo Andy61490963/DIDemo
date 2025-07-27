@@ -74,7 +74,8 @@ public class FormDesignerService : IFormDesignerService
                 IS_EDITABLE            = cfg?.IS_EDITABLE ?? true,
                 IS_VALIDATION_RULE     = requiredFieldIds.Contains(fieldId),
                 EDITOR_WIDTH           = cfg?.COLUMN_SPAN ?? FormFieldHelper.GetDefaultEditorWidth(dataType),
-                DEFAULT_VALUE          = cfg?.DEFAULT_VALUE ??  string.Empty
+                DEFAULT_VALUE          = cfg?.DEFAULT_VALUE ??  string.Empty,
+                SchemaType             = schemaType
             };
         }).ToList();
         var masterId = configs.Values.FirstOrDefault()?.FORM_FIELD_Master_ID ?? Guid.Empty;
@@ -127,7 +128,8 @@ public class FormDesignerService : IFormDesignerService
                     IS_VISIBLE = true,
                     IS_EDITABLE = true,
                     EDITOR_WIDTH = FormFieldHelper.GetDefaultEditorWidth(col.DATA_TYPE),
-                    DEFAULT_VALUE = string.Empty
+                    DEFAULT_VALUE = string.Empty,
+                    SchemaType = schemaType
                 };
 
                 UpsertField(vm, masterId);
