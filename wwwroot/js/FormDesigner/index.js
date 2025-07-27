@@ -21,6 +21,12 @@ function handleTableSearch(inputSelector, nameKey, targetSelector) {
         data: data,
         success: function (partialHtml) {
             $(targetSelector).html(partialHtml); // 指定要更新的區塊
+            const masterId = $(targetSelector).find('[data-master-id]').data('master-id');
+            if (nameKey === 'tableName') {
+                $('#baseTableId').val(masterId);
+            } else {
+                $('#viewTableId').val(masterId);
+            }
         },
         error: function () {
             alert('查詢失敗，請確認表格名稱');
