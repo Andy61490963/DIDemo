@@ -34,7 +34,7 @@
         <tr>
             <th>FORM_NAME</th>
             <th>BASE_TABLE_NAME</th>
-            <th>VIEW_NAME</th>
+            <th>VIEW_TABLE_NAME</th>
             <th>PRIMARY_KEY</th>
             <th>STATUS</th>
             <th>SCHEMA_TYPE</th>
@@ -49,7 +49,7 @@
                 <tr>
                     <td>@item.FORM_NAME</td>
                     <td>@item.BASE_TABLE_NAME</td>
-                    <td>@item.VIEW_NAME</td>
+                    <td>@item.VIEW_TABLE_NAME</td>
                     <td>@item.PRIMARY_KEY</td>
                     <td>@statusMap.GetValueOrDefault(item.STATUS, item.STATUS.ToString())</td>
                     <td>@typeMap.GetValueOrDefault(item.SCHEMA_TYPE, item.SCHEMA_TYPE.ToString())</td>

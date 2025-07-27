@@ -5,7 +5,9 @@ Table FORM_FIELD_Master {
   ID UUID [primary key, note: '欄位設定的唯一識別編號（UUID）']
   FORM_NAME NVARCHAR(100) [not null, note: '表單識別名稱，例如 student_edit_form']
   BASE_TABLE_NAME NVARCHAR(100) [note: '實際要寫入 / 更新的資料表名稱，如 STUDENTS']
-  VIEW_NAME NVARCHAR(100) [note: '僅供展示的檢視表名稱，如 VW_STUDENT_FULL']
+  VIEW_TABLE_NAME NVARCHAR(100) [note: '僅供展示的檢視表名稱，如 VW_STUDENT_FULL']
+  BASE_TABLE_ID UUID [note: '實際要寫入 / 更新的資料表名稱，指回FORM_FIELD_Master的ID']
+  VIEW_TABLE_ID UUID [note: '僅供展示的檢視表名稱，指回FORM_FIELD_Master的ID']
   PRIMARY_KEY NVARCHAR(100) [note: 'BASE_TABLE_NAME 的主鍵欄位名稱，如 STUDENT_ID']
 }
 
@@ -114,7 +116,7 @@ Ref: FORM_FIELD_DROPDOWN_OPTIONS.FORM_FIELD_DROPDOWN_ID > FORM_FIELD_DROPDOWN.ID
 6.	資料填入與即時驗證： 使用者在前台填寫各欄位時，系統可即時根據定義的驗證規則進行檢查。例如，若某欄位設定為必填且有最大長度限制，使用者未填或超過長度時，前端立即給出對應的錯誤提示（錯誤訊息內容依據後台設定的中/英文訊息）。
 7.	提交與儲存（CRUD 操作）： 使用者完成表單填寫後提交：
 8.	新增 (Create) 或 更新 (Update)： 前端將收集的資料依據表單設定進行處理，透過 API 或資料存取層傳送至後端。後端收到資料後，按照 FORM_FIELD_MASTER 中指定的主資料表，執行 Insert（新增）或 Update（更新）操作，將資料寫入/更新到正確的資料表欄位中（此過程需使用 PRIMARY_KEY 來判斷是新增還是更新既有記錄）。
-9.	讀取 (Read)： 若是編輯既有資料的表單，在打開表單時，系統會根據 PRIMARY_KEY 從主資料表或定義的檢視 VIEW_NAME 讀取現有資料，並填入表單欄位中供使用者修改。VIEW_NAME 如果有多表 Join，可顯示相關的文字資訊（例如代碼轉文字）增強使用者體驗，但最終更新時仍針對 BASE_TABLE_NAME 實施。
+9.	讀取 (Read)： 若是編輯既有資料的表單，在打開表單時，系統會根據 PRIMARY_KEY 從主資料表或定義的檢視 VIEW_TABLE_NAME 讀取現有資料，並填入表單欄位中供使用者修改。VIEW_TABLE_NAME 如果有多表 Join，可顯示相關的文字資訊（例如代碼轉文字）增強使用者體驗，但最終更新時仍針對 BASE_TABLE_NAME 實施。
 10.	刪除 (Delete)： 系統可選擇提供刪除功能（例如在列表頁面或其他操作中），使用 PRIMARY_KEY 定位要刪除的記錄，然後對 BASE_TABLE_NAME 執行刪除操作。刪除通常不在表單頁面內進行，因此在本配置中主要關注新增與修改。
 11.	結果反饋： 資料庫操作成功後，前端接收操作結果，給予使用者提示（例如「新增成功」、「更新完成」等）。若發生錯誤（例如驗證層遺漏或後端錯誤），前端則顯示錯誤訊息，以利使用者修正。
 透過上述機制，前台表單的內容和行為可完全由後台資料驅動，使系統具有高度的動態調整能力：當需要修改表單欄位或規則時，只需在後台更新配置，前端（或 AI 產生的程式）即可在下次載入時自動反映最新的設定，無需額外程式碼開發。
@@ -126,7 +128,9 @@ FORM_FIELD_MASTER（表單主設定檔）
 •	ID (UUID, primary key)：該表單設定的唯一識別碼（UUID）。
 •	FORM_NAME (NVARCHAR(100), not null)：表單的識別名稱（程式代稱），例如 student_edit_form。前端載入特定表單配置時將依據此名稱查詢。
 •	BASE_TABLE_NAME (NVARCHAR(100))：實際資料寫入/更新的主資料表名稱，例如 STUDENTS。前台提交資料時將對此表執行 Insert/Update 操作。
-•	VIEW_NAME (NVARCHAR(100))：前台顯示資料用的檢視名稱，例如 VW_STUDENT_FULL。通常為一個資料庫 View，可以將 BASE_TABLE_NAME 與其他相關表 Join 起來，以提供前端顯示所需的額外資訊（如代碼對應的文字說明）。如果為空，則表示直接使用 BASE_TABLE_NAME 進行資料存取與顯示。
+•	VIEW_TABLE_NAME (NVARCHAR(100))：前台顯示資料用的檢視名稱，例如 VW_STUDENT_FULL。通常為一個資料庫 View，可以將 BASE_TABLE_NAME 與其他相關表 Join 起來，以提供前端顯示所需的額外資訊（如代碼對應的文字說明）。如果為空，則表示直接使用 BASE_TABLE_NAME 進行資料存取與顯示。
+•       BASE_TABLE_ID (UUID)：主表單對應的 FORM_FIELD_MASTER.ID，用於表單關聯。
+•       VIEW_TABLE_ID (UUID)：檢視表單對應的 FORM_FIELD_MASTER.ID。
 •	PRIMARY_KEY (NVARCHAR(100))：主鍵欄位名稱（在 BASE_TABLE_NAME 中的主鍵，例如 STUDENT_ID）。系統利用此欄位來辨識資料記錄，進行讀取現有資料或更新/刪除時使用。
 FORM_FIELD_CONFIG（表單欄位設定檔）
 此表存放特定表單下的欄位設定。一個表單（FORM_FIELD_MASTER 的一筆記錄）會對應多筆 FORM_FIELD_CONFIG 紀錄，每筆代表前台表單中的一個欄位配置，定義該欄位如何呈現與互動。
@@ -214,7 +218,7 @@ FORM_FIELD_DROPDOWN_OPTIONS（下拉選單選項清單檔）
 假設建立一個表單，讓使用者編輯學生資訊。首先在 FORM_FIELD_MASTER 新增一筆記錄：
 •	FORM_NAME： student_edit_form
 •	BASE_TABLE_NAME： STUDENTS（主資料表，儲存學生基本資料）
-•	VIEW_NAME： VW_STUDENT_FULL（學生資訊檢視，例如 Students 表聯合其他表以取得完整資訊，如性別對應文字、導師姓名等。如果沒有複雜關聯，此處也可直接使用 STUDENTS 表或留空）
+•	VIEW_TABLE_NAME： VW_STUDENT_FULL（學生資訊檢視，例如 Students 表聯合其他表以取得完整資訊，如性別對應文字、導師姓名等。如果沒有複雜關聯，此處也可直接使用 STUDENTS 表或留空）
 •	PRIMARY_KEY： STUDENT_ID（學生資料表的主鍵，例如學生編號）
 •	SEQNO： 1（排序，若系統有多個表單，此表單顯示順序為第一）
 •	其他欄位如 ID（UUID）會自動產生。

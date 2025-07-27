@@ -36,7 +36,9 @@ public class FormDesignerController : Controller
                     ID = master.ID,
                     FORM_NAME = master.FORM_NAME,
                     TABLE_NAME = master.BASE_TABLE_NAME,
-                    DISPLAY_VIEW_NAME = master.VIEW_NAME
+                    VIEW_TABLE_NAME = master.VIEW_TABLE_NAME,
+                    BASE_TABLE_ID = master.BASE_TABLE_ID,
+                    VIEW_TABLE_ID = master.VIEW_TABLE_ID
                 };
 
                 var type = (TableSchemaQueryType)master.SCHEMA_TYPE;
@@ -203,9 +205,9 @@ public class FormDesignerController : Controller
             return BadRequest("BASE_TABLE_NAME 不可為空");
         }
 
-        if (string.IsNullOrWhiteSpace(model.DISPLAY_VIEW_NAME))
+        if (string.IsNullOrWhiteSpace(model.VIEW_TABLE_NAME))
         {
-            return BadRequest("VIEW_NAME 不可為空");
+            return BadRequest("VIEW_TABLE_NAME 不可為空");
         }
 
         var master = new FORM_FIELD_Master
@@ -213,7 +215,9 @@ public class FormDesignerController : Controller
             ID = model.ID,
             FORM_NAME = model.FORM_NAME,
             BASE_TABLE_NAME = model.TABLE_NAME,
-            VIEW_NAME = model.DISPLAY_VIEW_NAME,
+            VIEW_TABLE_NAME = model.VIEW_TABLE_NAME,
+            BASE_TABLE_ID = model.BASE_TABLE_ID,
+            VIEW_TABLE_ID = model.VIEW_TABLE_ID,
             PRIMARY_KEY = string.Empty,
             STATUS = (int)TableStatusType.Active,
             SCHEMA_TYPE = (int)TableSchemaQueryType.All
