@@ -76,13 +76,16 @@ public class FormDesignerService : IFormDesignerService
                 DEFAULT_VALUE          = cfg?.DEFAULT_VALUE ??  string.Empty
             };
         }).ToList();
+        var masterId = configs.Values.FirstOrDefault()?.FORM_FIELD_Master_ID ?? Guid.Empty;
 
         var result = new FormFieldListViewModel
         {
+            ID = masterId,
             TableName = tableName,
-            Fields = res
+            Fields = res,
+            type = schemaType
         };
-        
+
         return result;
     }
 
@@ -127,7 +130,9 @@ public class FormDesignerService : IFormDesignerService
             }
         }
 
-        return GetFieldsByTableName(tableName, schemaType);
+        var result = GetFieldsByTableName(tableName, schemaType);
+        result.type = schemaType;
+        return result;
     }
 
     /// <summary>
