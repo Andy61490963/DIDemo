@@ -40,6 +40,7 @@ $('#btnSearchViewTable').click(function () {
 // 儲存 Form Header
 $('#btnSaveFormHeader').click(function () {
     const data = {
+        ID: $('#formMasterId').val(),
         FORM_NAME: $('#FORM_NAME').val(),
         TABLE_NAME: $('#tableNameInput').val(),
         DISPLAY_VIEW_NAME: $('#viewTableNameInput').val()
@@ -50,7 +51,10 @@ $('#btnSaveFormHeader').click(function () {
         type: 'POST',
         contentType: 'application/json',
         data: JSON.stringify(data),
-        success: function () {
+        success: function (res) {
+            if (res && res.id) {
+                $('#formMasterId').val(res.id);
+            }
             alert('儲存成功');
         },
         error: function (xhr) {

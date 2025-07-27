@@ -187,6 +187,7 @@ public class FormDesignerController : Controller
 
         var master = new FORM_FIELD_Master
         {
+            ID = model.ID,
             FORM_NAME = model.FORM_NAME,
             BASE_TABLE_NAME = model.TABLE_NAME,
             VIEW_NAME = model.DISPLAY_VIEW_NAME,
@@ -195,9 +196,9 @@ public class FormDesignerController : Controller
             SCHEMA_TYPE = (int)TableSchemaQueryType.All
         };
 
-        _formDesignerService.SaveFormHeader(master);
+        var id = _formDesignerService.SaveFormHeader(master);
 
-        return Json(new { success = true });
+        return Json(new { success = true, id });
     }
     
     private List<SelectListItem> GetValidationTypeOptions(Guid fieldId)

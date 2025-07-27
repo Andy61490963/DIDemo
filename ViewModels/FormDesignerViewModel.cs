@@ -13,6 +13,10 @@ public class FormDesignerIndexViewModel
 public class FormHeaderViewModel
 {
     /// <summary>
+    /// FORM_FIELD_Master 主檔 ID
+    /// </summary>
+    public Guid ID { get; set; }
+    /// <summary>
     /// 主檔名稱
     /// </summary>
     public string FORM_NAME { get; set; }
