@@ -2,10 +2,11 @@
 
 @using ClassLibrary
 @model FormFieldViewModel?
-@{
-    var isDisabled = Model == null;
+@{ 
+    var isDisabled = Model == null; 
     var schemaType = Model?.SchemaType ?? (ViewBag.SchemaType != null ? (TableSchemaQueryType)ViewBag.SchemaType : TableSchemaQueryType.OnlyTable);
     var updateTarget = schemaType == TableSchemaQueryType.OnlyView ? "#formViewFieldList" : "#formFieldList";
+    var showSettingRuleButton = Model != null && ValidationRulesMap.HasValidations(Model.CONTROL_TYPE ?? FormControlType.Text);
 }
 <form id="field-setting-form" asp-action="UpdateFieldSetting" asp-controller="FormDesigner"
       data-ajax="true" data-ajax-method="post" data-ajax-mode="replace" data-ajax-update="@updateTarget">
@@ -85,7 +86,7 @@
             <div class="w-100"></div>
             <div class="col-md-4 d-flex align-items-center">
                 <button type="button"
-                        class="btn btn-outline-primary btn-sm setting-rule-btn"
+                        class="btn btn-outline-primary btn-sm setting-rule-btn @(showSettingRuleButton ? "" : "d-none")"
                         data-id="@Model?.ID"
                         @(Model == null ? "disabled" : "")>
                     設定限制條件
