@@ -43,7 +43,7 @@
 
             <div class="col-md-6">
                 <label asp-for="DEFAULT_VALUE" class="form-label">預設值</label>
-                <input asp-for="DEFAULT_VALUE" class="form-control" />
+                <input asp-for="DEFAULT_VALUE" class="form-control" disabled="@(!showSettingRuleButton)" />
             </div>
 
             <div class="col-md-6">
