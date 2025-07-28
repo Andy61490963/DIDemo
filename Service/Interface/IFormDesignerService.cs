@@ -35,7 +35,7 @@ public interface IFormDesignerService
     List<FORM_FIELD_DROPDOWN_OPTIONS> GetDropdownOptions(Guid dropDownId);
     
     void SaveDropdownSql(Guid fieldId, string sql);
-    Guid SaveDropdownOption(Guid? id, Guid dropdownId, string optionText);
+    Guid SaveDropdownOption(Guid? id, Guid dropdownId, string optionText, string optionValue, string optionTable);
 
     void DeleteDropdownOption(Guid optionId);
 

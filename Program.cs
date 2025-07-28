@@ -1,10 +1,15 @@
 using DynamicForm.Service.Interface;
 using DynamicForm.Service.Service;
+using DynamicForm.Models;
 using Microsoft.Data.SqlClient;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddOptions();
+
+// 註冊下拉 SQL 的設定檔
+builder.Services.Configure<DropdownSqlSettings>(builder.Configuration.GetSection("DropdownSql"));
 
 // Service
 builder.Services.AddScoped<IFormListService, FormListService>();
