@@ -3,6 +3,7 @@ using Dapper;
 using DynamicForm.Models;
 using DynamicForm.Service.Interface;
 using Microsoft.Data.SqlClient;
+using System.Text.RegularExpressions;
 
 namespace DynamicForm.Service.Service;
 
@@ -62,6 +63,46 @@ public class FormService : IFormService
         {
             FormName = master.FORM_NAME,
             Fields = merged
+        };
+    }
+
+    /// <summary>
+    /// 取得指定表單對應檢視表的所有資料
+    /// </summary>
+    public FormListDataViewModel GetFormList(Guid formId)
+    {
+        var master = _con.QueryFirstOrDefault<FORM_FIELD_Master>(
+            "SELECT * FROM FORM_FIELD_Master WHERE ID = @formId",
+            new { formId });
+        if (master == null || string.IsNullOrWhiteSpace(master.VIEW_TABLE_NAME))
+        {
+            return new FormListDataViewModel { FormId = formId };
+        }
+
+        if (!Regex.IsMatch(master.VIEW_TABLE_NAME, "^[A-Za-z0-9_]+$"))
+            throw new InvalidOperationException("View 名稱不合法");
+
+        var columnSql = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @table";
+        var columns = _con.Query<string>(columnSql, new { table = master.VIEW_TABLE_NAME }).ToList();
+
+        var rows = new List<Dictionary<string, object?>>();
+        var data = _con.Query($"SELECT * FROM {master.VIEW_TABLE_NAME}");
+        foreach (IDictionary<string, object?> row in data)
+        {
+            var dict = new Dictionary<string, object?>();
+            foreach (var col in columns)
+            {
+                row.TryGetValue(col, out var value);
+                dict[col] = value;
+            }
+            rows.Add(dict);
+        }
+
+        return new FormListDataViewModel
+        {
+            FormId = formId,
+            Columns = columns,
+            Rows = rows
         };
     }
 
