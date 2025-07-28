@@ -6,16 +6,19 @@ using DynamicForm.Helper;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Options;
 
 namespace DynamicForm.Service.Service;
 
 public class FormDesignerService : IFormDesignerService
 {
     private readonly SqlConnection _con;
-    
-    public FormDesignerService(SqlConnection connection)
+    private readonly DropdownSqlSettings _dropdownSqlSettings;
+
+    public FormDesignerService(SqlConnection connection, IOptions<DropdownSqlSettings> options)
     {
         _con = connection;
+        _dropdownSqlSettings = options.Value;
     }
 
     #region Public API
@@ -302,13 +305,15 @@ public class FormDesignerService : IFormDesignerService
         return optionTexts;
     }
 
-    public Guid SaveDropdownOption(Guid? id, Guid dropdownId, string optionText)
+    public Guid SaveDropdownOption(Guid? id, Guid dropdownId, string optionText, string optionValue, string optionTable)
     {
         var param = new
         {
             Id = (id == Guid.Empty ? null : id),
             DropdownId = dropdownId,
-            OptionText = optionText
+            OptionText = optionText,
+            OptionValue = optionValue,
+            OptionTable = optionTable
         };
 
         // ExecuteScalar 直接拿回 OUTPUT 的 Guid
@@ -349,14 +354,44 @@ public class FormDesignerService : IFormDesignerService
                 result.Message = "僅允許查詢類 SQL。";
                 return result;
             }
-            
-            var rows = _con.Query(sql).Select(row => 
-                ((IDictionary<string, object>)row).ToDictionary(
-                    kv => kv.Key, kv => kv.Value)).ToList();
+
+            var wasClosed = _con.State != System.Data.ConnectionState.Open;
+            if (wasClosed) _con.Open();
+
+            using var cmd = new SqlCommand(sql, _con);
+            using var reader = cmd.ExecuteReader();
+
+            var columns = reader.GetColumnSchema();
+            if (columns.Count < 2)
+            {
+                result.Success = false;
+                result.Message = "SQL 必須回傳至少兩個欄位。";
+                return result;
+            }
+
+            if (!string.Equals(columns[0].ColumnName, _dropdownSqlSettings.IdColumnName, StringComparison.OrdinalIgnoreCase))
+            {
+                result.Success = false;
+                result.Message = $"第一個欄位必須為 '{_dropdownSqlSettings.IdColumnName}'。";
+                return result;
+            }
+
+            var rows = new List<Dictionary<string, object>>();
+            while (reader.Read())
+            {
+                var row = new Dictionary<string, object>();
+                for (int i = 0; i < reader.FieldCount; i++)
+                {
+                    row[columns[i].ColumnName] = reader.GetValue(i);
+                }
+                rows.Add(row);
+            }
 
             result.Success = true;
             result.RowCount = rows.Count;
             result.Rows = rows.Take(10).ToList(); // 最多回傳前 10 筆
+
+            if (wasClosed) _con.Close();
         }
         catch (Exception ex)
         {
@@ -580,17 +615,23 @@ USING (
     SELECT
         @Id             AS ID,                 -- Guid (可能是空)
         @DropdownId     AS FORM_FIELD_DROPDOWN_ID,
-        @OptionText     AS OPTION_TEXT
+        @OptionText     AS OPTION_TEXT,
+        @OptionValue    AS OPTION_VALUE,
+        @OptionTable    AS OPTION_TABLE
 ) AS source
 ON target.ID = source.ID                     -- 只比對 PK
 WHEN MATCHED THEN
     UPDATE SET
-        OPTION_TEXT = source.OPTION_TEXT
+        OPTION_TEXT  = source.OPTION_TEXT,
+        OPTION_VALUE = source.OPTION_VALUE,
+        OPTION_TABLE = source.OPTION_TABLE
 WHEN NOT MATCHED THEN
-    INSERT (ID, FORM_FIELD_DROPDOWN_ID, OPTION_TEXT)
+    INSERT (ID, FORM_FIELD_DROPDOWN_ID, OPTION_TEXT, OPTION_VALUE, OPTION_TABLE)
     VALUES (ISNULL(source.ID, NEWID()),       -- 若 Guid.Empty → 直接 NEWID()
             source.FORM_FIELD_DROPDOWN_ID,
-            source.OPTION_TEXT)
+            source.OPTION_TEXT,
+            source.OPTION_VALUE,
+            source.OPTION_TABLE)
 OUTPUT INSERTED.ID;                          -- 把 ID 回傳給 Dapper
 ";
 

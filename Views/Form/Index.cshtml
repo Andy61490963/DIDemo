@@ -170,7 +170,8 @@
                                         <option value="">-- 請選擇 --</option>
                                         @foreach (var opt in field.OptionList ?? new())
                                         {
-                                            <option value="@opt.ID">@opt.OPTION_TEXT</option>
+                                            var optionValue = string.IsNullOrEmpty(opt.OPTION_VALUE) ? opt.ID.ToString() : opt.OPTION_VALUE;
+                                            <option value="@optionValue">@opt.OPTION_TEXT</option>
                                         }
                                     </select>
                                 </div>

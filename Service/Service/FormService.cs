@@ -113,14 +113,17 @@ public class FormService : IFormService
             {
                 var dict = (IDictionary<string, object>)row;
 
-                // 自動抓第一個欄位作為顯示文字
-                var optionText = dict.Values.FirstOrDefault()?.ToString() ?? "";
+                var values = dict.Values.Take(2).ToArray();
+                var optionValue = values.ElementAtOrDefault(0)?.ToString() ?? string.Empty;
+                var optionText  = values.ElementAtOrDefault(1)?.ToString() ?? string.Empty;
 
                 finalOptions.Add(new FORM_FIELD_DROPDOWN_OPTIONS
                 {
                     ID = Guid.NewGuid(),
                     FORM_FIELD_DROPDOWN_ID = dropdown.ID,
+                    OPTION_VALUE = optionValue,
                     OPTION_TEXT = optionText,
+                    OPTION_TABLE = string.Empty
                 });
             }
         }

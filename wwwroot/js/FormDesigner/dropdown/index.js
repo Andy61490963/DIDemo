@@ -65,7 +65,7 @@ $(document).on('click', '#addOption', () => {
 });
 
 let timer;
-$(document).on('input', '.option-text', function () {
+$(document).on('input', '.option-text, .option-value, .option-table', function () {
     clearTimeout(timer);
     const $input      = $(this);
     const $li         = $input.closest('li');
@@ -73,13 +73,18 @@ $(document).on('input', '.option-text', function () {
     const dropdownId  = $li.data('dropdown-id');
 
     timer = setTimeout(() => {
-        const optionText = $input.val().trim();
+        const optionText  = $li.find('.option-text').val().trim();
+        const optionValue = $li.find('.option-value').val().trim();
+        const optionTable = $li.find('.option-table').val().trim();
+
         if (!optionText) return;
 
         $.post('/FormDesigner/SaveDropdownOption', {
             id: optionId,
             dropdownId,
-            optionText
+            optionText,
+            optionValue,
+            optionTable
         }).fail(() => {
             console.warn(`✗ ${optionId} 儲存失敗`);
         });

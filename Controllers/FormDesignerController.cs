@@ -169,16 +169,16 @@ public class FormDesignerController : Controller
     [HttpPost]
     public IActionResult NewDropdownOption(Guid dropdownId)
     {
-        Guid newId = _formDesignerService.SaveDropdownOption(null, dropdownId, "");
+        Guid newId = _formDesignerService.SaveDropdownOption(null, dropdownId, "", "", "");
         var options = _formDesignerService.GetDropdownOptions(dropdownId);
         return PartialView("Dropdown/_DropdownOptionItem", options);
     }
 
     // 編輯既有選項
     [HttpPost]
-    public IActionResult SaveDropdownOption(Guid id, Guid dropdownId, string optionText)
+    public IActionResult SaveDropdownOption(Guid id, Guid dropdownId, string optionText, string optionValue, string optionTable)
     {
-        _formDesignerService.SaveDropdownOption(id, dropdownId, optionText);
+        _formDesignerService.SaveDropdownOption(id, dropdownId, optionText, optionValue, optionTable);
         return Json(new { success = true });
     }
     
