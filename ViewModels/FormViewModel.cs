@@ -22,7 +22,7 @@ public class FormFieldInputViewModel
     /// <summary>
     /// 欄位來源：主表或檢視表
     /// </summary>
-    public FieldSourceType SOURCE { get; set; }
+    public TableSchemaQueryType SOURCE { get; set; }
 
     public List<FormFieldValidationRuleDto> ValidationRules { get; set; } = new();
     

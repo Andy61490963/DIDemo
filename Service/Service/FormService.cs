@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using ClassLibrary;
 using Dapper;
 using DynamicForm.Models;
@@ -17,12 +18,13 @@ public class FormService : IFormService
 
     public FormSubmissionViewModel GetFormSubmission(Guid id)
     {
-        var master = _con.QueryFirstOrDefault<FORM_FIELD_Master>(
-            "SELECT * FROM FORM_FIELD_Master WHERE ID = @id", new { id });
+        id = Guid.Parse("512DBC19-B37D-4E6E-9F56-5ACE6C745120");
+        var master = _con.QueryFirstOrDefault<FORM_FIELD_Master>("/**/SELECT * FROM FORM_FIELD_Master WHERE ID = @id", new { id });
         if (master == null)
+        {
             throw new InvalidOperationException($"FORM_FIELD_Master {id} not found");
-
-        // 若為單一資料來源直接回傳結果
+        }
+        
         if (master.SCHEMA_TYPE != (int)TableSchemaQueryType.All)
         {
             var fields = GetFields(master.ID);
@@ -32,10 +34,11 @@ public class FormService : IFormService
                 Fields = fields
             };
         }
-
-        // 取得主表及檢視表的欄位設定
+        
         if (master.BASE_TABLE_ID is null || master.VIEW_TABLE_ID is null)
+        {
             throw new InvalidOperationException("主表與檢視表 ID 不完整");
+        }
 
         var baseFields = GetFields(master.BASE_TABLE_ID.Value);
         var viewFields = GetFields(master.VIEW_TABLE_ID.Value);
@@ -47,13 +50,13 @@ public class FormService : IFormService
         {
             if (baseMap.TryGetValue(viewField.COLUMN_NAME, out var baseField))
             {
-                baseField.SOURCE = FieldSourceType.BaseTable;
+                baseField.SOURCE = TableSchemaQueryType.OnlyTable;
                 merged.Add(baseField);
             }
             else
             {
                 viewField.IS_EDITABLE = false;
-                viewField.SOURCE = FieldSourceType.ViewTable;
+                viewField.SOURCE = TableSchemaQueryType.OnlyView;
                 merged.Add(viewField);
             }
         }
@@ -124,7 +127,7 @@ public class FormService : IFormService
                 OptionList = finalOptions,
                 ISUSESQL = isUseSql,
                 DROPDOWNSQL = dropdown?.DROPDOWNSQL ?? string.Empty,
-                SOURCE = FieldSourceType.BaseTable // 先預設，實際合併時會覆寫
+                SOURCE = TableSchemaQueryType.OnlyTable
             };
         }).ToList();
 
@@ -163,5 +166,40 @@ public class FormService : IFormService
         }
 
         return finalOptions;
+    }
+    
+    /// <summary>
+    /// 取得指定表單對應檢視表的所有資料
+    /// </summary>
+    public FormListDataViewModel GetFormList()
+    {
+        var master = _con.QueryFirstOrDefault<FORM_FIELD_Master>("select * from FORM_FIELD_Master WHERE SCHEMA_TYPE = @TYPE", new { TYPE = TableSchemaQueryType.All.ToInt() });
+        if (master == null )
+        {
+            return new FormListDataViewModel();
+        }
+
+        var columnSql = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @table";
+        var columns = _con.Query<string>(columnSql, new { table = master.VIEW_TABLE_NAME }).ToList();
+
+        var rows = new List<Dictionary<string, object?>>();
+        var data = _con.Query($"SELECT * FROM {master.VIEW_TABLE_NAME}");
+        foreach (IDictionary<string, object?> row in data)
+        {
+            var dict = new Dictionary<string, object?>();
+            foreach (var col in columns)
+            {
+                row.TryGetValue(col, out var value);
+                dict[col] = value;
+            }
+            rows.Add(dict);
+        }
+
+        return new FormListDataViewModel
+        {
+            FormId = master.ID,
+            Columns = columns,
+            Rows = rows
+        };
     }
 }

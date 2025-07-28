@@ -14,10 +14,16 @@ public class FormController : Controller
         _formService = formService;
     }
     
-    public IActionResult Index(Guid id)
+    public IActionResult Index()
+    {
+        var vm = _formService.GetFormList();
+        return View(vm);
+    }
+    
+    public IActionResult Get(Guid id)
     {
         var res = _formService.GetFormSubmission(id);
-        return View(res);
+        return View("Input",res);
     }
     
     [HttpPost]
