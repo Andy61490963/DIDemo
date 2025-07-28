@@ -291,6 +291,12 @@ public class FormDesignerController : Controller
             return BadRequest("VIEW_TABLE_NAME 不可為空");
         }
 
+        // 檢查表格名稱與 View 名稱組合是否重複
+        if (_formDesignerService.CheckFormMasterExists(model.TABLE_NAME, model.VIEW_TABLE_NAME, model.ID))
+        {
+            return Conflict("相同的表格及 View 組合已存在");
+        }
+
         var master = new FORM_FIELD_Master
         {
             ID = model.ID,

@@ -414,6 +414,13 @@ public class FormDesignerService : IFormDesignerService
         return id;
     }
 
+    public bool CheckFormMasterExists(string baseTableName, string viewTableName, Guid? excludeId = null)
+    {
+        var count = _con.ExecuteScalar<int>(Sql.CheckFormMasterExists,
+            new { baseTableName, viewTableName, excludeId });
+        return count > 0;
+    }
+
     public List<FORM_FIELD_Master> GetFormMasters()
     {
         var statusList = new[] { TableStatusType.Active, TableStatusType.Disabled };
@@ -512,6 +519,12 @@ WHEN NOT MATCHED THEN
         @ID, @FORM_NAME, @BASE_TABLE_NAME, @VIEW_TABLE_NAME,
         @PRIMARY_KEY, @BASE_TABLE_ID, @VIEW_TABLE_ID, @STATUS, @SCHEMA_TYPE)
 OUTPUT INSERTED.ID;";
+
+        public const string CheckFormMasterExists = @"/**/
+SELECT COUNT(1) FROM FORM_FIELD_Master
+WHERE BASE_TABLE_NAME = @baseTableName
+  AND VIEW_TABLE_NAME = @viewTableName
+  AND (@excludeId IS NULL OR ID <> @excludeId)";
         
         public const string UpsertField = @"
 MERGE FORM_FIELD_CONFIG AS target
