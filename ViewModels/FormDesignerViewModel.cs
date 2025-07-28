@@ -5,8 +5,24 @@ namespace DynamicForm.Models;
 
 public class FormDesignerIndexViewModel
 {
+    /// <summary>
+    /// 表單主檔基本資訊
+    /// </summary>
     public FormHeaderViewModel FormHeader { get; set; }
-    public FormFieldListViewModel FormField { get; set; }
+
+    /// <summary>
+    /// 主表欄位設定清單
+    /// </summary>
+    public FormFieldListViewModel BaseFields { get; set; }
+
+    /// <summary>
+    /// 檢視(View)欄位設定清單
+    /// </summary>
+    public FormFieldListViewModel ViewFields { get; set; }
+
+    /// <summary>
+    /// 右側欄位設定編輯區所需的資料
+    /// </summary>
     public FormFieldViewModel FieldSetting { get; set; }
 }
 

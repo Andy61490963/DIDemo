@@ -16,7 +16,7 @@
                 <div class="card-body">
                     <h5 class="card-title fw-bold mb-3">欄位清單</h5>
                     <div id="formFieldList">
-                        @await Html.PartialAsync("_FormFieldList", Model.FormField)
+                        @await Html.PartialAsync("_FormFieldList", Model.BaseFields)
                     </div>
                 </div>
             </div>
@@ -25,7 +25,7 @@
                 <div class="card-body">
                     <h5 class="card-title fw-bold mb-3">檢視欄位清單</h5>
                     <div id="formViewFieldList">
-                        @await Html.PartialAsync("_FormFieldList", Model.FormField)
+                        @await Html.PartialAsync("_FormFieldList", Model.ViewFields)
                     </div>
                 </div>
             </div>
