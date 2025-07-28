@@ -45,6 +45,7 @@
                                     <textarea name="UserInputs[@field.FieldConfigId]"
 					                          class="form-control"
 					                          maxlength="@maxLength"
+                                              value="@field.CurrentValue"
 					                          @(field.IS_EDITABLE ? "" : "disabled")>@(field.DefaultValue)</textarea>
                                 </div>
                             </div>
@@ -118,7 +119,7 @@
                                            name="UserInputs[@field.FieldConfigId]"
                                            class="form-control"
                                            maxlength="@maxLength"
-                                           value="@(field.DefaultValue)"
+                                           value="@(field.CurrentValue)"
                                            @(isRequired ? "required" : "")
                                            @(field.IS_EDITABLE ? "" : "disabled") />
                                 </div>

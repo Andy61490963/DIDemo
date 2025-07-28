@@ -26,7 +26,11 @@
                     <td>@row.GetValueOrDefault(col)</td>
                 }
                 <td>
-                    <a class="btn btn-sm btn-outline-primary" asp-controller="Form" asp-action="Get" asp-route-id="@Model.FormId">編輯</a>
+                    <a class="btn btn-sm btn-outline-primary"
+                       asp-controller="Form"
+                       asp-action="Get"
+                       asp-route-formId="@Model.FormId"
+                       asp-route-id="@row["ID"]">編輯</a>
                 </td>
             </tr>
         }

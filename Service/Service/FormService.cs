@@ -16,57 +16,59 @@ public class FormService : IFormService
         _con = connection;
     }
 
-    public FormSubmissionViewModel GetFormSubmission(Guid id)
+    public FormSubmissionViewModel GetFormSubmission(Guid id, Guid formId)
     {
-        id = Guid.Parse("512DBC19-B37D-4E6E-9F56-5ACE6C745120");
-        var master = _con.QueryFirstOrDefault<FORM_FIELD_Master>("/**/SELECT * FROM FORM_FIELD_Master WHERE ID = @id", new { id });
+        // 1. 查 Master 設定
+        var master = _con.QueryFirstOrDefault<FORM_FIELD_Master>(
+            "SELECT * FROM FORM_FIELD_Master WHERE ID = @id", new { id });
         if (master == null)
-        {
             throw new InvalidOperationException($"FORM_FIELD_Master {id} not found");
-        }
-        
+
+        // 2. 取得欄位設定
+        List<FormFieldInputViewModel> fields;
         if (master.SCHEMA_TYPE != (int)TableSchemaQueryType.All)
         {
-            var fields = GetFields(master.ID);
+            fields = GetFields(master.ID);
             return new FormSubmissionViewModel
             {
                 FormName = master.FORM_NAME,
                 Fields = fields
             };
         }
-        
-        if (master.BASE_TABLE_ID is null || master.VIEW_TABLE_ID is null)
+
+        // 3. 查表單主鍵
+        if (string.IsNullOrWhiteSpace(master.PRIMARY_KEY))
+            throw new InvalidOperationException("未設定 PRIMARY_KEY");
+
+        if (string.IsNullOrWhiteSpace(master.VIEW_TABLE_NAME))
+            throw new InvalidOperationException("未設定 VIEW_TABLE_NAME");
+
+        // 4. 查欄位定義
+        var fieldList = GetFields(master.VIEW_TABLE_ID!.Value); // 查 view 的欄位清單
+
+        // 5. 查資料
+        var sql = $"SELECT * FROM [{master.VIEW_TABLE_NAME}] WHERE [{master.PRIMARY_KEY}] = @id";
+
+        var dataRow = _con.QueryFirstOrDefault(sql, new { id = formId });
+
+        // 6. 把資料對應到每個欄位
+        if (dataRow is not null)
         {
-            throw new InvalidOperationException("主表與檢視表 ID 不完整");
-        }
-
-        var baseFields = GetFields(master.BASE_TABLE_ID.Value);
-        var viewFields = GetFields(master.VIEW_TABLE_ID.Value);
-
-        var baseMap = baseFields.ToDictionary(f => f.COLUMN_NAME, f => f, StringComparer.OrdinalIgnoreCase);
-
-        var merged = new List<FormFieldInputViewModel>();
-        foreach (var viewField in viewFields)
-        {
-            if (baseMap.TryGetValue(viewField.COLUMN_NAME, out var baseField))
+            var dict = (IDictionary<string, object?>)dataRow;
+            foreach (var field in fieldList)
             {
-                baseField.SOURCE = TableSchemaQueryType.OnlyTable;
-                merged.Add(baseField);
-            }
-            else
-            {
-                viewField.IS_EDITABLE = false;
-                viewField.SOURCE = TableSchemaQueryType.OnlyView;
-                merged.Add(viewField);
+                if (dict.TryGetValue(field.COLUMN_NAME, out var val))
+                    field.CurrentValue = val;
             }
         }
 
         return new FormSubmissionViewModel
         {
             FormName = master.FORM_NAME,
-            Fields = merged
+            Fields = fieldList
         };
     }
+
 
     private List<FormFieldInputViewModel> GetFields(Guid masterId)
     {

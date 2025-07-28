@@ -20,11 +20,12 @@ public class FormController : Controller
         return View(vm);
     }
     
-    public IActionResult Get(Guid id)
+    public IActionResult Get(Guid formId, Guid id)
     {
-        var res = _formService.GetFormSubmission(id);
-        return View("Input",res);
+        var res = _formService.GetFormSubmission(formId, id);
+        return View("Input", res);
     }
+
     
     [HttpPost]
     public IActionResult SubmitForm(string formName, Dictionary<Guid, string> fields)
