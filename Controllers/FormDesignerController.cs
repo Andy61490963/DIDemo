@@ -27,7 +27,9 @@ public class FormDesignerController : Controller
         var model = new FormDesignerIndexViewModel
         {
             FormHeader = new FormHeaderViewModel(),
-            FormField = new FormFieldListViewModel()
+            BaseFields = new FormFieldListViewModel(),
+            ViewFields = new FormFieldListViewModel(),
+            FieldSetting = new FormFieldViewModel()
         };
 
         if (id.HasValue)
@@ -46,11 +48,20 @@ public class FormDesignerController : Controller
                     VIEW_TABLE_ID = master.VIEW_TABLE_ID
                 };
 
-                var type = (TableSchemaQueryType)master.SCHEMA_TYPE;
-                var fields = _formDesignerService.GetFieldsByTableName(master.BASE_TABLE_NAME, type);
-                fields.ID = master.ID;
-                fields.type = type;
-                model.FormField = fields;
+                // 主表欄位
+                var baseFields = _formDesignerService.GetFieldsByTableName(master.BASE_TABLE_NAME, TableSchemaQueryType.OnlyTable);
+                baseFields.ID = master.ID;
+                baseFields.type = TableSchemaQueryType.OnlyTable;
+                model.BaseFields = baseFields;
+
+                // View 欄位
+                if (!string.IsNullOrWhiteSpace(master.VIEW_TABLE_NAME))
+                {
+                    var viewFields = _formDesignerService.GetFieldsByTableName(master.VIEW_TABLE_NAME, TableSchemaQueryType.OnlyView);
+                    viewFields.ID = master.ID;
+                    viewFields.type = TableSchemaQueryType.OnlyView;
+                    model.ViewFields = viewFields;
+                }
             }
         }
 
