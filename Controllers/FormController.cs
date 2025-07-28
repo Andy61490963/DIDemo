@@ -1,7 +1,6 @@
 ﻿using ClassLibrary;
 using DynamicForm.Models;
 using DynamicForm.Service.Interface;
-using ClassLibrary;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DynamicForm.Controllers;
@@ -15,11 +14,9 @@ public class FormController : Controller
         _formService = formService;
     }
     
-    public IActionResult Index()
+    public IActionResult Index(Guid id)
     {
-        var ID = Guid.Parse("ECD95B96-1D13-4493-B42D-27C39619F79F");
-        
-        var res = _formService.GetFormSubmission(ID);
+        var res = _formService.GetFormSubmission(id);
         return View(res);
     }
     
