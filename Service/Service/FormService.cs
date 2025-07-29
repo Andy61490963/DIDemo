@@ -258,6 +258,9 @@ public class FormService : IFormService
 
         var parameters = new DynamicParameters();
         var assignments = new List<string>();
+        var columns = new List<string>();
+        var values = new List<string>();
+        var dropdownSelections = new List<(Guid ConfigId, Guid OptionId)>();
         int idx = 0;
 
         foreach (var kv in fields)
@@ -269,23 +272,47 @@ public class FormService : IFormService
             {
                 if (Guid.TryParse(kv.Value, out var optionId))
                 {
-                    _con.Execute(Sql.UpsertDropdownAnswer,
-                        new { ConfigId = cfg.ID, RowId = rowId, OptionId = optionId });
+                    dropdownSelections.Add((cfg.ID, optionId));
                 }
             }
             else
             {
-                assignments.Add($"[{cfg.COLUMN_NAME}] = @p{idx}");
-                parameters.Add($"p{idx}", kv.Value);
+                var paramName = $"p{idx}";
+                assignments.Add($"[{cfg.COLUMN_NAME}] = @{paramName}");
+                columns.Add($"[{cfg.COLUMN_NAME}]");
+                values.Add($"@{paramName}");
+                parameters.Add(paramName, kv.Value);
                 idx++;
             }
         }
 
-        if (assignments.Count > 0 && rowId != null)
+        if (rowId != null)
         {
-            parameters.Add("rowId", rowId);
-            var sql = $"UPDATE [{master.BASE_TABLE_NAME}] SET {string.Join(", ", assignments)} WHERE [{master.PRIMARY_KEY}] = @rowId";
-            _con.Execute(sql, parameters);
+            if (assignments.Count > 0)
+            {
+                parameters.Add("rowId", rowId);
+                var sql = $"UPDATE [{master.BASE_TABLE_NAME}] SET {string.Join(", ", assignments)} WHERE [{master.PRIMARY_KEY}] = @rowId";
+                _con.Execute(sql, parameters);
+            }
+        }
+        else
+        {
+            if (assignments.Count > 0)
+            {
+                var sql = $"INSERT INTO [{master.BASE_TABLE_NAME}] ({string.Join(", ", columns)}) OUTPUT INSERTED.[{master.PRIMARY_KEY}] VALUES ({string.Join(", ", values)})";
+                rowId = _con.ExecuteScalar<Guid>(sql, parameters);
+            }
+            else
+            {
+                var sql = $"INSERT INTO [{master.BASE_TABLE_NAME}] OUTPUT INSERTED.[{master.PRIMARY_KEY}] DEFAULT VALUES";
+                rowId = _con.ExecuteScalar<Guid>(sql);
+            }
+        }
+
+        foreach (var (ConfigId, OptionId) in dropdownSelections)
+        {
+            _con.Execute(Sql.UpsertDropdownAnswer,
+                new { ConfigId, RowId = rowId, OptionId });
         }
     }
 

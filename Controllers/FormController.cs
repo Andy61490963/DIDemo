@@ -33,6 +33,17 @@ public class FormController : Controller
         return View("Input", res);
     }
 
+    /// <summary>
+    /// 顯示新增資料的表單畫面
+    /// </summary>
+    /// <param name="formId">FORM_FIELD_Master ID</param>
+    [HttpGet]
+    public IActionResult Create(Guid formId)
+    {
+        var vm = _formService.GetFormSubmission(formId);
+        return View("Input", vm);
+    }
+
     
     [HttpPost]
     public IActionResult SubmitForm(Guid formId, Guid? rowId, Dictionary<Guid, string> userInputs)
