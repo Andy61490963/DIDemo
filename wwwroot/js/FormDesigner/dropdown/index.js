@@ -118,11 +118,12 @@ $(document).on('click', '#validateSqlBtn', function () {
 });
 
 $(document).on('click', '#importOptionsBtn', function () {
-    const dropdownId  = $('#dropdownModal').data('dropdown-id');
-    const sql         = $('#dropdownSql').val()?.trim();
-    const optionTable = $('#importOptionTable').val()?.trim();
-
+    const dropdownId = $('#dropdownModal').data('dropdown-id');
+    const sql = $('#dropdownSql').val()?.trim();
     if (!dropdownId || !sql) return;
+
+    const tableMatch = sql.match(/from\s+([a-zA-Z0-9_]+)/i);
+    const optionTable = tableMatch ? tableMatch[1] : '';
 
     $.post('/FormDesigner/ImportOptions',
         { dropdownId, sql, optionTable })

@@ -404,23 +404,48 @@ public class FormDesignerService : IFormDesignerService
 
     public ValidateSqlResultViewModel ImportDropdownOptionsFromSql(string sql, Guid dropdownId, string optionTable)
     {
+        // 若未指定資料表名稱，嘗試從 SQL 中解析
+        if (string.IsNullOrWhiteSpace(optionTable))
+        {
+            var match = Regex.Match(sql, @"from\s+([a-zA-Z0-9_]+)", RegexOptions.IgnoreCase);
+            optionTable = match.Success ? match.Groups[1].Value : string.Empty;
+        }
+
         var validation = ValidateDropdownSql(sql);
         if (!validation.Success)
             return validation;
 
-        foreach (var row in validation.Rows)
+        if (string.IsNullOrWhiteSpace(optionTable))
         {
-            var values = row.Values.Take(2).ToArray();
-            var optionValue = values.ElementAtOrDefault(0)?.ToString() ?? string.Empty;
-            var optionText  = values.ElementAtOrDefault(1)?.ToString() ?? string.Empty;
+            validation.Success = false;
+            validation.Message = "無法解析來源表名稱";
+            return validation;
+        }
 
-            _con.Execute(Sql.InsertOptionIgnoreDuplicate, new
+        var wasClosed = _con.State != System.Data.ConnectionState.Open;
+        if (wasClosed) _con.Open();
+
+        try
+        {
+            var rows = _con.Query(sql);
+            foreach (var row in rows)
             {
-                DropdownId = dropdownId,
-                OptionTable = optionTable,
-                OptionValue = optionValue,
-                OptionText  = optionText
-            });
+                var dict = (IDictionary<string, object>)row;
+                var optionValue = dict.TryGetValue("ID", out var v) ? v?.ToString() ?? string.Empty : string.Empty;
+                var optionText  = dict.TryGetValue("NAME", out var t) ? t?.ToString() ?? string.Empty : string.Empty;
+
+                _con.Execute(Sql.InsertOptionIgnoreDuplicate, new
+                {
+                    DropdownId = dropdownId,
+                    OptionTable = optionTable,
+                    OptionValue = optionValue,
+                    OptionText  = optionText
+                });
+            }
+        }
+        finally
+        {
+            if (wasClosed) _con.Close();
         }
 
         return validation;
