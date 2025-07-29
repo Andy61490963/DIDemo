@@ -19,6 +19,17 @@ public class FormController : Controller
         var vm = _formService.GetFormList();
         return View(vm);
     }
+
+    /// <summary>
+    /// 新增資料的表單畫面
+    /// </summary>
+    /// <param name="formId">FORM_FIELD_Master.ID</param>
+    [HttpGet]
+    public IActionResult Create(Guid formId)
+    {
+        var vm = _formService.GetFormSubmission(formId);
+        return View("Input", vm);
+    }
     
     /// <summary>
     /// formId = FORM_FIELD_Master.ID
