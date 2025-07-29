@@ -23,14 +23,14 @@
             <tr>
                 @foreach (var col in Model.Columns)
                 {
-                    <td>@row.GetValueOrDefault(col)</td>
+                    <td>@row.GetValue(col)</td>
                 }
                 <td>
                     <a class="btn btn-sm btn-outline-primary"
                        asp-controller="Form"
                        asp-action="Get"
                        asp-route-formId="@Model.FormId"
-                       asp-route-id="@row["ID"]">編輯</a>
+                       asp-route-id="@row.Id">編輯</a>
                 </td>
             </tr>
         }

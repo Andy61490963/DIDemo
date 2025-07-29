@@ -195,24 +195,33 @@ public class FormService : IFormService
             new { id = master.BASE_TABLE_ID }).ToList();
 
         // 找出 dropdown 欄位名稱對應的欄位設定ID
-        var dropdownColumnMap = fieldConfigs
-            .Where(f => (FormControlType)f.Type == FormControlType.Dropdown)
-            .ToDictionary(f => f.Column, f => f.Id, StringComparer.OrdinalIgnoreCase);
+        var dropdownColumns = new List<(string Column, Guid ConfigId)>();
+        foreach (var cfg in fieldConfigs)
+        {
+            if ((FormControlType)cfg.Type == FormControlType.Dropdown)
+            {
+                dropdownColumns.Add((cfg.Column, cfg.Id));
+            }
+        }
 
         // 撈資料表內容
-        var rows = new List<Dictionary<string, object?>>();
+        var rows = new List<FormDataRow>();
         var rowIds = new List<Guid>();
         var rawRows = _con.Query($"SELECT * FROM [{master.VIEW_TABLE_NAME}]");
 
         foreach (IDictionary<string, object?> row in rawRows)
         {
-            if (row.TryGetValue(master.PRIMARY_KEY, out var idObj) && idObj is Guid rowId)
+            var vmRow = new FormDataRow();
+            foreach (var kv in row)
             {
-                rowIds.Add(rowId);
+                if (string.Equals(kv.Key, master.PRIMARY_KEY, StringComparison.OrdinalIgnoreCase) && kv.Value is Guid id)
+                {
+                    vmRow.Id = id;
+                    rowIds.Add(id);
+                }
+                vmRow.Cells.Add(new FormDataCell { ColumnName = kv.Key, Value = kv.Value });
             }
-
-            // 將 row 資料轉為 Dictionary 存進 rows
-            rows.Add(row.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase));
+            rows.Add(vmRow);
         }
 
         // 沒有資料就早點返回
@@ -227,38 +236,78 @@ public class FormService : IFormService
 
         // 撈出對應 OptionId 的顯示文字
         var optionIds = dropdownAnswers.Select(a => a.OptionId).Distinct().ToList();
-        var optionTexts = optionIds.Any()
-            ? _con.Query<(Guid Id, string Text)>(
+        var optionTexts = new List<(Guid Id, string Text)>();
+        if (optionIds.Any())
+        {
+            var options = _con.Query<(Guid Id, string Text)>(
                 "SELECT ID, OPTION_TEXT AS Text FROM FORM_FIELD_DROPDOWN_OPTIONS WHERE ID IN @Ids",
-                new { Ids = optionIds }).ToDictionary(o => o.Id, o => o.Text)
-            : new Dictionary<Guid, string>();
+                new { Ids = optionIds });
+            optionTexts.AddRange(options);
+        }
 
-        // 建立 RowId → (ConfigId → OptionId) 的對照表（注意大小寫）
-        var answerMap = dropdownAnswers
-            .GroupBy(a => a.RowId)
-            .ToDictionary(
-                g => g.Key,
-                g => g.ToDictionary(a => a.FieldId, a => a.OptionId),
-                StringComparer.OrdinalIgnoreCase
-            );
+        // 建立 RowId 與 Dropdown 答案的對應關係
+        var answerGroups = new List<AnswerGroup>();
+        foreach (var ans in dropdownAnswers)
+        {
+            AnswerGroup? group = null;
+            foreach (var g in answerGroups)
+            {
+                if (string.Equals(g.RowId, ans.RowId, StringComparison.OrdinalIgnoreCase))
+                {
+                    group = g;
+                    break;
+                }
+            }
+            if (group == null)
+            {
+                group = new AnswerGroup { RowId = ans.RowId };
+                answerGroups.Add(group);
+            }
+            group.Answers.Add((ans.FieldId, ans.OptionId));
+        }
 
         // 將每一列的 dropdown 欄位用 OptionText 取代
         foreach (var row in rows)
         {
-            if (!row.TryGetValue(master.PRIMARY_KEY, out var idObj) || idObj is not Guid rowId)
+            var rowGroup = answerGroups.FirstOrDefault(g => string.Equals(g.RowId, row.Id.ToString(), StringComparison.OrdinalIgnoreCase));
+            if (rowGroup == null)
                 continue;
 
-            var rowIdStr = rowId.ToString();
-
-            if (!answerMap.TryGetValue(rowIdStr, out var fieldDict))
-                continue;
-
-            foreach (var (columnName, configId) in dropdownColumnMap)
+            foreach (var (columnName, configId) in dropdownColumns)
             {
-                if (fieldDict.TryGetValue(configId, out var optionId)
-                    && optionTexts.TryGetValue(optionId, out var optionText))
+                // 找到指定欄位的 OptionId
+                Guid? optionId = null;
+                foreach (var a in rowGroup.Answers)
                 {
-                    row[columnName] = optionText;
+                    if (a.FieldId == configId)
+                    {
+                        optionId = a.OptionId;
+                        break;
+                    }
+                }
+                if (optionId == null)
+                    continue;
+
+                // 取得顯示文字
+                string? optionText = null;
+                foreach (var opt in optionTexts)
+                {
+                    if (opt.Id == optionId)
+                    {
+                        optionText = opt.Text;
+                        break;
+                    }
+                }
+                if (optionText == null)
+                    continue;
+
+                foreach (var cell in row.Cells)
+                {
+                    if (string.Equals(cell.ColumnName, columnName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        cell.Value = optionText;
+                        break;
+                    }
                 }
             }
         }
@@ -379,7 +428,7 @@ public class FormService : IFormService
     }
 
 
-    private static class Sql
+private static class Sql
     {
         public const string UpsertDropdownAnswer = @"
 MERGE FORM_FIELD_DROPDOWN_ANSWER AS target
@@ -391,4 +440,10 @@ WHEN NOT MATCHED THEN
     INSERT (ID, FORM_FIELD_CONFIG_ID, FORM_FIELD_DROPDOWN_OPTIONS_ID, ROW_ID)
     VALUES (NEWID(), src.FORM_FIELD_CONFIG_ID, @OptionId, src.ROW_ID);";
     }
+}
+
+internal class AnswerGroup
+{
+    public string RowId { get; set; } = string.Empty;
+    public List<(Guid FieldId, Guid OptionId)> Answers { get; } = new();
 }
