@@ -62,18 +62,35 @@ public class FormService : IFormService
             }
         }
         
-        if (!string.IsNullOrWhiteSpace(master.PRIMARY_KEY) && !string.IsNullOrWhiteSpace(master.VIEW_TABLE_NAME) && fromId != null)
+        if (!string.IsNullOrWhiteSpace(master.PRIMARY_KEY)
+            && !string.IsNullOrWhiteSpace(master.VIEW_TABLE_NAME)
+            && fromId != null)
         {
             var sql = $"SELECT * FROM [{master.VIEW_TABLE_NAME}] WHERE [{master.PRIMARY_KEY}] = @id";
             var dataRow = _con.QueryFirstOrDefault(sql, new { id = fromId });
 
+            IDictionary<string, object?>? dict = null;
             if (dataRow is not null)
             {
-                var dict = (IDictionary<string, object?>)dataRow;
-                foreach (var field in merged)
+                dict = (IDictionary<string, object?>)dataRow;
+            }
+
+            var dropdownAnswers = _con.Query<(Guid FieldId, Guid OptionId)>(
+                "SELECT FORM_FIELD_CONFIG_ID AS FieldId, FORM_FIELD_DROPDOWN_OPTIONS_ID AS OptionId " +
+                "FROM FORM_FIELD_DROPDOWN_ANSWER WHERE ROW_ID = @RowId",
+                new { RowId = fromId })
+                .ToDictionary(a => a.FieldId, a => a.OptionId);
+
+            foreach (var field in merged)
+            {
+                if (field.CONTROL_TYPE == FormControlType.Dropdown)
                 {
-                    if (dict.TryGetValue(field.COLUMN_NAME, out var val))
-                        field.CurrentValue = val;
+                    if (dropdownAnswers.TryGetValue(field.FieldConfigId, out var optionId))
+                        field.CurrentValue = optionId;
+                }
+                else if (dict != null && dict.TryGetValue(field.COLUMN_NAME, out var val))
+                {
+                    field.CurrentValue = val;
                 }
             }
         }
