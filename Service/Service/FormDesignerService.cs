@@ -23,6 +23,33 @@ public class FormDesignerService : IFormDesignerService
     }
 
     #region Public API
+    public FormDesignerIndexViewModel GetFormDesignerIndexViewModel(Guid? id)
+    {
+        var master = GetFormMaster(id) ?? new();
+
+        var result = new FormDesignerIndexViewModel
+        {
+            FormHeader = master,
+            BaseFields = null!,
+            ViewFields = null!,
+            FieldSetting = null!
+        };
+
+        // 主表欄位
+        var baseFields = GetFieldsByTableName(master.BASE_TABLE_NAME, TableSchemaQueryType.OnlyTable);
+        baseFields.ID = master.ID;
+        baseFields.type = TableSchemaQueryType.OnlyTable;
+        result.BaseFields = baseFields;
+
+        // View 欄位
+        var viewFields = GetFieldsByTableName(master.VIEW_TABLE_NAME, TableSchemaQueryType.OnlyView);
+        viewFields.ID = master.ID;
+        viewFields.type = TableSchemaQueryType.OnlyView;
+        result.ViewFields = viewFields;
+
+        return result;
+    }
+    
     public Guid GetOrCreateFormMasterId(FORM_FIELD_Master model)
     {
         var sql = @"SELECT ID FROM FORM_FIELD_Master WHERE ID = @id";
@@ -252,8 +279,7 @@ public class FormDesignerService : IFormDesignerService
     /// <returns>回傳控制類型 Enum</returns>
     public FormControlType GetControlTypeByFieldId(Guid fieldId)
     {
-        var value = _con.ExecuteScalar<int?>(Sql.GetControlTypeByFieldId, new { fieldId })
-                    ?? throw new InvalidOperationException($"Field not found: {fieldId}");
+        var value = _con.ExecuteScalar<int?>(Sql.GetControlTypeByFieldId, new { fieldId }) ?? 0;
         return (FormControlType)value;
     }
 
@@ -476,7 +502,7 @@ public class FormDesignerService : IFormDesignerService
         return _con.Query<FORM_FIELD_Master>(Sql.FormMasterSelect, new{ STATUS = statusList }).ToList();
     }
 
-    public FORM_FIELD_Master? GetFormMaster(Guid id)
+    public FORM_FIELD_Master? GetFormMaster(Guid? id)
     {
         return _con.QueryFirstOrDefault<FORM_FIELD_Master>(Sql.FormMasterById, new { id });
     }
@@ -708,8 +734,6 @@ USING (
 ON target.FORM_FIELD_DROPDOWN_ID = src.FORM_FIELD_DROPDOWN_ID
    AND target.OPTION_TABLE = src.OPTION_TABLE
    AND target.OPTION_VALUE = src.OPTION_VALUE
-WHEN MATCHED AND ISNULL(target.OPTION_TEXT, N'') <> ISNULL(src.OPTION_TEXT, N'')
-    THEN UPDATE SET OPTION_TEXT = src.OPTION_TEXT
 WHEN NOT MATCHED THEN
     INSERT (ID, FORM_FIELD_DROPDOWN_ID, OPTION_TABLE, OPTION_VALUE, OPTION_TEXT)
     VALUES (NEWID(), src.FORM_FIELD_DROPDOWN_ID, src.OPTION_TABLE, src.OPTION_VALUE, src.OPTION_TEXT);

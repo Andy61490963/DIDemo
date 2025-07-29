@@ -24,45 +24,11 @@ public class FormDesignerController : Controller
     /// <param name="id">FORM_FIELD_Master 的唯一識別編號</param>
     public IActionResult Index(Guid? id)
     {
-        var model = new FormDesignerIndexViewModel
-        {
-            FormHeader = new FormHeaderViewModel(),
-            BaseFields = new FormFieldListViewModel(),
-            ViewFields = new FormFieldListViewModel(),
-            FieldSetting = new FormFieldViewModel()
-        };
+        var model = new FormDesignerIndexViewModel();
 
         if (id.HasValue)
         {
-            var master = _formListService.GetFormMaster(id.Value);
-            if (master != null)
-            {
-                model.FormHeader = new FormHeaderViewModel
-                {
-                    ID = master.ID,
-                    FORM_NAME = master.FORM_NAME,
-                    TABLE_NAME = master.BASE_TABLE_NAME,
-                    VIEW_TABLE_NAME = master.VIEW_TABLE_NAME,
-                    PRIMARY_KEY = master.PRIMARY_KEY,
-                    BASE_TABLE_ID = master.BASE_TABLE_ID,
-                    VIEW_TABLE_ID = master.VIEW_TABLE_ID
-                };
-
-                // 主表欄位
-                var baseFields = _formDesignerService.GetFieldsByTableName(master.BASE_TABLE_NAME, TableSchemaQueryType.OnlyTable);
-                baseFields.ID = master.ID;
-                baseFields.type = TableSchemaQueryType.OnlyTable;
-                model.BaseFields = baseFields;
-
-                // View 欄位
-                if (!string.IsNullOrWhiteSpace(master.VIEW_TABLE_NAME))
-                {
-                    var viewFields = _formDesignerService.GetFieldsByTableName(master.VIEW_TABLE_NAME, TableSchemaQueryType.OnlyView);
-                    viewFields.ID = master.ID;
-                    viewFields.type = TableSchemaQueryType.OnlyView;
-                    model.ViewFields = viewFields;
-                }
-            }
+            model = _formDesignerService.GetFormDesignerIndexViewModel(id);
         }
 
         return View(model);
@@ -92,11 +58,7 @@ public class FormDesignerController : Controller
     {
         FormFieldViewModel? field = _formDesignerService.GetFieldsByTableName(tableName, schemaType).Fields
                        .FirstOrDefault(x => x.COLUMN_NAME == columnName);
-        if (field != null)
-        {
-            field.SchemaType = schemaType;
-        }
-        ViewBag.SchemaType = schemaType;
+        
         return PartialView("_FormFieldSetting", field);
     }
     

@@ -17,4 +17,8 @@
       <_ContentIncludedByDefault Remove="Views\FormBuilder\index.cshtml" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Models\" />
+    </ItemGroup>
+
 </Project>

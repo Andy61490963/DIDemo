@@ -4,7 +4,7 @@
 @model FormFieldViewModel?
 @{ 
     var isDisabled = Model?.FORM_FIELD_Master_ID == Guid.Empty; 
-    var schemaType = Model?.SchemaType ?? (ViewBag.SchemaType != null ? (TableSchemaQueryType)ViewBag.SchemaType : TableSchemaQueryType.OnlyTable);
+    var schemaType = Model?.SchemaType;
     var updateTarget = schemaType == TableSchemaQueryType.OnlyView ? "#formViewFieldList" : "#formFieldList";
     var showSettingRuleButton = Model != null && ValidationRulesMap.HasValidations(Model.CONTROL_TYPE ?? FormControlType.Text);
 }
