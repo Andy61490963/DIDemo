@@ -2,7 +2,9 @@
 @model FormSubmissionViewModel
 
 <form asp-action="SubmitForm" method="post" id="dynamic-form" class="container mt-4">
-    <input type="hidden" name="FormName" value="@Model.FormName" />
+    <input type="hidden" name="formId" value="@Model.FormId" />
+    <input type="hidden" name="rowId" value="@Model.RowId" />
+    <input type="hidden" name="formName" value="@Model.FormName" />
 
     <div class="row g-4">
         @foreach (var field in Model.Fields)

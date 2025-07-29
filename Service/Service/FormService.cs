@@ -31,6 +31,8 @@ public class FormService : IFormService
             fields = GetFields(master.ID);
             return new FormSubmissionViewModel
             {
+                FormId = master.ID,
+                RowId = fromId,
                 FormName = master.FORM_NAME,
                 Fields = fields
             };
@@ -79,6 +81,8 @@ public class FormService : IFormService
 
         return new FormSubmissionViewModel
         {
+            FormId = master.ID,
+            RowId = fromId,
             FormName = master.FORM_NAME,
             Fields = merged
         };
@@ -216,5 +220,61 @@ public class FormService : IFormService
             Columns = columns,
             Rows = rows
         };
+    }
+
+    public void SubmitForm(Guid formId, Guid? rowId, Dictionary<Guid, string> fields)
+    {
+        var master = _con.QueryFirstOrDefault<FORM_FIELD_Master>("SELECT * FROM FORM_FIELD_Master WHERE ID = @id", new { id = formId });
+        if (master == null)
+            throw new InvalidOperationException($"FORM_FIELD_Master {formId} not found");
+
+        if (master.BASE_TABLE_ID == null || string.IsNullOrWhiteSpace(master.PRIMARY_KEY))
+            throw new InvalidOperationException("BASE_TABLE_ID or PRIMARY_KEY not set");
+
+        var configs = _con.Query<(Guid ID, string TABLE_NAME, string COLUMN_NAME, int CONTROL_TYPE)>(
+            "SELECT ID, TABLE_NAME, COLUMN_NAME, CONTROL_TYPE FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @id",
+            new { id = master.BASE_TABLE_ID });
+
+        var map = configs.ToDictionary(c => c.ID, c => c);
+
+        var parameters = new DynamicParameters();
+        var assignments = new List<string>();
+        int idx = 0;
+
+        foreach (var kv in fields)
+        {
+            if (!map.TryGetValue(kv.Key, out var cfg))
+                continue;
+
+            if ((FormControlType)cfg.CONTROL_TYPE == FormControlType.Dropdown)
+            {
+                _con.Execute(Sql.UpsertDropdownAnswer, new { ConfigId = cfg.ID, RowId = rowId, Value = kv.Value });
+            }
+            else
+            {
+                assignments.Add($"[{cfg.COLUMN_NAME}] = @p{idx}");
+                parameters.Add($"p{idx}", kv.Value);
+                idx++;
+            }
+        }
+
+        if (assignments.Count > 0 && rowId != null)
+        {
+            parameters.Add("rowId", rowId);
+            var sql = $"UPDATE [{master.BASE_TABLE_NAME}] SET {string.Join(", ", assignments)} WHERE [{master.PRIMARY_KEY}] = @rowId";
+            _con.Execute(sql, parameters);
+        }
+    }
+
+    private static class Sql
+    {
+        public const string UpsertDropdownAnswer = @"MERGE FORM_FIELD_DROPDOWN_ANSWER AS target
+USING (SELECT @ConfigId AS FORM_FIELD_CONFIG_ID, @RowId AS ROW_ID) AS src
+    ON target.FORM_FIELD_CONFIG_ID = src.FORM_FIELD_CONFIG_ID AND target.ROW_ID = src.ROW_ID
+WHEN MATCHED THEN
+    UPDATE SET OPTION_VALUE = @Value
+WHEN NOT MATCHED THEN
+    INSERT (ID, FORM_FIELD_CONFIG_ID, ROW_ID, OPTION_VALUE)
+    VALUES (NEWID(), src.FORM_FIELD_CONFIG_ID, src.ROW_ID, @Value);";
     }
 }
