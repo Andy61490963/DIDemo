@@ -1,4 +1,4 @@
-﻿namespace DynamicForm.Models
+namespace DynamicForm.Models
 {
     /// <summary>
     /// 資料列表用 ViewModel
@@ -7,6 +7,6 @@
     {
         public Guid FormId { get; set; }
         public List<string> Columns { get; set; } = new();
-        public List<Dictionary<string, object?>> Rows { get; set; } = new();
+        public List<FormListRowViewModel> Rows { get; set; } = new();
     }
 }

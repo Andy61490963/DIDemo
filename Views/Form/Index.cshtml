@@ -18,19 +18,20 @@
         </tr>
         </thead>
         <tbody>
-        @foreach (var row in Model.Rows)
+        @for (int r = 0; r < Model.Rows.Count; r++)
         {
+            var row = Model.Rows[r];
             <tr>
-                @foreach (var col in Model.Columns)
+                @for (int c = 0; c < Model.Columns.Count; c++)
                 {
-                    <td>@row.GetValueOrDefault(col)</td>
+                    <td>@row.Values[c]</td>
                 }
                 <td>
                     <a class="btn btn-sm btn-outline-primary"
                        asp-controller="Form"
                        asp-action="Get"
                        asp-route-formId="@Model.FormId"
-                       asp-route-id="@row["ID"]">編輯</a>
+                       asp-route-id="@row.Id">編輯</a>
                 </td>
             </tr>
         }
