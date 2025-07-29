@@ -305,7 +305,7 @@ public class FormDesignerService : IFormDesignerService
         return optionTexts;
     }
 
-    public Guid SaveDropdownOption(Guid? id, Guid dropdownId, string optionText, string optionValue, string optionTable)
+    public Guid SaveDropdownOption(Guid? id, Guid dropdownId, string optionText, string optionValue, string? optionTable = null)
     {
         var param = new
         {
@@ -648,7 +648,7 @@ END
 SELECT * FROM FORM_FIELD_DROPDOWN WHERE FORM_FIELD_CONFIG_ID = @fieldId";
         
         public const string GetOptionByDropdownId = @"/**/
-SELECT * FROM FORM_FIELD_DROPDOWN_OPTIONS WHERE FORM_FIELD_DROPDOWN_ID = @dropDownId
+SELECT * FROM FORM_FIELD_DROPDOWN_OPTIONS WHERE FORM_FIELD_DROPDOWN_ID = @dropDownId AND OPTION_TABLE IS NULL --NULL的是使用者自訂
 ";
 
         public const string UpsertDropdownSql = @"/**/

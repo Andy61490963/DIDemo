@@ -242,9 +242,9 @@ public class FormDesignerController : Controller
     /// <param name="dropdownId">所屬下拉選單 ID</param>
     /// <param name="optionText">選項文字內容</param>
     [HttpPost]
-    public IActionResult SaveDropdownOption(Guid id, Guid dropdownId, string optionText, string optionValue, string optionTable)
+    public IActionResult SaveDropdownOption(Guid id, Guid dropdownId, string optionText, string optionValue)
     {
-        _formDesignerService.SaveDropdownOption(id, dropdownId, optionText, optionValue, optionTable);
+        _formDesignerService.SaveDropdownOption(id, dropdownId, optionText, optionValue);
         return Json(new { success = true });
     }
     

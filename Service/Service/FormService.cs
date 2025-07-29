@@ -61,8 +61,7 @@ public class FormService : IFormService
                 merged.Add(viewField);
             }
         }
-
-        // === 這裡是重點：有 rowId 才查值 ===
+        
         if (!string.IsNullOrWhiteSpace(master.PRIMARY_KEY) && !string.IsNullOrWhiteSpace(master.VIEW_TABLE_NAME) && fromId != null)
         {
             var sql = $"SELECT * FROM [{master.VIEW_TABLE_NAME}] WHERE [{master.PRIMARY_KEY}] = @id";
@@ -130,10 +129,13 @@ public class FormService : IFormService
         {
             dropdownConfigMap.TryGetValue(field.ID, out var dropdown);
             var isUseSql = dropdown?.ISUSESQL ?? false;
-            var finalOptions = isUseSql && dropdown != null
-                ? ExecuteDynamicDropdownSql(dropdown)
-                : (optionMap.TryGetValue(dropdown?.ID ?? Guid.Empty, out var opts) ? opts.ToList() : new());
-
+            var dropdownId = dropdown?.ID ?? Guid.Empty;
+            var options = optionMap.TryGetValue(dropdownId, out var opts) ? opts.ToList() : new List<FORM_FIELD_DROPDOWN_OPTIONS>();
+            
+            var finalOptions = isUseSql
+                ? options.Where(x => !string.IsNullOrWhiteSpace(x.OPTION_TABLE)).ToList()
+                : options.Where(x => string.IsNullOrWhiteSpace(x.OPTION_TABLE)).ToList();
+            
             return new FormFieldInputViewModel
             {
                 FieldConfigId = field.ID,
@@ -272,13 +274,14 @@ public class FormService : IFormService
 
     private static class Sql
     {
-        public const string UpsertDropdownAnswer = @"MERGE FORM_FIELD_DROPDOWN_ANSWER AS target
+        public const string UpsertDropdownAnswer = @"
+MERGE FORM_FIELD_DROPDOWN_ANSWER AS target
 USING (SELECT @ConfigId AS FORM_FIELD_CONFIG_ID, @RowId AS ROW_ID) AS src
     ON target.FORM_FIELD_CONFIG_ID = src.FORM_FIELD_CONFIG_ID AND target.ROW_ID = src.ROW_ID
 WHEN MATCHED THEN
     UPDATE SET FORM_FIELD_DROPDOWN_OPTIONS_ID = @OptionId
 WHEN NOT MATCHED THEN
-    INSERT (ID, FORM_FIELD_CONFIG_ID, ROW_ID, FORM_FIELD_DROPDOWN_OPTIONS_ID)
-    VALUES (NEWID(), src.FORM_FIELD_CONFIG_ID, src.ROW_ID, @OptionId);";
+    INSERT (ID, FORM_FIELD_CONFIG_ID, FORM_FIELD_DROPDOWN_OPTIONS_ID, ROW_ID)
+    VALUES (NEWID(), src.FORM_FIELD_CONFIG_ID, @OptionId, src.ROW_ID);";
     }
 }

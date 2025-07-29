@@ -65,7 +65,7 @@ $(document).on('click', '#addOption', () => {
 });
 
 let timer;
-$(document).on('input', '.option-text, .option-value, .option-table', function () {
+$(document).on('input', '.option-text, .option-value', function () {
     clearTimeout(timer);
     const $input      = $(this);
     const $li         = $input.closest('li');
@@ -75,7 +75,6 @@ $(document).on('input', '.option-text, .option-value, .option-table', function (
     timer = setTimeout(() => {
         const optionText  = $li.find('.option-text').val().trim();
         const optionValue = $li.find('.option-value').val().trim();
-        const optionTable = $li.find('.option-table').val().trim();
 
         if (!optionText) return;
 
@@ -83,8 +82,7 @@ $(document).on('input', '.option-text, .option-value, .option-table', function (
             id: optionId,
             dropdownId,
             optionText,
-            optionValue,
-            optionTable
+            optionValue
         }).fail(() => {
             console.warn(`✗ ${optionId} 儲存失敗`);
         });

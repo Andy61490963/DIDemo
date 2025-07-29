@@ -72,8 +72,7 @@
                                         <option value="">-- 請選擇 --</option>
                                         @foreach (var opt in field.OptionList ?? new())
                                         {
-                                            var optionValue = field.ISUSESQL ? opt.OPTION_VALUE : opt.ID.ToString();
-                                            <option value="@optionValue">@opt.OPTION_TEXT</option>
+                                            <option value="@opt.ID">@opt.OPTION_TEXT</option>
                                         }
                                     </select>
                                 </div>
