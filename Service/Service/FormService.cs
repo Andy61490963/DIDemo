@@ -194,25 +194,51 @@ public class FormService : IFormService
             "SELECT ID, COLUMN_NAME, CONTROL_TYPE FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @id",
             new { id = master.BASE_TABLE_ID }).ToList();
 
-        // 找出 dropdown 欄位名稱對應的欄位設定ID
-        var dropdownColumnMap = fieldConfigs
-            .Where(f => (FormControlType)f.Type == FormControlType.Dropdown)
-            .ToDictionary(f => f.Column, f => f.Id, StringComparer.OrdinalIgnoreCase);
+        // 找出 dropdown 欄位的索引位置及其設定 ID
+        var dropdownColumnIndexList = new List<(int Index, Guid ConfigId)>();
+        for (int idx = 0; idx < columns.Count; idx++)
+        {
+            var colName = columns[idx];
+            foreach (var cfg in fieldConfigs)
+            {
+                if (string.Equals(cfg.Column, colName, StringComparison.OrdinalIgnoreCase) &&
+                    (FormControlType)cfg.Type == FormControlType.Dropdown)
+                {
+                    dropdownColumnIndexList.Add((idx, cfg.Id));
+                    break;
+                }
+            }
+        }
 
         // 撈資料表內容
-        var rows = new List<Dictionary<string, object?>>();
+        var rows = new List<FormListRowViewModel>();
         var rowIds = new List<Guid>();
         var rawRows = _con.Query($"SELECT * FROM [{master.VIEW_TABLE_NAME}]");
 
         foreach (IDictionary<string, object?> row in rawRows)
         {
-            if (row.TryGetValue(master.PRIMARY_KEY, out var idObj) && idObj is Guid rowId)
+            Guid rowId = Guid.Empty;
+            if (row.TryGetValue(master.PRIMARY_KEY, out var idObj) && idObj is Guid id)
             {
-                rowIds.Add(rowId);
+                rowId = id;
+                rowIds.Add(id);
             }
 
-            // 將 row 資料轉為 Dictionary 存進 rows
-            rows.Add(row.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase));
+            var rowVm = new FormListRowViewModel { Id = rowId };
+            foreach (var col in columns)
+            {
+                object? value = null;
+                foreach (var kv in row)
+                {
+                    if (string.Equals(kv.Key, col, StringComparison.OrdinalIgnoreCase))
+                    {
+                        value = kv.Value;
+                        break;
+                    }
+                }
+                rowVm.Values.Add(value);
+            }
+            rows.Add(rowVm);
         }
 
         // 沒有資料就早點返回
@@ -230,35 +256,42 @@ public class FormService : IFormService
         var optionTexts = optionIds.Any()
             ? _con.Query<(Guid Id, string Text)>(
                 "SELECT ID, OPTION_TEXT AS Text FROM FORM_FIELD_DROPDOWN_OPTIONS WHERE ID IN @Ids",
-                new { Ids = optionIds }).ToDictionary(o => o.Id, o => o.Text)
-            : new Dictionary<Guid, string>();
+                new { Ids = optionIds }).ToList()
+            : new List<(Guid Id, string Text)>();
 
         // 建立 RowId → (ConfigId → OptionId) 的對照表（注意大小寫）
-        var answerMap = dropdownAnswers
-            .GroupBy(a => a.RowId)
-            .ToDictionary(
-                g => g.Key,
-                g => g.ToDictionary(a => a.FieldId, a => a.OptionId),
-                StringComparer.OrdinalIgnoreCase
-            );
+        var answers = dropdownAnswers;
 
         // 將每一列的 dropdown 欄位用 OptionText 取代
         foreach (var row in rows)
         {
-            if (!row.TryGetValue(master.PRIMARY_KEY, out var idObj) || idObj is not Guid rowId)
-                continue;
-
-            var rowIdStr = rowId.ToString();
-
-            if (!answerMap.TryGetValue(rowIdStr, out var fieldDict))
-                continue;
-
-            foreach (var (columnName, configId) in dropdownColumnMap)
+            foreach (var (index, configId) in dropdownColumnIndexList)
             {
-                if (fieldDict.TryGetValue(configId, out var optionId)
-                    && optionTexts.TryGetValue(optionId, out var optionText))
+                Guid? optionId = null;
+                var rowIdStr = row.Id.ToString();
+                foreach (var ans in answers)
                 {
-                    row[columnName] = optionText;
+                    if (ans.RowId == rowIdStr && ans.FieldId == configId)
+                    {
+                        optionId = ans.OptionId;
+                        break;
+                    }
+                }
+
+                if (optionId.HasValue)
+                {
+                    string? optionText = null;
+                    foreach (var opt in optionTexts)
+                    {
+                        if (opt.Id == optionId.Value)
+                        {
+                            optionText = opt.Text;
+                            break;
+                        }
+                    }
+
+                    if (optionText != null)
+                        row.Values[index] = optionText;
                 }
             }
         }
