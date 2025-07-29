@@ -116,3 +116,16 @@ $(document).on('click', '#validateSqlBtn', function () {
         .fail(function () {
         });
 });
+
+$(document).on('click', '#importOptionsBtn', function () {
+    const dropdownId  = $('#dropdownModal').data('dropdown-id');
+    const sql         = $('#dropdownSql').val()?.trim();
+    const optionTable = $('#importOptionTable').val()?.trim();
+
+    if (!dropdownId || !sql) return;
+
+    $.post('/FormDesigner/ImportOptions',
+        { dropdownId, sql, optionTable })
+        .done(html => $('#optionList').html(html))
+        .fail(xhr => alert(xhr.responseText || '匯入失敗'));
+});
