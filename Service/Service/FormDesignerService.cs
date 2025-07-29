@@ -4,6 +4,7 @@ using DynamicForm.Models;
 using DynamicForm.Service.Interface;
 using DynamicForm.Helper;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.RegularExpressions;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Options;
@@ -401,6 +402,30 @@ public class FormDesignerService : IFormDesignerService
         return result;
     }
 
+    public ValidateSqlResultViewModel ImportDropdownOptionsFromSql(string sql, Guid dropdownId, string optionTable)
+    {
+        var validation = ValidateDropdownSql(sql);
+        if (!validation.Success)
+            return validation;
+
+        foreach (var row in validation.Rows)
+        {
+            var values = row.Values.Take(2).ToArray();
+            var optionValue = values.ElementAtOrDefault(0)?.ToString() ?? string.Empty;
+            var optionText  = values.ElementAtOrDefault(1)?.ToString() ?? string.Empty;
+
+            _con.Execute(Sql.InsertOptionIgnoreDuplicate, new
+            {
+                DropdownId = dropdownId,
+                OptionTable = optionTable,
+                OptionValue = optionValue,
+                OptionText  = optionText
+            });
+        }
+
+        return validation;
+    }
+
     public Guid SaveFormHeader(FORM_FIELD_Master model)
     {
         // 若不存在則產生新 ID
@@ -644,6 +669,23 @@ WHEN NOT MATCHED THEN
             source.OPTION_VALUE,
             source.OPTION_TABLE)
 OUTPUT INSERTED.ID;                          -- 把 ID 回傳給 Dapper
+";
+
+        public const string InsertOptionIgnoreDuplicate = @"/**/
+MERGE dbo.FORM_FIELD_DROPDOWN_OPTIONS AS target
+USING (
+    SELECT
+        @DropdownId  AS FORM_FIELD_DROPDOWN_ID,
+        @OptionTable AS OPTION_TABLE,
+        @OptionValue AS OPTION_VALUE,
+        @OptionText  AS OPTION_TEXT
+) AS src
+ON target.FORM_FIELD_DROPDOWN_ID = src.FORM_FIELD_DROPDOWN_ID
+   AND target.OPTION_TABLE = src.OPTION_TABLE
+   AND target.OPTION_VALUE = src.OPTION_VALUE
+WHEN NOT MATCHED THEN
+    INSERT (ID, FORM_FIELD_DROPDOWN_ID, OPTION_TABLE, OPTION_VALUE, OPTION_TEXT)
+    VALUES (NEWID(), src.FORM_FIELD_DROPDOWN_ID, src.OPTION_TABLE, src.OPTION_VALUE, src.OPTION_TEXT);
 ";
 
         public const string DeleteDropdownOption = @"/**/
