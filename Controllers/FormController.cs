@@ -46,9 +46,9 @@ public class FormController : Controller
 
     
     [HttpPost]
-    public IActionResult SubmitForm(Guid formId, Guid? rowId, Dictionary<Guid, string> userInputs)
+    public IActionResult SubmitForm(FormSubmissionInputModel input)
     {
-        _formService.SubmitForm(formId, rowId, userInputs);
+        _formService.SubmitForm(input);
         return RedirectToAction("FormSubmitSuccess");
     }
 
