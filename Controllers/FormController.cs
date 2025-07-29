@@ -28,11 +28,9 @@ public class FormController : Controller
 
     
     [HttpPost]
-    public IActionResult SubmitForm(string formName, Dictionary<Guid, string> fields)
+    public IActionResult SubmitForm(Guid formId, Guid? rowId, Dictionary<Guid, string> userInputs)
     {
-        // fields: key = FieldConfigId, value = 使用者填寫的值
-        // 可存入 FORM_SUBMISSION + FORM_SUBMISSION_DATA
-
+        _formService.SubmitForm(formId, rowId, userInputs);
         return RedirectToAction("FormSubmitSuccess");
     }
 
