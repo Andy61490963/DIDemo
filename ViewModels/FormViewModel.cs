@@ -4,6 +4,8 @@ namespace DynamicForm.Models;
 
 public class FormSubmissionViewModel
 {
+    public Guid FormId { get; set; }
+    public Guid? RowId { get; set; }
     public string FormName { get; set; }
     public List<FormFieldInputViewModel> Fields { get; set; }
 }
