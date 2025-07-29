@@ -220,17 +220,57 @@ public class FormService : IFormService
         var columnSql = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @table";
         var columns = _con.Query<string>(columnSql, new { table = master.VIEW_TABLE_NAME }).ToList();
 
+        // 取得欄位設定，找出下拉選單對應的欄位與設定 ID
+        var fieldSql = "SELECT ID, COLUMN_NAME, CONTROL_TYPE FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @id";
+        var fieldConfigs = _con.Query<(Guid Id, string Column, int Type)>(fieldSql, new { id = master.BASE_TABLE_ID }).ToList();
+
+        var dropdownColumnMap = fieldConfigs
+            .Where(f => (FormControlType)f.Type == FormControlType.Dropdown)
+            .ToDictionary(f => f.Column, f => f.Id, StringComparer.OrdinalIgnoreCase);
+
         var rows = new List<Dictionary<string, object?>>();
         var data = _con.Query($"SELECT * FROM {master.VIEW_TABLE_NAME}");
+
+        // 先收集所有列的主鍵值以批次查詢下拉選單答案，避免 N+1 查詢
+        var rowIds = new List<Guid>();
         foreach (IDictionary<string, object?> row in data)
         {
-            var dict = new Dictionary<string, object?>();
-            foreach (var col in columns)
+            if (row.TryGetValue(master.PRIMARY_KEY, out var idObj) && idObj is Guid gid)
             {
-                row.TryGetValue(col, out var value);
-                dict[col] = value;
+                rowIds.Add(gid);
             }
-            rows.Add(dict);
+            rows.Add(row.ToDictionary(kv => kv.Key, kv => kv.Value));
+        }
+
+        var dropdownAnswers = _con.Query<(Guid RowId, Guid FieldId, Guid OptionId)>(
+            "SELECT ROW_ID, FORM_FIELD_CONFIG_ID AS FieldId, FORM_FIELD_DROPDOWN_OPTIONS_ID AS OptionId " +
+            "FROM FORM_FIELD_DROPDOWN_ANSWER WHERE ROW_ID IN @RowIds",
+            new { RowIds = rowIds }).ToList();
+
+        var optionIds = dropdownAnswers.Select(a => a.OptionId).Distinct().ToList();
+        var optionTexts = optionIds.Count > 0
+            ? _con.Query<(Guid Id, string Text)>("SELECT ID, OPTION_TEXT AS Text FROM FORM_FIELD_DROPDOWN_OPTIONS WHERE ID IN @Ids", new { Ids = optionIds }).ToDictionary(o => o.Id, o => o.Text)
+            : new Dictionary<Guid, string>();
+
+        var answerMap = dropdownAnswers.GroupBy(a => a.RowId)
+                                       .ToDictionary(g => g.Key, g => g.ToDictionary(a => a.FieldId, a => a.OptionId));
+
+        // 將下拉選項的 ID 轉成顯示文字
+        foreach (var row in rows)
+        {
+            if (!row.TryGetValue(master.PRIMARY_KEY, out var idObj) || idObj is not Guid rowId)
+                continue;
+
+            if (!answerMap.TryGetValue(rowId, out var fieldDict))
+                continue;
+
+            foreach (var col in dropdownColumnMap)
+            {
+                if (fieldDict.TryGetValue(col.Value, out var optId) && optionTexts.TryGetValue(optId, out var text))
+                {
+                    row[col.Key] = text;
+                }
+            }
         }
 
         return new FormListDataViewModel
