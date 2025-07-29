@@ -171,104 +171,94 @@ public class FormService : IFormService
 
         return fieldViewModels;
     }
-
-    private List<FORM_FIELD_DROPDOWN_OPTIONS> ExecuteDynamicDropdownSql(FORM_FIELD_DROPDOWN dropdown)
-    {
-        var finalOptions = new List<FORM_FIELD_DROPDOWN_OPTIONS>();
-        try
-        {
-            var trimmedSql = dropdown.DROPDOWNSQL?.TrimStart();
-            if (string.IsNullOrWhiteSpace(trimmedSql) || !trimmedSql.StartsWith("SELECT", StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException("只允許 SELECT 查詢");
-
-            var rows = _con.Query(dropdown.DROPDOWNSQL);
-            foreach (var row in rows)
-            {
-                var dict = (IDictionary<string, object>)row;
-                var values = dict.Values.Take(2).ToArray();
-                var optionValue = values.ElementAtOrDefault(0)?.ToString() ?? string.Empty;
-                var optionText = values.ElementAtOrDefault(1)?.ToString() ?? string.Empty;
-                finalOptions.Add(new FORM_FIELD_DROPDOWN_OPTIONS
-                {
-                    ID = Guid.NewGuid(),
-                    FORM_FIELD_DROPDOWN_ID = dropdown.ID,
-                    OPTION_VALUE = optionValue,
-                    OPTION_TEXT = optionText,
-                    OPTION_TABLE = string.Empty
-                });
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"⚠️ Dropdown SQL 查詢失敗: {ex.Message}");
-        }
-
-        return finalOptions;
-    }
     
     /// <summary>
     /// 取得指定表單對應檢視表的所有資料
     /// </summary>
     public FormListDataViewModel GetFormList()
     {
-        var master = _con.QueryFirstOrDefault<FORM_FIELD_Master>("select * from FORM_FIELD_Master WHERE SCHEMA_TYPE = @TYPE", new { TYPE = TableSchemaQueryType.All.ToInt() });
-        if (master == null )
-        {
+        var master = _con.QueryFirstOrDefault<FORM_FIELD_Master>(
+            "SELECT * FROM FORM_FIELD_Master WHERE SCHEMA_TYPE = @TYPE",
+            new { TYPE = TableSchemaQueryType.All.ToInt() });
+
+        if (master == null)
             return new FormListDataViewModel();
-        }
 
-        var columnSql = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @table";
-        var columns = _con.Query<string>(columnSql, new { table = master.VIEW_TABLE_NAME }).ToList();
+        // 取得顯示欄位名稱清單
+        var columns = _con.Query<string>(
+            "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @table",
+            new { table = master.VIEW_TABLE_NAME }).ToList();
 
-        // 取得欄位設定，找出下拉選單對應的欄位與設定 ID
-        var fieldSql = "SELECT ID, COLUMN_NAME, CONTROL_TYPE FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @id";
-        var fieldConfigs = _con.Query<(Guid Id, string Column, int Type)>(fieldSql, new { id = master.BASE_TABLE_ID }).ToList();
+        // 取得欄位設定：包含控制型別（Dropdown用）
+        var fieldConfigs = _con.Query<(Guid Id, string Column, int Type)>(
+            "SELECT ID, COLUMN_NAME, CONTROL_TYPE FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @id",
+            new { id = master.BASE_TABLE_ID }).ToList();
 
+        // 找出 dropdown 欄位名稱對應的欄位設定ID
         var dropdownColumnMap = fieldConfigs
             .Where(f => (FormControlType)f.Type == FormControlType.Dropdown)
             .ToDictionary(f => f.Column, f => f.Id, StringComparer.OrdinalIgnoreCase);
 
+        // 撈資料表內容
         var rows = new List<Dictionary<string, object?>>();
-        var data = _con.Query($"SELECT * FROM {master.VIEW_TABLE_NAME}");
-
-        // 先收集所有列的主鍵值以批次查詢下拉選單答案，避免 N+1 查詢
         var rowIds = new List<Guid>();
-        foreach (IDictionary<string, object?> row in data)
+        var rawRows = _con.Query($"SELECT * FROM [{master.VIEW_TABLE_NAME}]");
+
+        foreach (IDictionary<string, object?> row in rawRows)
         {
-            if (row.TryGetValue(master.PRIMARY_KEY, out var idObj) && idObj is Guid gid)
+            if (row.TryGetValue(master.PRIMARY_KEY, out var idObj) && idObj is Guid rowId)
             {
-                rowIds.Add(gid);
+                rowIds.Add(rowId);
             }
-            rows.Add(row.ToDictionary(kv => kv.Key, kv => kv.Value));
+
+            // 將 row 資料轉為 Dictionary 存進 rows
+            rows.Add(row.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase));
         }
 
-        var dropdownAnswers = _con.Query<(Guid RowId, Guid FieldId, Guid OptionId)>(
+        // 沒有資料就早點返回
+        if (!rowIds.Any())
+            return new FormListDataViewModel { FormId = master.ID, Columns = columns, Rows = rows };
+
+        // 撈出所有 dropdown 答案
+        var dropdownAnswers = _con.Query<(string RowId, Guid FieldId, Guid OptionId)>(
             "SELECT ROW_ID, FORM_FIELD_CONFIG_ID AS FieldId, FORM_FIELD_DROPDOWN_OPTIONS_ID AS OptionId " +
             "FROM FORM_FIELD_DROPDOWN_ANSWER WHERE ROW_ID IN @RowIds",
-            new { RowIds = rowIds }).ToList();
+            new { RowIds = rowIds.Select(id => id.ToString()).ToList() }).ToList();
 
+        // 撈出對應 OptionId 的顯示文字
         var optionIds = dropdownAnswers.Select(a => a.OptionId).Distinct().ToList();
-        var optionTexts = optionIds.Count > 0
-            ? _con.Query<(Guid Id, string Text)>("SELECT ID, OPTION_TEXT AS Text FROM FORM_FIELD_DROPDOWN_OPTIONS WHERE ID IN @Ids", new { Ids = optionIds }).ToDictionary(o => o.Id, o => o.Text)
+        var optionTexts = optionIds.Any()
+            ? _con.Query<(Guid Id, string Text)>(
+                "SELECT ID, OPTION_TEXT AS Text FROM FORM_FIELD_DROPDOWN_OPTIONS WHERE ID IN @Ids",
+                new { Ids = optionIds }).ToDictionary(o => o.Id, o => o.Text)
             : new Dictionary<Guid, string>();
 
-        var answerMap = dropdownAnswers.GroupBy(a => a.RowId)
-                                       .ToDictionary(g => g.Key, g => g.ToDictionary(a => a.FieldId, a => a.OptionId));
+        // 建立 RowId → (ConfigId → OptionId) 的對照表（注意大小寫）
+        var answerMap = dropdownAnswers
+            .GroupBy(a => a.RowId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.ToDictionary(a => a.FieldId, a => a.OptionId),
+                StringComparer.OrdinalIgnoreCase
+            );
 
-        // 將下拉選項的 ID 轉成顯示文字
+        // 將每一列的 dropdown 欄位用 OptionText 取代
         foreach (var row in rows)
         {
             if (!row.TryGetValue(master.PRIMARY_KEY, out var idObj) || idObj is not Guid rowId)
                 continue;
 
-            if (!answerMap.TryGetValue(rowId, out var fieldDict))
+            var rowIdStr = rowId.ToString();
+
+            if (!answerMap.TryGetValue(rowIdStr, out var fieldDict))
                 continue;
 
-            foreach (var col in dropdownColumnMap)
+            foreach (var (columnName, configId) in dropdownColumnMap)
             {
-                if (fieldDict.TryGetValue(col.Value, out var optId) && optionTexts.TryGetValue(optId, out var text))
+                if (fieldDict.TryGetValue(configId, out var optionId)
+                    && optionTexts.TryGetValue(optionId, out var optionText))
                 {
-                    row[col.Key] = text;
+                    row[columnName] = optionText;
                 }
             }
         }
@@ -281,79 +271,112 @@ public class FormService : IFormService
         };
     }
 
-    public void SubmitForm(Guid formId, Guid? rowId, Dictionary<Guid, string> fields)
+
+    /// <summary>
+    /// 儲存或更新表單資料（含下拉選項答案）
+    /// </summary>
+    /// <param name="formId">表單主設定ID（FORM_FIELD_Master.ID）</param>
+    /// <param name="rowId">資料列主鍵，null 代表新增，否則為更新</param>
+    /// <param name="inputFields">前端傳入的欄位答案（Key=欄位設定ID, Value=答案值）</param>
+    public void SubmitForm(Guid formId, Guid? rowId, Dictionary<Guid, string> inputFields)
     {
-        var master = _con.QueryFirstOrDefault<FORM_FIELD_Master>("SELECT * FROM FORM_FIELD_Master WHERE ID = @id", new { id = formId });
-        if (master == null)
-            throw new InvalidOperationException($"FORM_FIELD_Master {formId} not found");
+        // 1. 查詢表單主設定，確認表單是否存在，以及相關設定是否完整
+        var master = _con.QueryFirstOrDefault<FORM_FIELD_Master>(
+            "SELECT * FROM FORM_FIELD_Master WHERE ID = @id", new { id = formId });
 
-        if (master.BASE_TABLE_ID == null || string.IsNullOrWhiteSpace(master.PRIMARY_KEY))
-            throw new InvalidOperationException("BASE_TABLE_ID or PRIMARY_KEY not set");
+        // 2. 查詢該表單所有欄位設定（FORM_FIELD_CONFIG）
+        var configs = _con.Query<(Guid Id, string Column, int ControlType)>(
+            "SELECT ID, COLUMN_NAME, CONTROL_TYPE FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @id",
+            new { id = master.BASE_TABLE_ID }).ToDictionary(c => c.Id);
 
-        var configs = _con.Query<(Guid ID, string TABLE_NAME, string COLUMN_NAME, int CONTROL_TYPE)>(
-            "SELECT ID, TABLE_NAME, COLUMN_NAME, CONTROL_TYPE FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @id",
-            new { id = master.BASE_TABLE_ID });
+        // 3. 分類欄位答案（依照型態拆成兩組）
+        // - normalFields: 一般型態（非下拉選）欄位，用於直接寫入主資料表
+        // - dropdownAnswers: 下拉選單答案，需額外存到 FORM_FIELD_DROPDOWN_ANSWER 關聯表
+        var normalFields = new List<(string Column, object? Value)>();
+        var dropdownAnswers = new List<(Guid ConfigId, Guid OptionId)>();
 
-        var map = configs.ToDictionary(c => c.ID, c => c);
-
-        var parameters = new DynamicParameters();
-        var assignments = new List<string>();
-        var insertColumns = new List<string>();
-        var insertValues = new List<string>();
-        var dropdownValues = new List<(Guid ConfigId, Guid OptionId)>();
-        int idx = 0;
-
-        foreach (var kv in fields)
+        // 逐一處理前端傳來的答案字典
+        foreach (var kv in inputFields)
         {
-            if (!map.TryGetValue(kv.Key, out var cfg))
+            // 欄位 ID 在設定中找不到就跳過（可能是無效欄位或設定異常）
+            if (!configs.TryGetValue(kv.Key, out var cfg))
                 continue;
 
-            if ((FormControlType)cfg.CONTROL_TYPE == FormControlType.Dropdown)
+            // 如果是 Dropdown 型態
+            if ((FormControlType)cfg.ControlType == FormControlType.Dropdown)
             {
+                // Dropdown 值應該是 OptionId（Guid 字串），需驗證合法性
                 if (Guid.TryParse(kv.Value, out var optionId))
-                {
-                    dropdownValues.Add((cfg.ID, optionId));
-                }
+                    dropdownAnswers.Add((cfg.Id, optionId));
             }
             else
             {
-                var paramName = $"p{idx}";
-                if (rowId == null)
-                {
-                    insertColumns.Add($"[{cfg.COLUMN_NAME}]");
-                    insertValues.Add($"@{paramName}");
-                }
-                else
-                {
-                    assignments.Add($"[{cfg.COLUMN_NAME}] = @{paramName}");
-                }
-                parameters.Add(paramName, kv.Value);
-                idx++;
+                // 其他型態直接存（如 Text, Number, Date ...）
+                normalFields.Add((cfg.Column, kv.Value));
             }
         }
 
-        Guid finalRowId = rowId ?? Guid.NewGuid();
+        // 4. 判斷要 Insert 還是 Update
+        // - rowId 為 null 代表新增，否則代表修改現有資料
+        // - 實際 rowId 需給定（新增時產生新 Guid）
+        var isInsert = rowId == null;
+        var realRowId = rowId ?? Guid.NewGuid();
 
-        if (rowId == null)
+        // === Insert 寫入流程 ===
+        if (isInsert)
         {
-            insertColumns.Insert(0, $"[{master.PRIMARY_KEY}]");
-            insertValues.Insert(0, "@rowId");
-            parameters.Add("rowId", finalRowId);
-            var sql = $"INSERT INTO [{master.BASE_TABLE_NAME}] ({string.Join(", ", insertColumns)}) VALUES ({string.Join(", ", insertValues)})";
-            _con.Execute(sql, parameters);
+            // 組欄位名稱與對應參數名稱
+            // - 主鍵欄位一定要寫入（Guid）
+            var columns = new List<string> { $"[{master.PRIMARY_KEY}]" };
+            var values = new List<string> { "@ROWID" };
+            var paramDict = new Dictionary<string, object> { ["ROWID"] = realRowId };
+
+            // 一般欄位依序帶入，組成參數字典與 SQL 字串
+            int i = 0;
+            foreach (var field in normalFields)
+            {
+                var paramName = $"VAL{i}";
+                columns.Add($"[{field.Column}]");
+                values.Add($"@{paramName}");
+                paramDict[paramName] = field.Value;
+                i++;
+            }
+
+            // 組成完整 INSERT SQL
+            var sql = $"INSERT INTO [{master.BASE_TABLE_NAME}] ({string.Join(", ", columns)}) VALUES ({string.Join(", ", values)})";
+            // 執行寫入
+            _con.Execute(sql, paramDict);
         }
-        else if (assignments.Count > 0)
+        else
         {
-            parameters.Add("rowId", finalRowId);
-            var sql = $"UPDATE [{master.BASE_TABLE_NAME}] SET {string.Join(", ", assignments)} WHERE [{master.PRIMARY_KEY}] = @rowId";
-            _con.Execute(sql, parameters);
+            // === Update 更新流程 ===
+            // - 若有一般欄位才需要進行 UPDATE
+            if (normalFields.Any())
+            {
+                var setList = new List<string>();
+                var paramDict = new Dictionary<string, object> { ["ROWID"] = realRowId };
+                int i = 0;
+                foreach (var field in normalFields)
+                {
+                    var paramName = $"VAL{i}";
+                    setList.Add($"[{field.Column}] = @{paramName}");
+                    paramDict[paramName] = field.Value;
+                    i++;
+                }
+                // 組成完整 UPDATE SQL
+                var sql = $"UPDATE [{master.BASE_TABLE_NAME}] SET {string.Join(", ", setList)} WHERE [{master.PRIMARY_KEY}] = @ROWID";
+                // 執行更新
+                _con.Execute(sql, paramDict);
+            }
         }
 
-        foreach (var dv in dropdownValues)
+        // 5. 寫入/更新所有 Dropdown 選項答案（Upsert 到 FORM_FIELD_DROPDOWN_ANSWER）
+        foreach (var (ConfigId, OptionId) in dropdownAnswers)
         {
-            _con.Execute(Sql.UpsertDropdownAnswer, new { ConfigId = dv.ConfigId, RowId = finalRowId, OptionId = dv.OptionId });
+            _con.Execute(Sql.UpsertDropdownAnswer, new { ConfigId, RowId = realRowId, OptionId });
         }
     }
+
 
     private static class Sql
     {
