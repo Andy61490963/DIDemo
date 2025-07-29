@@ -2,13 +2,13 @@
 @model FormSubmissionViewModel
 
 <form asp-action="SubmitForm" method="post" id="dynamic-form" class="container mt-4">
-    <input type="hidden" name="formId" value="@Model.FormId" />
-    <input type="hidden" name="rowId" value="@Model.RowId" />
-    <input type="hidden" name="formName" value="@Model.FormName" />
+    <input type="hidden" name="FormId" value="@Model.FormId" />
+    <input type="hidden" name="RowId" value="@Model.RowId" />
 
     <div class="row g-4">
-        @foreach (var field in Model.Fields)
+        @for (var i = 0; i < Model.Fields.Count; i++)
         {
+            var field = Model.Fields[i];
             if (!field.IS_VISIBLE) { continue; }
 
             var colSize = "col-md-4";
@@ -19,6 +19,7 @@
             var controlType = field.CONTROL_TYPE;
 
             <div class="@colSize">
+                <input type="hidden" name="InputFields[@i].FieldConfigId" value="@field.FieldConfigId" />
                 @if (controlType == FormControlType.Textarea)
                 {
                     <div class="card shadow-sm mb-4">
@@ -36,11 +37,7 @@
 
                                 <!-- 右側輸入區 -->
                                 <div class="col-md-8">
-                                    <textarea name="UserInputs[@field.FieldConfigId]"
-					                          class="form-control"
-					                          maxlength="@maxLength"
-                                              value="@field.CurrentValue"
-					                          @(field.IS_EDITABLE ? "" : "disabled")>@(field.DefaultValue)</textarea>
+                                    <textarea name="InputFields[@i].Value" class="form-control" maxlength="@maxLength" @(field.IS_EDITABLE ? "" : "disabled")>@(field.CurrentValue ?? field.DefaultValue)</textarea>
                                 </div>
                             </div>
                         </div>
@@ -63,7 +60,7 @@
 
                                 <!-- 右側輸入區 -->
                                 <div class="col-md-8">
-                                    <select name="UserInputs[@field.FieldConfigId]"
+                                    <select name="InputFields[@i].Value"
                                             class="form-select dynamic-dropdown"
                                             data-id="@field.FieldConfigId"
                                             data-usesql="@field.ISUSESQL.ToString().ToLower()"
@@ -85,7 +82,7 @@
                 {
                     <div class="form-check mt-1">
                         <input type="checkbox"
-                               name="UserInputs[@field.FieldConfigId]"
+                               name="InputFields[@i].Value"
                                value="true"
                                class="form-check-input"
                                @(field.IS_EDITABLE ? "" : "disabled") />
@@ -110,7 +107,7 @@
                                 <!-- 右側輸入區 -->
                                 <div class="col-md-8">
                                     <input type="text"
-                                           name="UserInputs[@field.FieldConfigId]"
+                                           name="InputFields[@i].Value"
                                            class="form-control"
                                            maxlength="@maxLength"
                                            value="@(field.CurrentValue)"

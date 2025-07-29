@@ -275,11 +275,12 @@ public class FormService : IFormService
     /// <summary>
     /// 儲存或更新表單資料（含下拉選項答案）
     /// </summary>
-    /// <param name="formId">表單主設定ID（FORM_FIELD_Master.ID）</param>
-    /// <param name="rowId">資料列主鍵，null 代表新增，否則為更新</param>
-    /// <param name="inputFields">前端傳入的欄位答案（Key=欄位設定ID, Value=答案值）</param>
-    public void SubmitForm(Guid formId, Guid? rowId, Dictionary<Guid, string> inputFields)
+    /// <param name="input">前端送出的表單資料</param>
+    public void SubmitForm(FormSubmissionInputModel input)
     {
+        var formId = input.FormId;
+        var rowId = input.RowId;
+
         // 1. 查詢表單主設定，確認表單是否存在，以及相關設定是否完整
         var master = _con.QueryFirstOrDefault<FORM_FIELD_Master>(
             "SELECT * FROM FORM_FIELD_Master WHERE ID = @id", new { id = formId });
@@ -295,24 +296,24 @@ public class FormService : IFormService
         var normalFields = new List<(string Column, object? Value)>();
         var dropdownAnswers = new List<(Guid ConfigId, Guid OptionId)>();
 
-        // 逐一處理前端傳來的答案字典
-        foreach (var kv in inputFields)
+        // 逐一處理前端傳來的欄位答案
+        foreach (var field in input.InputFields)
         {
             // 欄位 ID 在設定中找不到就跳過（可能是無效欄位或設定異常）
-            if (!configs.TryGetValue(kv.Key, out var cfg))
+            if (!configs.TryGetValue(field.FieldConfigId, out var cfg))
                 continue;
 
             // 如果是 Dropdown 型態
             if ((FormControlType)cfg.ControlType == FormControlType.Dropdown)
             {
                 // Dropdown 值應該是 OptionId（Guid 字串），需驗證合法性
-                if (Guid.TryParse(kv.Value, out var optionId))
+                if (Guid.TryParse(field.Value, out var optionId))
                     dropdownAnswers.Add((cfg.Id, optionId));
             }
             else
             {
                 // 其他型態直接存（如 Text, Number, Date ...）
-                normalFields.Add((cfg.Column, kv.Value));
+                normalFields.Add((cfg.Column, field.Value));
             }
         }
 
