@@ -4,6 +4,7 @@ using DynamicForm.Models;
 using DynamicForm.Service.Interface;
 using DynamicForm.Helper;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.RegularExpressions;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Options;
@@ -401,6 +402,55 @@ public class FormDesignerService : IFormDesignerService
         return result;
     }
 
+    public ValidateSqlResultViewModel ImportDropdownOptionsFromSql(string sql, Guid dropdownId, string optionTable)
+    {
+        // 若未指定資料表名稱，嘗試從 SQL 中解析
+        if (string.IsNullOrWhiteSpace(optionTable))
+        {
+            var match = Regex.Match(sql, @"from\s+([a-zA-Z0-9_]+)", RegexOptions.IgnoreCase);
+            optionTable = match.Success ? match.Groups[1].Value : string.Empty;
+        }
+
+        var validation = ValidateDropdownSql(sql);
+        if (!validation.Success)
+            return validation;
+
+        if (string.IsNullOrWhiteSpace(optionTable))
+        {
+            validation.Success = false;
+            validation.Message = "無法解析來源表名稱";
+            return validation;
+        }
+
+        var wasClosed = _con.State != System.Data.ConnectionState.Open;
+        if (wasClosed) _con.Open();
+
+        try
+        {
+            var rows = _con.Query(sql);
+            foreach (var row in rows)
+            {
+                var dict = (IDictionary<string, object>)row;
+                var optionValue = dict.TryGetValue("ID", out var v) ? v?.ToString() ?? string.Empty : string.Empty;
+                var optionText  = dict.TryGetValue("NAME", out var t) ? t?.ToString() ?? string.Empty : string.Empty;
+
+                _con.Execute(Sql.InsertOptionIgnoreDuplicate, new
+                {
+                    DropdownId = dropdownId,
+                    OptionTable = optionTable,
+                    OptionValue = optionValue,
+                    OptionText  = optionText
+                });
+            }
+        }
+        finally
+        {
+            if (wasClosed) _con.Close();
+        }
+
+        return validation;
+    }
+
     public Guid SaveFormHeader(FORM_FIELD_Master model)
     {
         // 若不存在則產生新 ID
@@ -644,6 +694,23 @@ WHEN NOT MATCHED THEN
             source.OPTION_VALUE,
             source.OPTION_TABLE)
 OUTPUT INSERTED.ID;                          -- 把 ID 回傳給 Dapper
+";
+
+        public const string InsertOptionIgnoreDuplicate = @"/**/
+MERGE dbo.FORM_FIELD_DROPDOWN_OPTIONS AS target
+USING (
+    SELECT
+        @DropdownId  AS FORM_FIELD_DROPDOWN_ID,
+        @OptionTable AS OPTION_TABLE,
+        @OptionValue AS OPTION_VALUE,
+        @OptionText  AS OPTION_TEXT
+) AS src
+ON target.FORM_FIELD_DROPDOWN_ID = src.FORM_FIELD_DROPDOWN_ID
+   AND target.OPTION_TABLE = src.OPTION_TABLE
+   AND target.OPTION_VALUE = src.OPTION_VALUE
+WHEN NOT MATCHED THEN
+    INSERT (ID, FORM_FIELD_DROPDOWN_ID, OPTION_TABLE, OPTION_VALUE, OPTION_TEXT)
+    VALUES (NEWID(), src.FORM_FIELD_DROPDOWN_ID, src.OPTION_TABLE, src.OPTION_VALUE, src.OPTION_TEXT);
 ";
 
         public const string DeleteDropdownOption = @"/**/

@@ -286,6 +286,25 @@ public class FormDesignerController : Controller
     }
 
     /// <summary>
+    /// 執行 SQL 並匯入下拉選單選項
+    /// </summary>
+    /// <param name="dropdownId">目標下拉選單 ID</param>
+    /// <param name="sql">查詢語句</param>
+    /// <param name="optionTable">來源表名稱</param>
+    [HttpPost]
+    public IActionResult ImportOptions(Guid dropdownId, string sql, string optionTable)
+    {
+        var res = _formDesignerService.ImportDropdownOptionsFromSql(sql, dropdownId, optionTable);
+        if (!res.Success)
+        {
+            return BadRequest(res.Message);
+        }
+
+        var options = _formDesignerService.GetDropdownOptions(dropdownId);
+        return PartialView("Dropdown/_DropdownOptionItem", options);
+    }
+
+    /// <summary>
     /// 儲存表單主檔資訊（FormHeader），作為欄位設定的對應關聯。
     /// </summary>
     /// <param name="model">表單主檔 ViewModel</param>
