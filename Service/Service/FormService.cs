@@ -248,7 +248,11 @@ public class FormService : IFormService
 
             if ((FormControlType)cfg.CONTROL_TYPE == FormControlType.Dropdown)
             {
-                _con.Execute(Sql.UpsertDropdownAnswer, new { ConfigId = cfg.ID, RowId = rowId, Value = kv.Value });
+                if (Guid.TryParse(kv.Value, out var optionId))
+                {
+                    _con.Execute(Sql.UpsertDropdownAnswer,
+                        new { ConfigId = cfg.ID, RowId = rowId, OptionId = optionId });
+                }
             }
             else
             {
@@ -272,9 +276,9 @@ public class FormService : IFormService
 USING (SELECT @ConfigId AS FORM_FIELD_CONFIG_ID, @RowId AS ROW_ID) AS src
     ON target.FORM_FIELD_CONFIG_ID = src.FORM_FIELD_CONFIG_ID AND target.ROW_ID = src.ROW_ID
 WHEN MATCHED THEN
-    UPDATE SET OPTION_VALUE = @Value
+    UPDATE SET FORM_FIELD_DROPDOWN_OPTIONS_ID = @OptionId
 WHEN NOT MATCHED THEN
-    INSERT (ID, FORM_FIELD_CONFIG_ID, ROW_ID, OPTION_VALUE)
-    VALUES (NEWID(), src.FORM_FIELD_CONFIG_ID, src.ROW_ID, @Value);";
+    INSERT (ID, FORM_FIELD_CONFIG_ID, ROW_ID, FORM_FIELD_DROPDOWN_OPTIONS_ID)
+    VALUES (NEWID(), src.FORM_FIELD_CONFIG_ID, src.ROW_ID, @OptionId);";
     }
 }
