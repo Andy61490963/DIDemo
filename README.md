@@ -23,9 +23,6 @@ Table FORM_FIELD_CONFIG {
   IS_VISIBLE BIT [default: true, note: '是否顯示此欄位（true 顯示 / false 隱藏）']
   IS_EDITABLE BIT [default: true, note: '是否允許編輯（true 可編輯 / false 唯讀）']
   FIELD_ORDER INT [default: 0, note: '欄位在畫面中出現的排序順序']
-  FIELD_GROUP NVARCHAR(100) [note: '欄位群組名稱，用於分群展示如「基本資料」']
-  COLUMN_SPAN INT [default: 12, note: '欄位寬度，對應 Tailwind/Grid 系統的 col-span (1~12)']
-  IS_SECTION_START BIT [default: false, note: '是否為新群組區塊開頭，用來產生卡片/分段']
 
   CREATE_USER NVARCHAR(50) [note: '建立人員帳號']
   CREATE_TIME DATETIME [note: '建立時間']
@@ -149,9 +146,6 @@ FORM_FIELD_CONFIG（表單欄位設定檔）
 •	IS_VISIBLE (BIT, default true)：此欄位是否在前台表單中顯示。true 為顯示，false 為隱藏。隱藏的欄位前端不呈現，但仍可存在於配置中（可能用於邏輯判斷或默認傳值）。
 •	IS_EDITABLE (BIT, default true)：此欄位在前台是否允許編輯。true 表示可編輯（正常輸入），false 表示唯讀（僅顯示不可修改）。常用於主鍵或某些不可變更的欄位。
 •	FIELD_ORDER (INT, default 0)：欄位在畫面中的顯示順序序號。數字小者排在前面。通常和 SEQNO 用途相似，可視為另一種排序機制。
-•	FIELD_GROUP (NVARCHAR(100))：欄位群組名稱，用於將表單中的欄位分組顯示。例如可將多個欄位歸類為「基本資料」、「聯絡資訊」等。前端可據此在表單中劃分區塊，加入分組標題等。
-•	COLUMN_SPAN (INT, default 12)：欄位寬度，占前端版面網格欄位的比例。一般採用 12 格網格系統（如 Tailwind CSS 等框架），1~12 表示佔據的欄位格數。數字越大表示欄位呈現越寬。例：12 表示獨占一列（整排），6 表示佔該列一半寬度。
-•	IS_SECTION_START (BIT, default false)：是否為新群組區塊的開頭。若為 true，表示從此欄位開始，前端應產生一個新的區段或卡片樣式，用於將表單區分為不同段落（配合 FIELD_GROUP 使用更佳）。例如表單前半部為「基本資料」，後半部為「其他資訊」，則「其他資訊」第一個欄位可標記此值為 true 以起始新段落。
 （以下為系統管理欄位，記錄該設定的建立與修改資訊，AI 產生畫面時通常可忽略或僅供後台管理查詢） - CREATE_USER (NVARCHAR(50))：建立人員的帳號。 - CREATE_TIME (DATETIME)：建立時間。 - EDIT_USER (NVARCHAR(50))：最後修改人員的帳號。 - EDIT_TIME (DATETIME)：最後修改時間。
 FORM_FIELD_VALIDATION_RULE（表單欄位驗證規則檔）
 此表儲存各表單欄位對應的驗證規則設定。每筆記錄代表對某欄位的一個驗證要求（例如必填、長度限制、格式檢查等）。前台會依據這些規則對使用者輸入進行驗證，後台也可在接收資料時再次驗證。
@@ -238,9 +232,6 @@ a. 學生姓名 欄位： - FORM_FIELD_MASTER_ID：對應上面建立的表單�
 - IS_VISIBLE：true（前台顯示此欄位）。
 - IS_EDITABLE：true（允許使用者編輯）。
 - FIELD_ORDER：1（我們希望姓名是第一個欄位）。
-- FIELD_GROUP：基本資料（將姓名歸類在「基本資料」區塊）。
-- COLUMN_SPAN：6（佔一半寬度，讓它與另一個欄位並排在同一列）。
-- IS_SECTION_START：true（標記為新區段開頭，開始「基本資料」區塊）。
 b. 性別 欄位： - FORM_FIELD_MASTER_ID：同屬於 student_edit_form 表單。
 - TABLE_NAME：STUDENTS（假設性別存儲在 Students 表中，例如存一個代碼）。
 - COLUMN_NAME：GENDER 或 GENDER_CODE（性別代碼欄位名稱，視實際資料表欄位而定）。
@@ -251,7 +242,6 @@ b. 性別 欄位： - FORM_FIELD_MASTER_ID：同屬於 student_edit_form 表單�
 - FIELD_ORDER：2（姓名之後第二個欄位）。
 - FIELD_GROUP：基本資料（仍在基本資料區塊內）。
 - COLUMN_SPAN：6（佔另一半寬度，與姓名欄位並排在同一列）。
-- IS_SECTION_START：false（延續上一欄位的區塊，不新開區段）。
 c. 導師 欄位（假設選取學生的導師或負責職員）： - FORM_FIELD_MASTER_ID：同上。
 - TABLE_NAME：STUDENTS（假設 Students 表有一個 ADVISOR_ID 欄位存導師的員工編號）。
 - COLUMN_NAME：ADVISOR_ID（導師之員工代號欄位）。
@@ -262,7 +252,6 @@ c. 導師 欄位（假設選取學生的導師或負責職員）： - FORM_FIELD
 - FIELD_ORDER：3（第三個欄位）。
 - FIELD_GROUP：基本資料（也可算在基本資料區，或根據畫面需要決定群組）。
 - COLUMN_SPAN：6（例如佔一半寬度，可與備註並排）。
-- IS_SECTION_START：false（不新開區段）。
 d. 備註 欄位： - FORM_FIELD_MASTER_ID：同上。
 - TABLE_NAME：STUDENTS。
 - COLUMN_NAME：REMARK（備註欄位）。
@@ -273,7 +262,6 @@ d. 備註 欄位： - FORM_FIELD_MASTER_ID：同上。
 - FIELD_ORDER：4。
 - FIELD_GROUP：其他資訊（將備註歸為另一組，例如「其他資訊」）。
 - COLUMN_SPAN：12（佔一整列寬度，讓備註欄位獨占一行）。
-- IS_SECTION_START：true（從此開始新區段「其他資訊」）。
 上述四筆欄位設定就構成了學生編輯表單的欄位結構。姓名、性別、導師在第一區段「基本資料」橫向排列兩列兩欄（每列兩個欄位，各占一半寬度），備註在第二區段「其他資訊」獨佔一列。
 3. 定義欄位驗證規則（FORM_FIELD_VALIDATION_RULE）：
 為了確保使用者輸入資料的正確性，我們可以為上述欄位設定驗證規則，例如姓名和性別為必填，姓名不得超過一定長度等。在 FORM_FIELD_VALIDATION_RULE 中新增：

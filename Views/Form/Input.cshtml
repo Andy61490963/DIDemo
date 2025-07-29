@@ -9,15 +9,7 @@
         {
             if (!field.IS_VISIBLE) { continue; }
 
-            var colSize = field.COLUMN_SPAN switch
-            {
-                <= 2 => "col-md-2",
-                <= 4 => "col-md-3",
-                <= 6 => "col-md-4",
-                <= 8 => "col-md-6",
-                <= 10 => "col-md-8",
-                _ => "col-md-4"
-            };
+            var colSize = "col-md-4";
 
             // var isRequired = field.ValidationRules.Any(r => r.VALIDATION_TYPE == ValidationType.Required);
             var isRequired = false;

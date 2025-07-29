@@ -14,8 +14,6 @@
             <th style="min-width: 60px;">必填</th>
             <th style="min-width: 60px;">編輯</th>
             <th style="min-width: 60px;">限制條件</th>
-            <th style="min-width: 100px;">語系</th>
-            <th style="min-width: 80px;">寬度</th>
         </tr>
         </thead>
         <tbody>
@@ -31,18 +29,6 @@
                     @* <td>@Html.Raw(field.IS_VISIBLE ? "<i class=\"bi bi-check\"></i>" : "<i class=\"bi bi-x text-danger\"></i>")</td> *@
                     <td>@Html.Raw(field.IS_EDITABLE ? "<i class=\"bi bi-check\"></i>" : "<i class=\"bi bi-x text-danger\"></i>")</td>
                     <td>@Html.Raw(field.IS_VALIDATION_RULE ? "<i class=\"bi bi-check\"></i>" : "<i class=\"bi bi-x text-danger\"></i>")</td>
-
-                    <td>
-                        @if (field.LANG_CODES?.Any() == true)
-                        {
-                            <span>@string.Join(", ", field.LANG_CODES)</span>
-                        }
-                        else
-                        {
-                            <span class="text-muted">無</span>
-                        }
-                    </td>
-                    <td>@field.EDITOR_WIDTH</td>
                 </tr>
             }
         }

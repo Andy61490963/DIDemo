@@ -16,9 +16,7 @@ public class FormFieldInputViewModel
     public string? DefaultValue { get; set; }
     public bool IS_VISIBLE { get; set; }
     public bool IS_EDITABLE { get; set; }
-    public int? COLUMN_SPAN { get; set; }
-    public bool IS_SECTION_START { get; set; }
-
+    
     /// <summary>
     /// 欄位來源：主表或檢視表
     /// </summary>

@@ -45,25 +45,6 @@
                 <label asp-for="DEFAULT_VALUE" class="form-label">預設值</label>
                 <input asp-for="DEFAULT_VALUE" class="form-control" disabled="@(!showSettingRuleButton)" />
             </div>
-
-            <div class="col-md-6">
-                <label asp-for="EDITOR_WIDTH" class="form-label">欄位寬度 (1~12)</label>
-                <input asp-for="EDITOR_WIDTH" type="number" class="form-control" min="1" max="12" />
-            </div>
-
-            <div class="col-md-6">
-                <label class="form-label">語系支援</label>
-                @if (Model?.LANG_CODES?.Any() == true)
-                {
-                    <div class="form-control bg-light">
-                        @string.Join(", ", Model.LANG_CODES)
-                    </div>
-                }
-                else
-                {
-                    <div class="form-control text-muted">尚無語系資料</div>
-                }
-            </div>
             
             @* <div class="col-md-4 d-flex align-items-center"> *@
             @*     <div class="form-check"> *@

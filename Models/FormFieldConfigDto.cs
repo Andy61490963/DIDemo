@@ -25,12 +25,6 @@ public class FormFieldConfigDto
 
     public int FIELD_ORDER { get; set; }
 
-    public string? FIELD_GROUP { get; set; }
-
-    public int? COLUMN_SPAN { get; set; }
-
-    public bool IS_SECTION_START { get; set; }
-
     public string? CREATE_USER { get; set; }
 
     public DateTime? CREATE_TIME { get; set; }

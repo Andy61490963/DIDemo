@@ -16,7 +16,7 @@ public class FormService : IFormService
         _con = connection;
     }
 
-    public FormSubmissionViewModel GetFormSubmission(Guid id, Guid formId)
+    public FormSubmissionViewModel GetFormSubmission(Guid id, Guid? fromId = null)
     {
         // 1. 查 Master 設定
         var master = _con.QueryFirstOrDefault<FORM_FIELD_Master>(
@@ -36,36 +36,51 @@ public class FormService : IFormService
             };
         }
 
-        // 3. 查表單主鍵
-        if (string.IsNullOrWhiteSpace(master.PRIMARY_KEY))
-            throw new InvalidOperationException("未設定 PRIMARY_KEY");
+        if (master.BASE_TABLE_ID is null || master.VIEW_TABLE_ID is null)
+            throw new InvalidOperationException("主表與檢視表 ID 不完整");
 
-        if (string.IsNullOrWhiteSpace(master.VIEW_TABLE_NAME))
-            throw new InvalidOperationException("未設定 VIEW_TABLE_NAME");
+        var baseFields = GetFields(master.BASE_TABLE_ID.Value);
+        var viewFields = GetFields(master.VIEW_TABLE_ID.Value);
 
-        // 4. 查欄位定義
-        var fieldList = GetFields(master.VIEW_TABLE_ID!.Value); // 查 view 的欄位清單
+        var baseMap = baseFields.ToDictionary(f => f.COLUMN_NAME, f => f, StringComparer.OrdinalIgnoreCase);
 
-        // 5. 查資料
-        var sql = $"SELECT * FROM [{master.VIEW_TABLE_NAME}] WHERE [{master.PRIMARY_KEY}] = @id";
-
-        var dataRow = _con.QueryFirstOrDefault(sql, new { id = formId });
-
-        // 6. 把資料對應到每個欄位
-        if (dataRow is not null)
+        var merged = new List<FormFieldInputViewModel>();
+        foreach (var viewField in viewFields)
         {
-            var dict = (IDictionary<string, object?>)dataRow;
-            foreach (var field in fieldList)
+            if (baseMap.TryGetValue(viewField.COLUMN_NAME, out var baseField))
             {
-                if (dict.TryGetValue(field.COLUMN_NAME, out var val))
-                    field.CurrentValue = val;
+                baseField.SOURCE = TableSchemaQueryType.OnlyTable;
+                merged.Add(baseField);
+            }
+            else
+            {
+                viewField.IS_EDITABLE = false;
+                viewField.SOURCE = TableSchemaQueryType.OnlyView;
+                merged.Add(viewField);
+            }
+        }
+
+        // === 這裡是重點：有 rowId 才查值 ===
+        if (!string.IsNullOrWhiteSpace(master.PRIMARY_KEY) && !string.IsNullOrWhiteSpace(master.VIEW_TABLE_NAME) && fromId != null)
+        {
+            var sql = $"SELECT * FROM [{master.VIEW_TABLE_NAME}] WHERE [{master.PRIMARY_KEY}] = @id";
+            var dataRow = _con.QueryFirstOrDefault(sql, new { id = fromId });
+
+            if (dataRow is not null)
+            {
+                var dict = (IDictionary<string, object?>)dataRow;
+                foreach (var field in merged)
+                {
+                    if (dict.TryGetValue(field.COLUMN_NAME, out var val))
+                        field.CurrentValue = val;
+                }
             }
         }
 
         return new FormSubmissionViewModel
         {
             FormName = master.FORM_NAME,
-            Fields = fieldList
+            Fields = merged
         };
     }
 
@@ -123,8 +138,6 @@ public class FormService : IFormService
                 DefaultValue = field.DEFAULT_VALUE,
                 IS_VISIBLE = field.IS_VISIBLE,
                 IS_EDITABLE = field.IS_EDITABLE,
-                COLUMN_SPAN = field.COLUMN_SPAN,
-                IS_SECTION_START = field.IS_SECTION_START,
                 ValidationRules = ruleMap.TryGetValue(field.ID, out var rules) ? rules.ToList() : new(),
                 OptionList = finalOptions,
                 ISUSESQL = isUseSql,

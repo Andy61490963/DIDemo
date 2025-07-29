@@ -76,7 +76,7 @@ public class FormDesignerService : IFormDesignerService
                 IS_VISIBLE             = cfg?.IS_VISIBLE  ?? true,
                 IS_EDITABLE            = cfg?.IS_EDITABLE ?? true,
                 IS_VALIDATION_RULE     = requiredFieldIds.Contains(fieldId),
-                EDITOR_WIDTH           = cfg?.COLUMN_SPAN ?? FormFieldHelper.GetDefaultEditorWidth(dataType),
+                //EDITOR_WIDTH           = cfg?.COLUMN_SPAN ?? FormFieldHelper.GetDefaultEditorWidth(dataType),
                 DEFAULT_VALUE          = cfg?.DEFAULT_VALUE ??  string.Empty,
                 SchemaType             = schemaType
             };
@@ -162,7 +162,6 @@ public class FormDesignerService : IFormDesignerService
             model.IS_REQUIRED,
             model.IS_VISIBLE,
             model.IS_EDITABLE,
-            COLUMN_SPAN = model.EDITOR_WIDTH,
             model.DEFAULT_VALUE
         };
 
@@ -536,17 +535,16 @@ WHEN MATCHED THEN
         IS_REQUIRED     = @IS_REQUIRED,
         IS_VISIBLE     = @IS_VISIBLE,
         IS_EDITABLE    = @IS_EDITABLE,
-        COLUMN_SPAN    = @COLUMN_SPAN,
         DEFAULT_VALUE  = @DEFAULT_VALUE,
         EDIT_TIME      = GETDATE()
 WHEN NOT MATCHED THEN
     INSERT (
         ID, FORM_FIELD_Master_ID, TABLE_NAME, COLUMN_NAME,
-        CONTROL_TYPE, IS_REQUIRED, IS_VISIBLE, IS_EDITABLE, COLUMN_SPAN, DEFAULT_VALUE, CREATE_TIME
+        CONTROL_TYPE, IS_REQUIRED, IS_VISIBLE, IS_EDITABLE, DEFAULT_VALUE, CREATE_TIME
     )
     VALUES (
         @ID, @FORM_FIELD_Master_ID, @TABLE_NAME, @COLUMN_NAME,
-        @CONTROL_TYPE, @IS_REQUIRED, @IS_VISIBLE, @IS_EDITABLE, @COLUMN_SPAN, @DEFAULT_VALUE, GETDATE()
+        @CONTROL_TYPE, @IS_REQUIRED, @IS_VISIBLE, @IS_EDITABLE, @DEFAULT_VALUE, GETDATE()
     );";
 
         public const string CheckFieldExists         = @"/**/
