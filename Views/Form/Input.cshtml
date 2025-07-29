@@ -72,7 +72,8 @@
                                         <option value="">-- 請選擇 --</option>
                                         @foreach (var opt in field.OptionList ?? new())
                                         {
-                                            <option value="@opt.ID">@opt.OPTION_TEXT</option>
+                                            var selected = field.CurrentValue is Guid gid && gid == opt.ID;
+                                            <option value="@opt.ID" selected="@(selected ? "selected" : null)">@opt.OPTION_TEXT</option>
                                         }
                                     </select>
                                 </div>
