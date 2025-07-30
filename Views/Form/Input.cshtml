@@ -4,6 +4,7 @@
 <form asp-action="SubmitForm" method="post" id="dynamic-form" class="container mt-4">
     <input type="hidden" name="FormId" value="@Model.FormId" />
     <input type="hidden" name="RowId" value="@Model.RowId" />
+    <input type="hidden" name="TargetTableToUpsert" value="@Model.TargetTableToUpsert" />
 
     <div class="row g-4">
         @for (var i = 0; i < Model.Fields.Count; i++)
@@ -20,6 +21,7 @@
 
             <div class="@colSize">
                 <input type="hidden" name="InputFields[@i].FieldConfigId" value="@field.FieldConfigId" />
+                <input type="hidden" name="InputFields[@i].SOURCE_TABLE" value="@field.SOURCE_TABLE" />
                 @if (controlType == FormControlType.Textarea)
                 {
                     <div class="card shadow-sm mb-4">

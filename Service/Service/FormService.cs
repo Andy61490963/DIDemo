@@ -1,8 +1,10 @@
+using System.Text.RegularExpressions;
 using ClassLibrary;
 using Dapper;
 using DynamicForm.Models;
 using DynamicForm.Service.Interface;
 using Microsoft.Data.SqlClient;
+using Microsoft.SqlServer.TransactSql.ScriptDom;
 
 namespace DynamicForm.Service.Service;
 
@@ -187,22 +189,12 @@ public class FormService : IFormService
         // 組合起來，判斷誰可以編輯(主檔欄位的可以編輯)
         foreach (var viewField in viewFields)
         {
-            // 主表（baseFields）裡有同名同型態的欄位，而且該 base 欄位本來就 IS_EDITABLE
-            var match = baseFields.FirstOrDefault(b =>
-                b.COLUMN_NAME.Equals(viewField.COLUMN_NAME, StringComparison.OrdinalIgnoreCase) &&
-                b.DATA_TYPE.Equals(viewField.DATA_TYPE, StringComparison.OrdinalIgnoreCase)
-            );
-
-            // 條件：主表真的有這個欄位，且允許編輯
-            bool isEditable = match != null && match.IS_EDITABLE;
-
-            // 這一欄才允許被前端編輯
+            bool isEditable = IsEditableFromBaseTable(viewField, baseMap, master.BASE_TABLE_NAME);
             viewField.IS_EDITABLE = isEditable;
-            // 附帶：可視需求標註 SOURCE
             viewField.SOURCE = isEditable ? TableSchemaQueryType.OnlyTable : TableSchemaQueryType.OnlyView;
-
             merged.Add(viewField);
         }
+
         
         if (!string.IsNullOrWhiteSpace(master.PRIMARY_KEY)
             && !string.IsNullOrWhiteSpace(master.VIEW_TABLE_NAME)
@@ -242,9 +234,25 @@ public class FormService : IFormService
         {
             FormId = master.ID,
             RowId = fromId,
+            TargetTableToUpsert = master.BASE_TABLE_NAME,
             FormName = master.FORM_NAME,
             Fields = merged
         };
+    }
+    
+    /// <summary>
+    /// 判斷 View 欄位是否來自主表，並且該欄位設定為可編輯
+    /// </summary>
+    private static bool IsEditableFromBaseTable(
+        FormFieldInputViewModel viewField,
+        Dictionary<(string, string), FormFieldInputViewModel> baseMap,
+        string baseTableName)
+    {
+        var key = (viewField.COLUMN_NAME.ToLower(), viewField.DATA_TYPE.ToLower());
+
+        return string.Equals(viewField.SOURCE_TABLE, baseTableName, StringComparison.OrdinalIgnoreCase)
+               && baseMap.TryGetValue(key, out var baseField)
+               && baseField.IS_EDITABLE;
     }
 
     /// <summary>
@@ -361,8 +369,8 @@ public class FormService : IFormService
 
         // 2. 查詢該表單所有欄位設定（FORM_FIELD_CONFIG）
         var configs = _con.Query<(Guid Id, string Column, int ControlType)>(
-            "SELECT ID, COLUMN_NAME, CONTROL_TYPE FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @id",
-            new { id = master.BASE_TABLE_ID }).ToDictionary(c => c.Id);
+            "SELECT ID, COLUMN_NAME, CONTROL_TYPE FROM FORM_FIELD_CONFIG"
+        ).ToDictionary(c => c.Id);
 
         // 3. 分類欄位答案（依照型態拆成兩組）
         // - normalFields: 一般型態（非下拉選）欄位，用於直接寫入主資料表
@@ -537,22 +545,91 @@ WHERE TABLE_NAME = @TableName
             default: throw new NotSupportedException($"不支援的型別: {pkType}");
         }
     }
-
+    
     /// <summary>
-    /// 取得 View 各欄位對應的來源資料表名稱
+    /// 傳入 View 名稱，回傳欄位名稱與來源表對應（Key: 欄位名, Value: 來源表）
     /// </summary>
-    private Dictionary<string, string?> GetViewColumnSources(string viewName)
+    public Dictionary<string, string?> GetViewColumnSources(string viewName)
     {
-        var sql = @"
-DECLARE @vid INT = OBJECT_ID(@ViewName);
-SELECT name AS COLUMN_NAME,
-       source_table AS SOURCE_TABLE
-FROM sys.dm_exec_describe_first_result_set_for_object(@vid, NULL);";
+        // 1️⃣ 讀 View 定義
+        const string sql = @"
+            SELECT m.definition
+            FROM sys.views v
+            JOIN sys.sql_modules m ON m.object_id = v.object_id
+            WHERE v.name = @viewName;";
+        string? viewDef = _con.QueryFirstOrDefault<string>(sql, new { viewName });
+        if (string.IsNullOrWhiteSpace(viewDef))
+            throw new InvalidOperationException($"找不到 View：{viewName}");
 
-        var list = _con.Query<ViewColumnSource>(sql, new { ViewName = viewName });
-        return list.ToDictionary(x => x.COLUMN_NAME, x => x.SOURCE_TABLE, StringComparer.OrdinalIgnoreCase);
+        // 2️⃣ ScriptDom 解析
+        var parser = new TSql150Parser(initialQuotedIdentifiers: false);
+        using var sr = new StringReader(viewDef);
+        var fragment = parser.Parse(sr, out var errors);
+        if (errors.Count > 0)
+            throw new InvalidOperationException($"SQL 解析失敗：{errors[0].Message}");
+
+        // 3️⃣ 先收集「別名 ➜ 表名」
+        var alias2Table = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var tblVisitor  = new TableAliasVisitor(alias2Table);
+        fragment.Accept(tblVisitor);
+
+        // 4️⃣ 再收集 SELECT 欄位（保持順序）
+        var colVisitor = new ColumnVisitor(alias2Table);
+        fragment.Accept(colVisitor);
+
+        // 5️⃣ 轉成 Dictionary（插入順序即輸出順序）
+        var dict = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (col, tbl) in colVisitor.Columns)
+            dict.Add(col, tbl);
+
+        return dict;
     }
 
+    /* ---------- Visitors ---------- */
+
+    /// <summary>掃 FROM / JOIN，建立 alias ➜ table 對照</summary>
+    private sealed class TableAliasVisitor : TSqlFragmentVisitor
+    {
+        private readonly Dictionary<string, string> _map;
+        public TableAliasVisitor(Dictionary<string, string> map) => _map = map;
+
+        public override void Visit(NamedTableReference node)
+        {
+            if (node.Alias is not null)
+                _map[node.Alias.Value] = node.SchemaObject.BaseIdentifier.Value;
+        }
+    }
+
+    /// <summary>掃最外層 SELECT，依序收集欄位</summary>
+    private sealed class ColumnVisitor : TSqlFragmentVisitor
+    {
+        private readonly Dictionary<string, string> _alias2Table;
+        private bool _done;                 // 只抓第一個 QuerySpecification
+        public List<(string Col, string? Tbl)> Columns { get; } = new();
+
+        public ColumnVisitor(Dictionary<string, string> alias2Table) => _alias2Table = alias2Table;
+
+        public override void Visit(QuerySpecification node)
+        {
+            if (_done) return;              // 只處理最外層
+            _done = true;
+
+            foreach (var elem in node.SelectElements)
+            {
+                if (elem is SelectScalarExpression sse &&
+                    sse.Expression is ColumnReferenceExpression col)
+                {
+                    var ids = col.MultiPartIdentifier.Identifiers;
+                    if (ids.Count < 2) continue; // 可能是單欄位或 *
+                    string alias = ids[0].Value;
+                    string colName = (sse.ColumnName?.Value) ?? ids[1].Value;
+                    _alias2Table.TryGetValue(alias, out var tbl);
+
+                    Columns.Add((colName, tbl)); // 順序 = 插入順序
+                }
+            }
+        }
+    }
 private static class Sql
     {
         public const string UpsertDropdownAnswer = @"

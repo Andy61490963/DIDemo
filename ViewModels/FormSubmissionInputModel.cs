@@ -10,6 +10,7 @@ public class FormSubmissionInputModel
 {
     public Guid FormId { get; set; }
     public string? RowId { get; set; }
+    public string? TargetTableToUpsert { get; set; }
     public List<FormInputField> InputFields { get; set; } = new();
 }
 
@@ -20,4 +21,6 @@ public class FormInputField
 {
     public Guid FieldConfigId { get; set; }
     public string? Value { get; set; }
+    
+    public string? SOURCE_TABLE { get; set; }
 }
