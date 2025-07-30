@@ -103,41 +103,10 @@ public class FormService : IFormService
         if (master.BASE_TABLE_ID is null || master.VIEW_TABLE_ID is null)
             throw new InvalidOperationException("主表與檢視表 ID 不完整");
 
-        var baseFields = GetFields(master.BASE_TABLE_ID.Value, TableSchemaQueryType.OnlyTable, master.BASE_TABLE_NAME);
-        var viewFields = GetFields(master.VIEW_TABLE_ID.Value, TableSchemaQueryType.OnlyView, master.VIEW_TABLE_NAME);
-
-        var baseMap = baseFields.ToDictionary(
-            f => (f.COLUMN_NAME.ToLower(), f.DATA_TYPE.ToLower()),
-            f => f
-        );
-
-        var merged = new List<FormFieldInputViewModel>();
-        
-        // 組合起來，判斷誰可以編輯(主檔欄位的可以編輯)
-        // 取代原本 foreach 區塊
-        foreach (var viewField in viewFields)
+        var fields = GetFields(master.BASE_TABLE_ID.Value, TableSchemaQueryType.OnlyTable, master.BASE_TABLE_NAME);
+        foreach (var f in fields)
         {
-            // ✅ 仍使用既有的判斷函式
-            bool isEditable = IsEditableFromBaseTable(viewField, baseMap, master.BASE_TABLE_NAME);
-
-            if (isEditable)
-            {
-                // 1️⃣ 從 baseMap 取出同名同型別的 Base 欄位
-                var key       = (viewField.COLUMN_NAME.ToLower(), viewField.DATA_TYPE.ToLower());
-                var baseField = baseMap[key];               // 一定存在，因為 isEditable = true
-
-                // 2️⃣ 調整標記後加入 merged
-                baseField.IS_EDITABLE = true;
-                baseField.SOURCE      = TableSchemaQueryType.OnlyTable;
-                merged.Add(baseField);                      // ← 使用 Base 版本，帶有正確 OptionList 等設定
-            }
-            else
-            {
-                // View 欄位維持唯讀
-                viewField.IS_EDITABLE = false;
-                viewField.SOURCE      = TableSchemaQueryType.OnlyView;
-                merged.Add(viewField);
-            }
+            f.SOURCE = TableSchemaQueryType.OnlyTable;
         }
         
         if (!string.IsNullOrWhiteSpace(master.PRIMARY_KEY)
@@ -160,7 +129,7 @@ public class FormService : IFormService
                 new { RowId = fromId })
                 .ToDictionary(a => a.FieldId, a => a.OptionId);
 
-            foreach (var field in merged)
+            foreach (var field in fields)
             {
                 if (field.CONTROL_TYPE == FormControlType.Dropdown)
                 {
@@ -180,24 +149,10 @@ public class FormService : IFormService
             RowId = fromId,
             TargetTableToUpsert = master.BASE_TABLE_NAME,
             FormName = master.FORM_NAME,
-            Fields = merged
+            Fields = fields
         };
     }
     
-    /// <summary>
-    /// 判斷 View 欄位是否來自主表，並且該欄位設定為可編輯
-    /// </summary>
-    private static bool IsEditableFromBaseTable(
-        FormFieldInputViewModel viewField,
-        Dictionary<(string, string), FormFieldInputViewModel> baseMap,
-        string baseTableName)
-    {
-        var key = (viewField.COLUMN_NAME.ToLower(), viewField.DATA_TYPE.ToLower());
-
-        return string.Equals(viewField.SOURCE_TABLE, baseTableName, StringComparison.OrdinalIgnoreCase)
-               && baseMap.TryGetValue(key, out var baseField)
-               && baseField.IS_EDITABLE;
-    }
 
     /// <summary>
     /// 取得 欄位
@@ -313,13 +268,9 @@ public class FormService : IFormService
 
         // 2. 查詢該表單所有欄位設定（FORM_FIELD_CONFIG）
         var configs = _con.Query<(Guid Id, string Column, int ControlType)>(
-            "SELECT ID, COLUMN_NAME, CONTROL_TYPE FROM FORM_FIELD_CONFIG"
+            "SELECT ID, COLUMN_NAME, CONTROL_TYPE FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @Id",
+            new { Id = master.BASE_TABLE_ID }
         ).ToDictionary(c => c.Id);
-        var sourceMap = GetViewColumnSources(master.VIEW_TABLE_NAME);
-        var baseColumns = sourceMap
-            .Where(kv => string.Equals(kv.Value, master.BASE_TABLE_NAME, StringComparison.OrdinalIgnoreCase))
-            .Select(kv => kv.Key)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         // 3. 分類欄位答案（依照型態拆成兩組）
         // - normalFields: 一般型態（非下拉選）欄位，用於直接寫入主資料表
@@ -330,10 +281,8 @@ public class FormService : IFormService
         // 逐一處理前端傳來的欄位答案
         foreach (var field in input.InputFields)
         {
-            // 欄位 ID 在設定中找不到或不屬於主表則跳過
+            // 欄位 ID 在設定中找不到則跳過
             if (!configs.TryGetValue(field.FieldConfigId, out var cfg))
-                continue;
-            if (!baseColumns.Contains(cfg.Column))
                 continue;
 
             // 如果是 Dropdown 型態
