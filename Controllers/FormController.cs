@@ -39,7 +39,7 @@ public class FormController : Controller
     public IActionResult SubmitForm(FormSubmissionInputModel input)
     {
         _formService.SubmitForm(input);
-        return RedirectToAction("FormSubmitSuccess");
+        return RedirectToAction("Index");
     }
 
 }

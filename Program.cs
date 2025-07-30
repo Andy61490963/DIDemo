@@ -1,6 +1,8 @@
 using DynamicForm.Service.Interface;
 using DynamicForm.Service.Service;
 using DynamicForm.Models;
+using DynamicForm.Service.Interface.FormLogicInterface;
+using DynamicForm.Service.Service.FormLogicService;
 using Microsoft.Data.SqlClient;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,6 +13,13 @@ builder.Services.AddOptions();
 // Service
 builder.Services.AddScoped<IFormListService, FormListService>();
 builder.Services.AddScoped<IFormDesignerService, FormDesignerService>();
+
+
+builder.Services.AddScoped<IFormFieldMasterService, FormFieldMasterService>();
+builder.Services.AddScoped<ISchemaService, SchemaService>();
+builder.Services.AddScoped<IFormFieldConfigService, FormFieldConfigService>();
+builder.Services.AddScoped<IDropdownService, DropdownService>();
+builder.Services.AddScoped<IFormDataService, FormDataService>();
 builder.Services.AddScoped<IFormService, FormService>();
 
 

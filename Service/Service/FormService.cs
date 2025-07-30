@@ -1,8 +1,10 @@
 using System.Text.RegularExpressions;
 using ClassLibrary;
 using Dapper;
+using DynamicForm.Helper;
 using DynamicForm.Models;
 using DynamicForm.Service.Interface;
+using DynamicForm.Service.Interface.FormLogicInterface;
 using Microsoft.Data.SqlClient;
 using Microsoft.SqlServer.TransactSql.ScriptDom;
 
@@ -12,11 +14,21 @@ public class FormService : IFormService
 {
     private readonly SqlConnection _con;
     private readonly IConfiguration _configuration;
+    private readonly IFormFieldMasterService _formFieldMasterService;
+    private readonly ISchemaService _schemaService;
+    private readonly IFormFieldConfigService _formFieldConfigService;
+    private readonly IFormDataService _formDataService;
+    private readonly IDropdownService _dropdownService;
     
-    public FormService(SqlConnection connection, IConfiguration configuration)
+    public FormService(SqlConnection connection, IFormFieldMasterService formFieldMasterService, ISchemaService schemaService, IFormFieldConfigService formFieldConfigService, IDropdownService dropdownService, IFormDataService formDataService, IConfiguration configuration)
     {
         _con = connection;
         _configuration = configuration;
+        _formFieldMasterService = formFieldMasterService;
+        _schemaService = schemaService;
+        _formFieldConfigService = formFieldConfigService;
+        _formDataService = formDataService;
+        _dropdownService = dropdownService;
         _excludeColumns = _configuration.GetSection("DropdownSqlSettings:ExcludeColumns").Get<List<string>>() ?? new();
     }
     
@@ -25,117 +37,46 @@ public class FormService : IFormService
     /// 取得指定表單對應檢視表的所有資料
     /// 會將下拉選單欄位的值直接轉成對應顯示文字
     /// </summary>
+    /// <summary>
+    /// 取得指定 SCHEMA_TYPE 下的表單資料清單，
+    /// 已自動將下拉選欄位的值轉為顯示文字（OptionText）
+    /// </summary>
     public FormListDataViewModel GetFormList()
     {
-        // 1. 查詢該 SCHEMA_TYPE 下的主表設定（Master）
-        var master = _con.QueryFirstOrDefault<FORM_FIELD_Master>(
-            "/**/SELECT * FROM FORM_FIELD_Master WHERE SCHEMA_TYPE = @TYPE",
-            new { TYPE = TableSchemaQueryType.All.ToInt() });
+        // 1. 查詢主表（Form 設定 Master），根據 SCHEMA_TYPE 取得表單主設定
+        var master = _formFieldMasterService.GetFormFieldMaster(TableSchemaQueryType.All);
 
-        // 找不到主表就回傳空結果
-        if (master == null)
-        {
+        // [防呆] 找不到主表就直接回傳空的 ViewModel，避免後續 NullReference
+        if (master == null) 
             return new FormListDataViewModel();
-        }
 
-        // 2. 取得檢視表的所有欄位名稱
-        var columns = _con.Query<string>(
-            "/**/SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @table",
-            new { table = master.VIEW_TABLE_NAME }).ToList();
+        // 2. 取得檢視表的所有欄位名稱（資料表的 Schema）
+        var columns = _schemaService.GetFormFieldMaster(master.VIEW_TABLE_NAME);
 
-        // 3. 查出所有欄位的設定（包含下拉選欄位型別）
-        var fieldConfigs = _con.Query<(Guid Id, string Column, int Type)>(
-            "/**/SELECT ID, COLUMN_NAME, CONTROL_TYPE FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @id",
-            new { id = master.BASE_TABLE_ID }).ToList();
+        // 3. 取得該表單的所有欄位設定（包含型別、控制項型態等）
+        var fieldConfigs = _formFieldConfigService.GetFormFieldConfig(master.BASE_TABLE_ID);
 
-        // 4. 將所有 Dropdown 欄位整理成列表，方便後續查找
-        var dropdownColumns = fieldConfigs
-            .Where(f => (FormControlType)f.Type == FormControlType.Dropdown)
-            .Select(f => (f.Column, f.Id))
-            .ToList();
+        // 4. 取得檢視表的所有原始資料（rawRows 為每列 Dictionary<string, object?>）
+        var rawRows = _formDataService.GetRows(master.VIEW_TABLE_NAME);
 
-        // 5. 查詢檢視表全部資料，並存成 List<FormDataRow>
-        var rows = new List<FormDataRow>();
-        
-        // 存每一筆 row 的主鍵 ID
-        var rowIds = new List<string>();
-        var rawRows = _con.Query($"SELECT * FROM [{master.VIEW_TABLE_NAME}]");
-        foreach (IDictionary<string, object?> row in rawRows)
-        {
-            var vmRow = new FormDataRow();
-            foreach (var kv in row)
-            {
-                // 主鍵欄位要存到 vmRow.Id，方便之後查下拉選答案，比對 主表主鍵 和 設定的主鍵 有沒有相同(目前限制Guid)
-                if (string.Equals(kv.Key, master.PRIMARY_KEY, StringComparison.OrdinalIgnoreCase))
-                {
-                    vmRow.Id = kv.Value?.ToString();
-                    rowIds.Add(kv.Value?.ToString() ?? "");
-                }
+        // 5. 將 rawRows 轉換為 FormDataRow（每列帶主鍵 Id 與所有欄位 Cell）
+        //    同時收集所有資料列的主鍵 rowIds
+        var rows = _dropdownService.ToFormDataRows(rawRows, master.PRIMARY_KEY, out var rowIds);
 
-                // 其他欄位裝進 Cells（key-value）
-                vmRow.Cells.Add(new FormDataCell { ColumnName = kv.Key, Value = kv.Value });
-            }
-            rows.Add(vmRow);
-        }
-
-        // 6. 若無資料，直接回傳（節省下方查詢）
+        // // 6. 若無任何資料列，直接回傳結果，省略後面下拉選查詢
         if (!rowIds.Any())
-        {
             return new FormListDataViewModel { FormId = master.ID, Columns = columns, Rows = rows };
-        }
+        
+        // 7. 取得所有資料列的下拉選答案（一次查全部，不 N+1）
+        var dropdownAnswers = _dropdownService.GetAnswers(rowIds);
+        
+        // 8. 取得所有 OptionId → OptionText 的對照表
+        var optionTextMap = _dropdownService.GetOptionTextMap(dropdownAnswers);
+        
+        // 9. 將 rows 裡所有下拉選欄位的值由 OptionId 轉換為 OptionText（顯示文字）
+        _dropdownService.ReplaceDropdownIdsWithTexts(rows, fieldConfigs, dropdownAnswers, optionTextMap);
 
-        // 7. 查出所有資料列對應的下拉選答案（一次批次查）
-        var dropdownAnswers = _con.Query<(string RowId, Guid FieldId, Guid OptionId)>(
-            "/**/SELECT ROW_ID, FORM_FIELD_CONFIG_ID AS FieldId, FORM_FIELD_DROPDOWN_OPTIONS_ID AS OptionId " +
-            "FROM FORM_FIELD_DROPDOWN_ANSWER WHERE ROW_ID IN @RowIds",
-            new { RowIds = rowIds.Select(id => id.ToString()).ToList() }).ToList();
-
-        // 8. 撈出所有 OptionId → OptionText 的對應表（只查一次）
-        var optionIds = dropdownAnswers.Select(a => a.OptionId).Distinct().ToList();
-        var optionTextMap = optionIds.Any()
-            ? _con.Query<(Guid Id, string Text)>(
-                "/**/SELECT ID, OPTION_TEXT AS Text FROM FORM_FIELD_DROPDOWN_OPTIONS WHERE ID IN @Ids",
-                new { Ids = optionIds })
-                .ToDictionary(x => x.Id, x => x.Text)
-            : new Dictionary<Guid, string>();
-
-        // 9. 建立 RowId → (ConfigId → OptionId) 的對照表，加速查找
-        var answerGroupMap = dropdownAnswers
-            .GroupBy(a => a.RowId)
-            .ToDictionary(
-                g => g.Key,
-                g => g.ToDictionary(x => x.FieldId, x => x.OptionId),
-                StringComparer.OrdinalIgnoreCase
-            );
-
-        // 10. 將所有下拉選欄位的值替換為對應顯示文字
-        foreach (var row in rows)
-        {
-            // 找到這一列的所有 Dropdown 答案（如果沒有就略過）
-            if (!answerGroupMap.TryGetValue(row.Id.ToString(), out var answers))
-            {
-                continue;
-            }
-
-            // 先把所有下拉欄位的答案 OptionId 存成查找表，
-            // 再回頭把資料表裡原本的 id 值，一個一個查，
-            // 如果是下拉欄位，就把它覆蓋成 OptionText（顯示用文字）。
-            foreach (var (columnName, configId) in dropdownColumns)
-            {
-                // 取得該欄位的 OptionId
-                if (answers.TryGetValue(configId, out var optionId) && optionTextMap.TryGetValue(optionId, out var optionText))
-                {
-                    // 找到該 Cell，直接用 OptionText 覆蓋原本值
-                    var cell = row.Cells.FirstOrDefault(c => string.Equals(c.ColumnName, columnName, StringComparison.OrdinalIgnoreCase));
-                    if (cell != null)
-                    {
-                        cell.Value = optionText;
-                    }
-                }
-            }
-        }
-
-        // 11. 組成回傳 ViewModel
+        // 10. 組裝並回傳最終的 ViewModel
         return new FormListDataViewModel
         {
             FormId = master.ID,
@@ -159,20 +100,6 @@ public class FormService : IFormService
         if (master == null)
             throw new InvalidOperationException($"FORM_FIELD_Master {id} not found");
 
-        // 2. 取得欄位設定
-        // List<FormFieldInputViewModel> fields;
-        // // if (master.SCHEMA_TYPE != (int)TableSchemaQueryType.All)
-        // // {
-        // //     fields = GetFields(master.ID);
-        // //     return new FormSubmissionViewModel
-        // //     {
-        // //         FormId = master.ID,
-        // //         RowId = fromId,
-        // //         FormName = master.FORM_NAME,
-        // //         Fields = fields
-        // //     };
-        // // }
-
         if (master.BASE_TABLE_ID is null || master.VIEW_TABLE_ID is null)
             throw new InvalidOperationException("主表與檢視表 ID 不完整");
 
@@ -187,14 +114,31 @@ public class FormService : IFormService
         var merged = new List<FormFieldInputViewModel>();
         
         // 組合起來，判斷誰可以編輯(主檔欄位的可以編輯)
+        // 取代原本 foreach 區塊
         foreach (var viewField in viewFields)
         {
+            // ✅ 仍使用既有的判斷函式
             bool isEditable = IsEditableFromBaseTable(viewField, baseMap, master.BASE_TABLE_NAME);
-            viewField.IS_EDITABLE = isEditable;
-            viewField.SOURCE = isEditable ? TableSchemaQueryType.OnlyTable : TableSchemaQueryType.OnlyView;
-            merged.Add(viewField);
-        }
 
+            if (isEditable)
+            {
+                // 1️⃣ 從 baseMap 取出同名同型別的 Base 欄位
+                var key       = (viewField.COLUMN_NAME.ToLower(), viewField.DATA_TYPE.ToLower());
+                var baseField = baseMap[key];               // 一定存在，因為 isEditable = true
+
+                // 2️⃣ 調整標記後加入 merged
+                baseField.IS_EDITABLE = true;
+                baseField.SOURCE      = TableSchemaQueryType.OnlyTable;
+                merged.Add(baseField);                      // ← 使用 Base 版本，帶有正確 OptionList 等設定
+            }
+            else
+            {
+                // View 欄位維持唯讀
+                viewField.IS_EDITABLE = false;
+                viewField.SOURCE      = TableSchemaQueryType.OnlyView;
+                merged.Add(viewField);
+            }
+        }
         
         if (!string.IsNullOrWhiteSpace(master.PRIMARY_KEY)
             && !string.IsNullOrWhiteSpace(master.VIEW_TABLE_NAME)
@@ -429,6 +373,9 @@ public class FormService : IFormService
             int i = 0;
             foreach (var field in normalFields)
             {
+                if (string.Equals(field.Column, master.PRIMARY_KEY, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                
                 var paramName = $"VAL{i}";
                 columns.Add($"[{field.Column}]");
                 values.Add($"@{paramName}");
@@ -489,7 +436,7 @@ public class FormService : IFormService
         switch (pkType.ToLower())
         {
             case "uniqueidentifier": return Guid.NewGuid();
-            case "decimal":
+            case "decimal": return RandomDecimalHelper.GenerateRandomDecimal();
             case "numeric": return 0m;
             case "bigint": return 0L;
             case "int": return 0;

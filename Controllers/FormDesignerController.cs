@@ -192,7 +192,7 @@ public class FormDesignerController : Controller
     [HttpPost]
     public IActionResult NewDropdownOption(Guid dropdownId)
     {
-        Guid newId = _formDesignerService.SaveDropdownOption(null, dropdownId, "", "", "");
+        Guid newId = _formDesignerService.SaveDropdownOption(null, dropdownId, "", "");
         var options = _formDesignerService.GetDropdownOptions(dropdownId);
         return PartialView("Dropdown/_DropdownOptionItem", options);
     }
