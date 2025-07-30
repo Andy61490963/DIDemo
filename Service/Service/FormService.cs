@@ -187,14 +187,17 @@ public class FormService : IFormService
         // 組合起來，判斷誰可以編輯(主檔欄位的可以編輯)
         foreach (var viewField in viewFields)
         {
-            // 主表（baseFields）裡有同名同型態的欄位，而且該 base 欄位本來就 IS_EDITABLE
-            var match = baseFields.FirstOrDefault(b =>
-                b.COLUMN_NAME.Equals(viewField.COLUMN_NAME, StringComparison.OrdinalIgnoreCase) &&
-                b.DATA_TYPE.Equals(viewField.DATA_TYPE, StringComparison.OrdinalIgnoreCase)
-            );
+            // 主表（baseFields）裡有同名同型態的欄位
+            var hasBaseField = baseMap.TryGetValue(
+                (viewField.COLUMN_NAME.ToLower(), viewField.DATA_TYPE.ToLower()),
+                out var baseField);
 
-            // 條件：主表真的有這個欄位，且允許編輯
-            bool isEditable = match != null && match.IS_EDITABLE;
+            // 來源表名稱可能帶有 schema 或 []，統一比對最後的表名
+            bool isFromBase = NormalizeTableName(viewField.SOURCE_TABLE)
+                .Equals(NormalizeTableName(master.BASE_TABLE_NAME), StringComparison.OrdinalIgnoreCase);
+
+            // 必須屬於主表且該欄位允許編輯
+            bool isEditable = hasBaseField && baseField!.IS_EDITABLE && isFromBase;
 
             // 這一欄才允許被前端編輯
             viewField.IS_EDITABLE = isEditable;
@@ -254,13 +257,23 @@ public class FormService : IFormService
     /// <returns></returns>
    private List<FormFieldInputViewModel> GetFields(Guid masterId, TableSchemaQueryType schemaType, string tableName)
     {
-        // 1. 先查 schema - 一次查出所有欄位型別
-        var columnTypes = _con.Query<(string COLUMN_NAME, string DATA_TYPE)>(
-            @"SELECT COLUMN_NAME, DATA_TYPE 
-          FROM INFORMATION_SCHEMA.COLUMNS 
-          WHERE TABLE_NAME = @TableName",
-            new { TableName = tableName }
-        ).ToDictionary(x => x.COLUMN_NAME, x => x.DATA_TYPE, StringComparer.OrdinalIgnoreCase);
+        // 1. 從系統 DMV 取得欄位來源資訊（含來源資料表與型別）
+        var schemaSql = @"SELECT name AS COLUMN_NAME,
+                                  system_type_name AS DATA_TYPE,
+                                  ISNULL(source_table, @TableName) AS SOURCE_TABLE
+                           FROM sys.dm_exec_describe_first_result_set(@Query, NULL, 0)
+                           WHERE is_hidden = 0";
+        var columnInfos = _con.Query<DbColumnInfo>(schemaSql,
+            new { Query = $"SELECT * FROM {tableName}", TableName = tableName }).ToList();
+
+        var columnTypes = columnInfos.ToDictionary(
+            x => x.COLUMN_NAME,
+            x => x.DATA_TYPE,
+            StringComparer.OrdinalIgnoreCase);
+        var columnSources = columnInfos.ToDictionary(
+            x => x.COLUMN_NAME,
+            x => x.SOURCE_TABLE,
+            StringComparer.OrdinalIgnoreCase);
         
         var sql = @"SELECT FFC.*, FFM.FORM_NAME
                     FROM FORM_FIELD_CONFIG FFC
@@ -331,6 +344,9 @@ public class FormService : IFormService
                     OptionList = finalOptions,
                     ISUSESQL = isUseSql,
                     DROPDOWNSQL = dropdown?.DROPDOWNSQL ?? string.Empty,
+                    SOURCE_TABLE = columnSources.TryGetValue(field.COLUMN_NAME, out var srcTable)
+                        ? NormalizeTableName(srcTable)
+                        : NormalizeTableName(field.TABLE_NAME),
                     SOURCE = schemaType,
                     DATA_TYPE = dataType
                 };
@@ -530,6 +546,17 @@ WHERE TABLE_NAME = @TableName
             case "char": return id.ToString();
             default: throw new NotSupportedException($"不支援的型別: {pkType}");
         }
+    }
+
+    /// <summary>
+    /// 將 schema.或 [] 包覆的表名轉成單純表名，方便比對
+    /// </summary>
+    private static string NormalizeTableName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return string.Empty;
+        var trimmed = name.Trim().Trim('[', ']');
+        var parts = trimmed.Split('.', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length > 0 ? parts[^1] : trimmed;
     }
 
 private static class Sql
