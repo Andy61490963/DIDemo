@@ -45,7 +45,7 @@ public class FormService : IFormService
     {
         // 1. 查詢主表（Form 設定 Master），根據 SCHEMA_TYPE 取得表單主設定
         var master = _formFieldMasterService.GetFormFieldMaster(TableSchemaQueryType.All);
-
+        
         // [防呆] 找不到主表就直接回傳空的 ViewModel，避免後續 NullReference
         if (master == null) 
             return new FormListDataViewModel();
@@ -84,76 +84,72 @@ public class FormService : IFormService
             Rows = rows
         };
     }
-    
+
     /// <summary>
-    /// 取得 單一
+    /// 根據表單設定抓取主表欄位與現有資料（編輯時用）
+    /// 只對主表進行欄位組裝，Dropdown 顯示選項答案
     /// </summary>
-    /// <param name="id"></param>
-    /// <param name="fromId"></param>
-    /// <returns></returns>
-    /// <exception cref="InvalidOperationException"></exception>
-    public FormSubmissionViewModel GetFormSubmission(Guid id, string? fromId = null)
+    public FormSubmissionViewModel GetFormSubmission(Guid formMasterId, string? rowId = null)
     {
-        // 1. 查 Master 設定
-        var master = _con.QueryFirstOrDefault<FORM_FIELD_Master>(
-            "SELECT * FROM FORM_FIELD_Master WHERE ID = @id", new { id });
+        // 1. 查主設定
+        var master = _formFieldMasterService.GetFormFieldMasterFromId(formMasterId);
         if (master == null)
-            throw new InvalidOperationException($"FORM_FIELD_Master {id} not found");
+            throw new InvalidOperationException($"FORM_FIELD_Master {formMasterId} not found");
+        if (master.BASE_TABLE_ID is null)
+            throw new InvalidOperationException("主表設定不完整");
 
-        if (master.BASE_TABLE_ID is null || master.VIEW_TABLE_ID is null)
-            throw new InvalidOperationException("主表與檢視表 ID 不完整");
-
+        // 2. 取得主表欄位（只抓主表，不抓 view）
         var fields = GetFields(master.BASE_TABLE_ID.Value, TableSchemaQueryType.OnlyTable, master.BASE_TABLE_NAME);
-        foreach (var f in fields)
+
+        // 3. 撈主表實際資料（如果是編輯模式）
+        IDictionary<string, object?>? dataRow = null;
+        Dictionary<Guid, Guid>? dropdownAnswers = null;
+
+        if (!string.IsNullOrWhiteSpace(rowId))
         {
-            f.SOURCE = TableSchemaQueryType.OnlyTable;
-        }
-        
-        if (!string.IsNullOrWhiteSpace(master.PRIMARY_KEY)
-            && !string.IsNullOrWhiteSpace(master.VIEW_TABLE_NAME)
-            && fromId != null)
-        {
-            var (pkName, pkType, idValue) = FindPk(master, fromId);
-            var sql = $"SELECT * FROM [{master.VIEW_TABLE_NAME}] WHERE [{pkName}] = @id";
-            var dataRow = _con.QueryFirstOrDefault(sql, new { id = idValue });
+            // 3.1 取得主表主鍵名稱/型別/值
+            var (pkName, pkType, pkValue) = FindPk(master, rowId);
 
-            IDictionary<string, object?>? dict = null;
-            if (dataRow is not null)
+            // 3.2 查詢主表資料（參數化防注入）
+            var sql = $"SELECT * FROM [{master.BASE_TABLE_NAME}] WHERE [{pkName}] = @id";
+            dataRow = _con.QueryFirstOrDefault(sql, new { id = pkValue }) as IDictionary<string, object?>;
+
+            // 3.3 如果有Dropdown欄位，再查一次答案
+            if (fields.Any(f => f.CONTROL_TYPE == FormControlType.Dropdown))
             {
-                dict = (IDictionary<string, object?>)dataRow;
-            }
-
-            var dropdownAnswers = _con.Query<(Guid FieldId, Guid OptionId)>(
-                "SELECT FORM_FIELD_CONFIG_ID AS FieldId, FORM_FIELD_DROPDOWN_OPTIONS_ID AS OptionId " +
-                "FROM FORM_FIELD_DROPDOWN_ANSWER WHERE ROW_ID = @RowId",
-                new { RowId = fromId })
-                .ToDictionary(a => a.FieldId, a => a.OptionId);
-
-            foreach (var field in fields)
-            {
-                if (field.CONTROL_TYPE == FormControlType.Dropdown)
-                {
-                    if (dropdownAnswers.TryGetValue(field.FieldConfigId, out var optionId))
-                        field.CurrentValue = optionId;
-                }
-                else if (dict != null && dict.TryGetValue(field.COLUMN_NAME, out var val))
-                {
-                    field.CurrentValue = val;
-                }
+                dropdownAnswers = _con.Query<(Guid FieldId, Guid OptionId)>(
+                    @"/**/SELECT FORM_FIELD_CONFIG_ID AS FieldId, FORM_FIELD_DROPDOWN_OPTIONS_ID AS OptionId 
+                      FROM FORM_FIELD_DROPDOWN_ANSWER WHERE ROW_ID = @RowId",
+                    new { RowId = rowId })
+                    .ToDictionary(x => x.FieldId, x => x.OptionId);
             }
         }
 
+        // 4. 組裝欄位現值
+        foreach (var field in fields)
+        {
+            if (field.CONTROL_TYPE == FormControlType.Dropdown && dropdownAnswers?.TryGetValue(field.FieldConfigId, out var optId) == true)
+            {
+                field.CurrentValue = optId;
+            }
+            else if (dataRow?.TryGetValue(field.COLUMN_NAME, out var val) == true)
+            {
+                field.CurrentValue = val;
+            }
+            // else 預設 null（新增模式或沒有資料）
+        }
+
+        // 5. 回傳組裝後 ViewModel
         return new FormSubmissionViewModel
         {
             FormId = master.ID,
-            RowId = fromId,
+            RowId = rowId,
             TargetTableToUpsert = master.BASE_TABLE_NAME,
             FormName = master.FORM_NAME,
             Fields = fields
         };
     }
     
-
     /// <summary>
     /// 取得 欄位
     /// </summary>
@@ -170,9 +166,9 @@ public class FormService : IFormService
         ).ToDictionary(x => x.COLUMN_NAME, x => x.DATA_TYPE, StringComparer.OrdinalIgnoreCase);
 
         // 2. 取得來源表資訊（僅 View 需要）
-        Dictionary<string, string?> sourceTableMap = schemaType == TableSchemaQueryType.OnlyView
-            ? GetViewColumnSources(tableName)
-            : columnTypes.Keys.ToDictionary(k => k, _ => tableName, StringComparer.OrdinalIgnoreCase);
+        // Dictionary<string, string?> sourceTableMap = schemaType == TableSchemaQueryType.OnlyView
+        //     ? GetViewColumnSources(tableName)
+        //     : columnTypes.Keys.ToDictionary(k => k, _ => tableName, StringComparer.OrdinalIgnoreCase);
         
         var sql = @"SELECT FFC.*, FFM.FORM_NAME
                     FROM FORM_FIELD_CONFIG FFC
@@ -245,7 +241,7 @@ public class FormService : IFormService
                     DROPDOWNSQL = dropdown?.DROPDOWNSQL ?? string.Empty,
                     SOURCE = schemaType,
                     DATA_TYPE = dataType,
-                    SOURCE_TABLE = sourceTableMap.TryGetValue(field.COLUMN_NAME, out var src) ? src : tableName
+                    SOURCE_TABLE = TableSchemaQueryType.OnlyTable.ToString()
                 };
             })
             .ToList();

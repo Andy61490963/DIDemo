@@ -21,4 +21,11 @@ public class FormFieldMasterService : IFormFieldMasterService
             "/**/SELECT * FROM FORM_FIELD_Master WHERE SCHEMA_TYPE = @TYPE",
             new { TYPE = type.ToInt() });
     }
+    
+    public FORM_FIELD_Master? GetFormFieldMasterFromId(Guid id)
+    {
+        return _con.QueryFirstOrDefault<FORM_FIELD_Master>(
+            "/**/SELECT * FROM FORM_FIELD_Master WHERE ID = @id",
+            new { id });
+    }
 }
