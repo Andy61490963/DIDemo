@@ -101,6 +101,11 @@ public class FormFieldViewModel
     /// 欄位資料結構類型
     /// </summary>
     public string DATA_TYPE { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 資料來源表名，僅在 View 欄位時用來標示實際來源
+    /// </summary>
+    public string? SOURCE_TABLE { get; set; }
     
     /// <summary>
     /// 預設值

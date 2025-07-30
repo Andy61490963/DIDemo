@@ -254,13 +254,18 @@ public class FormService : IFormService
     /// <returns></returns>
    private List<FormFieldInputViewModel> GetFields(Guid masterId, TableSchemaQueryType schemaType, string tableName)
     {
-        // 1. 先查 schema - 一次查出所有欄位型別
+        // 1. 查詢欄位型別
         var columnTypes = _con.Query<(string COLUMN_NAME, string DATA_TYPE)>(
-            @"SELECT COLUMN_NAME, DATA_TYPE 
-          FROM INFORMATION_SCHEMA.COLUMNS 
+            @"SELECT COLUMN_NAME, DATA_TYPE
+          FROM INFORMATION_SCHEMA.COLUMNS
           WHERE TABLE_NAME = @TableName",
             new { TableName = tableName }
         ).ToDictionary(x => x.COLUMN_NAME, x => x.DATA_TYPE, StringComparer.OrdinalIgnoreCase);
+
+        // 2. 取得來源表資訊（僅 View 需要）
+        Dictionary<string, string?> sourceTableMap = schemaType == TableSchemaQueryType.OnlyView
+            ? GetViewColumnSources(tableName)
+            : columnTypes.Keys.ToDictionary(k => k, _ => tableName, StringComparer.OrdinalIgnoreCase);
         
         var sql = @"SELECT FFC.*, FFM.FORM_NAME
                     FROM FORM_FIELD_CONFIG FFC
@@ -332,7 +337,8 @@ public class FormService : IFormService
                     ISUSESQL = isUseSql,
                     DROPDOWNSQL = dropdown?.DROPDOWNSQL ?? string.Empty,
                     SOURCE = schemaType,
-                    DATA_TYPE = dataType
+                    DATA_TYPE = dataType,
+                    SOURCE_TABLE = sourceTableMap.TryGetValue(field.COLUMN_NAME, out var src) ? src : tableName
                 };
             })
             .ToList();
@@ -530,6 +536,21 @@ WHERE TABLE_NAME = @TableName
             case "char": return id.ToString();
             default: throw new NotSupportedException($"不支援的型別: {pkType}");
         }
+    }
+
+    /// <summary>
+    /// 取得 View 各欄位對應的來源資料表名稱
+    /// </summary>
+    private Dictionary<string, string?> GetViewColumnSources(string viewName)
+    {
+        var sql = @"
+DECLARE @vid INT = OBJECT_ID(@ViewName);
+SELECT name AS COLUMN_NAME,
+       source_table AS SOURCE_TABLE
+FROM sys.dm_exec_describe_first_result_set_for_object(@vid, NULL);";
+
+        var list = _con.Query<ViewColumnSource>(sql, new { ViewName = viewName });
+        return list.ToDictionary(x => x.COLUMN_NAME, x => x.SOURCE_TABLE, StringComparer.OrdinalIgnoreCase);
     }
 
 private static class Sql
