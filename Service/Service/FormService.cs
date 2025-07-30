@@ -371,6 +371,11 @@ public class FormService : IFormService
         var configs = _con.Query<(Guid Id, string Column, int ControlType)>(
             "SELECT ID, COLUMN_NAME, CONTROL_TYPE FROM FORM_FIELD_CONFIG"
         ).ToDictionary(c => c.Id);
+        var sourceMap = GetViewColumnSources(master.VIEW_TABLE_NAME);
+        var baseColumns = sourceMap
+            .Where(kv => string.Equals(kv.Value, master.BASE_TABLE_NAME, StringComparison.OrdinalIgnoreCase))
+            .Select(kv => kv.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         // 3. 分類欄位答案（依照型態拆成兩組）
         // - normalFields: 一般型態（非下拉選）欄位，用於直接寫入主資料表
@@ -381,8 +386,10 @@ public class FormService : IFormService
         // 逐一處理前端傳來的欄位答案
         foreach (var field in input.InputFields)
         {
-            // 欄位 ID 在設定中找不到就跳過（可能是無效欄位或設定異常）
+            // 欄位 ID 在設定中找不到或不屬於主表則跳過
             if (!configs.TryGetValue(field.FieldConfigId, out var cfg))
+                continue;
+            if (!baseColumns.Contains(cfg.Column))
                 continue;
 
             // 如果是 Dropdown 型態
@@ -399,35 +406,26 @@ public class FormService : IFormService
             }
         }
 
-        // 4. 判斷要 Insert 還是 Update
-        // - rowId 為 null 代表新增，否則代表修改現有資料
-        // 1. 查主鍵型別
-        var (pkName, pkType, _) = FindPk(master, rowId);
-
-        // 2. 判斷是否為 Identity 欄位
+        // 4. 判斷 Insert 或 Update，並處理主鍵資料
+        var (pkName, pkType, typedRowId) = FindPk(master, rowId);
+        bool isInsert = string.IsNullOrEmpty(rowId);
         bool isIdentity = IsIdentityColumn(master.BASE_TABLE_NAME, pkName);
+        object? realRowId = typedRowId;
 
-        // 3. Insert/Update 決策
-        var isInsert = string.IsNullOrEmpty(rowId);
-        object? realRowId = null;
-
-
-        // === Insert 寫入流程 ===
         if (isInsert)
         {
-            // 如果主鍵不是 Identity 才產生主鍵值
+            var columns = new List<string>();
+            var values = new List<string>();
+            var paramDict = new Dictionary<string, object>();
+
             if (!isIdentity)
             {
                 realRowId = GeneratePkValue(pkType);
+                columns.Add($"[{master.PRIMARY_KEY}]");
+                values.Add("@ROWID");
+                paramDict["ROWID"] = realRowId!;
             }
-            
-            // 組欄位名稱與對應參數名稱
-            // - 主鍵欄位一定要寫入（Guid）
-            var columns = new List<string> { $"[{master.PRIMARY_KEY}]" };
-            var values = new List<string> { "@ROWID" };
-            var paramDict = new Dictionary<string, object> { ["ROWID"] = realRowId };
 
-            // 一般欄位依序帶入，組成參數字典與 SQL 字串
             int i = 0;
             foreach (var field in normalFields)
             {
@@ -438,19 +436,25 @@ public class FormService : IFormService
                 i++;
             }
 
-            // 組成完整 INSERT SQL
-            var sql = $"INSERT INTO [{master.BASE_TABLE_NAME}] ({string.Join(", ", columns)}) VALUES ({string.Join(", ", values)})";
-            // 執行寫入
-            _con.Execute(sql, paramDict);
+            string sql;
+            if (isIdentity)
+            {
+                sql = $"INSERT INTO [{master.BASE_TABLE_NAME}] ({string.Join(", ", columns)}) OUTPUT INSERTED.[{master.PRIMARY_KEY}] VALUES ({string.Join(", ", values)})";
+                realRowId = _con.ExecuteScalar(sql, paramDict);
+            }
+            else
+            {
+                sql = $"INSERT INTO [{master.BASE_TABLE_NAME}] ({string.Join(", ", columns)}) VALUES ({string.Join(", ", values)})";
+                _con.Execute(sql, paramDict);
+            }
         }
         else
         {
-            // === Update 更新流程 ===
-            // - 若有一般欄位才需要進行 UPDATE
+            realRowId = typedRowId;
             if (normalFields.Any())
             {
                 var setList = new List<string>();
-                var paramDict = new Dictionary<string, object> { ["ROWID"] = realRowId };
+                var paramDict = new Dictionary<string, object> { ["ROWID"] = realRowId! };
                 int i = 0;
                 foreach (var field in normalFields)
                 {
@@ -459,9 +463,8 @@ public class FormService : IFormService
                     paramDict[paramName] = field.Value;
                     i++;
                 }
-                // 組成完整 UPDATE SQL
+
                 var sql = $"UPDATE [{master.BASE_TABLE_NAME}] SET {string.Join(", ", setList)} WHERE [{master.PRIMARY_KEY}] = @ROWID";
-                // 執行更新
                 _con.Execute(sql, paramDict);
             }
         }
@@ -500,7 +503,7 @@ public class FormService : IFormService
     /// <summary>
     /// 動態查詢 view/table 的主鍵欄位名稱、型別，並將 id 轉型成正確型別
     /// </summary>
-    private (string PkName, string PkType, object Value) FindPk(FORM_FIELD_Master master, string fromId)
+    private (string PkName, string PkType, object? Value) FindPk(FORM_FIELD_Master master, string? fromId)
     {
         // 組 LIKE 條件（如 "COLUMN_NAME LIKE '%ID%' OR COLUMN_NAME LIKE '%SID%'"）
         var likeConditions = _excludeColumns
@@ -521,7 +524,9 @@ WHERE TABLE_NAME = @TableName
             throw new Exception("找不到符合規則的主鍵！");
 
         // 動態轉換 fromId 型別
-        object idValue = ConvertPkType(fromId, pkInfo.DataType);
+        object? idValue = fromId != null
+            ? ConvertPkType(fromId, pkInfo.DataType)
+            : null;
 
         return (pkInfo.ColumnName, pkInfo.DataType, idValue);
     }
