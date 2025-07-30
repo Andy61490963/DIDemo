@@ -27,10 +27,10 @@ public class FormController : Controller
     /// <param name="id">資料主鍵，新增時可不傳</param>
     /// <returns>回傳填寫表單的畫面</returns>
     [HttpGet]
-    public IActionResult Input(Guid formId, Guid? id)
+    public IActionResult Input(Guid formId, string? id)
     {
-        var vm = id.HasValue
-            ? _formService.GetFormSubmission(formId, id.Value) // 編輯/檢視
+        var vm = id != null
+            ? _formService.GetFormSubmission(formId, id) // 編輯/檢視
             : _formService.GetFormSubmission(formId); // 新增
         return View("Input", vm);
     }

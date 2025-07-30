@@ -8,7 +8,7 @@ public class FormDataCell
 
 public class FormDataRow
 {
-    public Guid Id { get; set; }
+    public object Id { get; set; }
     public List<FormDataCell> Cells { get; set; } = new();
 
     public object? GetValue(string columnName)

@@ -9,7 +9,7 @@ namespace DynamicForm.Models;
 public class FormSubmissionInputModel
 {
     public Guid FormId { get; set; }
-    public Guid? RowId { get; set; }
+    public string? RowId { get; set; }
     public List<FormInputField> InputFields { get; set; } = new();
 }
 

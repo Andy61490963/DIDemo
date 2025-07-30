@@ -16,7 +16,7 @@ public interface IFormService
     /// <param name="id"></param>
     /// <param name="fromId"></param>
     /// <returns></returns>
-    FormSubmissionViewModel GetFormSubmission(Guid id, Guid? fromId = null);
+    FormSubmissionViewModel GetFormSubmission(Guid id, string? fromId = null);
 
     /// <summary>
     /// 儲存或更新表單資料

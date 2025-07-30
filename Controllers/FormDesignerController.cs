@@ -299,7 +299,7 @@ public class FormDesignerController : Controller
             VIEW_TABLE_ID = model.VIEW_TABLE_ID,
             PRIMARY_KEY = model.PRIMARY_KEY,
             STATUS = (int)TableStatusType.Active,
-            SCHEMA_TYPE = (int)TableSchemaQueryType.All
+            SCHEMA_TYPE = TableSchemaQueryType.All
         };
 
         var id = _formDesignerService.SaveFormHeader(master);

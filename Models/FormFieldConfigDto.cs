@@ -11,6 +11,8 @@ public class FormFieldConfigDto
     public string FORM_NAME { get; set; } = string.Empty;
 
     public string TABLE_NAME { get; set; } = string.Empty;
+    
+    public string SOURCE_TABLE { get; set; }
 
     public string COLUMN_NAME { get; set; } = string.Empty;
 
@@ -32,4 +34,6 @@ public class FormFieldConfigDto
     public string? EDIT_USER { get; set; }
 
     public DateTime? EDIT_TIME { get; set; }
+    
+    public string DATA_TYPE { get; set; }
 }

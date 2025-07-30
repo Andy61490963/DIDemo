@@ -20,7 +20,7 @@ public class FormDesignerService : IFormDesignerService
     {
         _con = connection;
         _configuration = configuration;
-        _excludeColumns = _configuration.GetSection("DropdownSqlSettings:ExcludeColumns").Get<List<string>>() ?? new();;
+        _excludeColumns = _configuration.GetSection("DropdownSqlSettings:ExcludeColumns").Get<List<string>>() ?? new();
     }
 
     private readonly List<string> _excludeColumns;
@@ -144,7 +144,7 @@ public class FormDesignerService : IFormDesignerService
         {
             FORM_NAME = tableName,
             STATUS = (int)TableStatusType.Draft,
-            SCHEMA_TYPE = (int)schemaType
+            SCHEMA_TYPE = schemaType
         };
         var configs = GetFieldConfigs(tableName);
         var masterId = configs.Values.FirstOrDefault()?.FORM_FIELD_Master_ID

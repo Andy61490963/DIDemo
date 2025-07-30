@@ -8,12 +8,6 @@
         {1, "Active"},
         {2, "Disabled"}
     };
-    var typeMap = new Dictionary<int, string>
-    {
-        {0, "單表"},
-        {1, "View"},
-        {2, "表單組合"}
-    };
 }
 
 <div class="container mt-4">
@@ -52,7 +46,7 @@
                     <td>@item.VIEW_TABLE_NAME</td>
                     <td>@item.PRIMARY_KEY</td>
                     <td>@statusMap.GetValueOrDefault(item.STATUS, item.STATUS.ToString())</td>
-                    <td>@typeMap.GetValueOrDefault(item.SCHEMA_TYPE, item.SCHEMA_TYPE.ToString())</td>
+                    <td>@item.SCHEMA_TYPE.ToString()</td>
                     <td>
                         <a class="btn btn-sm btn-outline-primary" asp-controller="FormDesigner" asp-action="Index" asp-route-id="@item.ID">編輯</a>
                         <form asp-action="Delete" asp-route-id="@item.ID" method="post" class="d-inline" onsubmit="return confirm('確定刪除?');">

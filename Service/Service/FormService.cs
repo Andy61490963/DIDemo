@@ -9,12 +9,16 @@ namespace DynamicForm.Service.Service;
 public class FormService : IFormService
 {
     private readonly SqlConnection _con;
-
-    public FormService(SqlConnection connection)
+    private readonly IConfiguration _configuration;
+    
+    public FormService(SqlConnection connection, IConfiguration configuration)
     {
         _con = connection;
+        _configuration = configuration;
+        _excludeColumns = _configuration.GetSection("DropdownSqlSettings:ExcludeColumns").Get<List<string>>() ?? new();
     }
-
+    
+    private readonly List<string> _excludeColumns;
     /// <summary>
     /// 取得指定表單對應檢視表的所有資料
     /// 會將下拉選單欄位的值直接轉成對應顯示文字
@@ -52,7 +56,7 @@ public class FormService : IFormService
         var rows = new List<FormDataRow>();
         
         // 存每一筆 row 的主鍵 ID
-        var rowIds = new List<Guid>();
+        var rowIds = new List<string>();
         var rawRows = _con.Query($"SELECT * FROM [{master.VIEW_TABLE_NAME}]");
         foreach (IDictionary<string, object?> row in rawRows)
         {
@@ -60,11 +64,12 @@ public class FormService : IFormService
             foreach (var kv in row)
             {
                 // 主鍵欄位要存到 vmRow.Id，方便之後查下拉選答案，比對 主表主鍵 和 設定的主鍵 有沒有相同(目前限制Guid)
-                if (string.Equals(kv.Key, master.PRIMARY_KEY, StringComparison.OrdinalIgnoreCase) && kv.Value is Guid id)
+                if (string.Equals(kv.Key, master.PRIMARY_KEY, StringComparison.OrdinalIgnoreCase))
                 {
-                    vmRow.Id = id;
-                    rowIds.Add(id);
+                    vmRow.Id = kv.Value?.ToString();
+                    rowIds.Add(kv.Value?.ToString() ?? "");
                 }
+
                 // 其他欄位裝進 Cells（key-value）
                 vmRow.Cells.Add(new FormDataCell { ColumnName = kv.Key, Value = kv.Value });
             }
@@ -144,7 +149,7 @@ public class FormService : IFormService
     /// <param name="fromId"></param>
     /// <returns></returns>
     /// <exception cref="InvalidOperationException"></exception>
-    public FormSubmissionViewModel GetFormSubmission(Guid id, Guid? fromId = null)
+    public FormSubmissionViewModel GetFormSubmission(Guid id, string? fromId = null)
     {
         // 1. 查 Master 設定
         var master = _con.QueryFirstOrDefault<FORM_FIELD_Master>(
@@ -153,51 +158,59 @@ public class FormService : IFormService
             throw new InvalidOperationException($"FORM_FIELD_Master {id} not found");
 
         // 2. 取得欄位設定
-        List<FormFieldInputViewModel> fields;
-        if (master.SCHEMA_TYPE != (int)TableSchemaQueryType.All)
-        {
-            fields = GetFields(master.ID);
-            return new FormSubmissionViewModel
-            {
-                FormId = master.ID,
-                RowId = fromId,
-                FormName = master.FORM_NAME,
-                Fields = fields
-            };
-        }
+        // List<FormFieldInputViewModel> fields;
+        // // if (master.SCHEMA_TYPE != (int)TableSchemaQueryType.All)
+        // // {
+        // //     fields = GetFields(master.ID);
+        // //     return new FormSubmissionViewModel
+        // //     {
+        // //         FormId = master.ID,
+        // //         RowId = fromId,
+        // //         FormName = master.FORM_NAME,
+        // //         Fields = fields
+        // //     };
+        // // }
 
         if (master.BASE_TABLE_ID is null || master.VIEW_TABLE_ID is null)
             throw new InvalidOperationException("主表與檢視表 ID 不完整");
 
-        var baseFields = GetFields(master.BASE_TABLE_ID.Value);
-        var viewFields = GetFields(master.VIEW_TABLE_ID.Value);
+        var baseFields = GetFields(master.BASE_TABLE_ID.Value, TableSchemaQueryType.OnlyTable, master.BASE_TABLE_NAME);
+        var viewFields = GetFields(master.VIEW_TABLE_ID.Value, TableSchemaQueryType.OnlyView, master.VIEW_TABLE_NAME);
 
-        var baseMap = baseFields.ToDictionary(f => f.COLUMN_NAME, f => f, StringComparer.OrdinalIgnoreCase);
+        var baseMap = baseFields.ToDictionary(
+            f => (f.COLUMN_NAME.ToLower(), f.DATA_TYPE.ToLower()),
+            f => f
+        );
 
         var merged = new List<FormFieldInputViewModel>();
         
         // 組合起來，判斷誰可以編輯(主檔欄位的可以編輯)
         foreach (var viewField in viewFields)
         {
-            if (baseMap.TryGetValue(viewField.COLUMN_NAME, out var baseField))
-            {
-                baseField.SOURCE = TableSchemaQueryType.OnlyTable;
-                merged.Add(baseField);
-            }
-            else
-            {
-                viewField.IS_EDITABLE = false;
-                viewField.SOURCE = TableSchemaQueryType.OnlyView;
-                merged.Add(viewField);
-            }
+            // 主表（baseFields）裡有同名同型態的欄位，而且該 base 欄位本來就 IS_EDITABLE
+            var match = baseFields.FirstOrDefault(b =>
+                b.COLUMN_NAME.Equals(viewField.COLUMN_NAME, StringComparison.OrdinalIgnoreCase) &&
+                b.DATA_TYPE.Equals(viewField.DATA_TYPE, StringComparison.OrdinalIgnoreCase)
+            );
+
+            // 條件：主表真的有這個欄位，且允許編輯
+            bool isEditable = match != null && match.IS_EDITABLE;
+
+            // 這一欄才允許被前端編輯
+            viewField.IS_EDITABLE = isEditable;
+            // 附帶：可視需求標註 SOURCE
+            viewField.SOURCE = isEditable ? TableSchemaQueryType.OnlyTable : TableSchemaQueryType.OnlyView;
+
+            merged.Add(viewField);
         }
         
         if (!string.IsNullOrWhiteSpace(master.PRIMARY_KEY)
             && !string.IsNullOrWhiteSpace(master.VIEW_TABLE_NAME)
             && fromId != null)
         {
-            var sql = $"SELECT * FROM [{master.VIEW_TABLE_NAME}] WHERE [{master.PRIMARY_KEY}] = @id";
-            var dataRow = _con.QueryFirstOrDefault(sql, new { id = fromId });
+            var (pkName, pkType, idValue) = FindPk(master, fromId);
+            var sql = $"SELECT * FROM [{master.VIEW_TABLE_NAME}] WHERE [{pkName}] = @id";
+            var dataRow = _con.QueryFirstOrDefault(sql, new { id = idValue });
 
             IDictionary<string, object?>? dict = null;
             if (dataRow is not null)
@@ -239,8 +252,16 @@ public class FormService : IFormService
     /// </summary>
     /// <param name="masterId"></param>
     /// <returns></returns>
-   private List<FormFieldInputViewModel> GetFields(Guid masterId)
+   private List<FormFieldInputViewModel> GetFields(Guid masterId, TableSchemaQueryType schemaType, string tableName)
     {
+        // 1. 先查 schema - 一次查出所有欄位型別
+        var columnTypes = _con.Query<(string COLUMN_NAME, string DATA_TYPE)>(
+            @"SELECT COLUMN_NAME, DATA_TYPE 
+          FROM INFORMATION_SCHEMA.COLUMNS 
+          WHERE TABLE_NAME = @TableName",
+            new { TableName = tableName }
+        ).ToDictionary(x => x.COLUMN_NAME, x => x.DATA_TYPE, StringComparer.OrdinalIgnoreCase);
+        
         var sql = @"SELECT FFC.*, FFM.FORM_NAME
                     FROM FORM_FIELD_CONFIG FFC
                     JOIN FORM_FIELD_Master FFM ON FFM.ID = FFC.FORM_FIELD_Master_ID
@@ -293,6 +314,11 @@ public class FormService : IFormService
                     .OrderBy(r => r.VALIDATION_ORDER)
                     .ToList();
 
+                // 取型別：找不到預設 nvarchar
+                var dataType = columnTypes.TryGetValue(field.COLUMN_NAME, out var dtype)
+                    ? dtype
+                    : "nvarchar";
+                
                 return new FormFieldInputViewModel
                 {
                     FieldConfigId = field.ID,
@@ -305,7 +331,8 @@ public class FormService : IFormService
                     OptionList = finalOptions,
                     ISUSESQL = isUseSql,
                     DROPDOWNSQL = dropdown?.DROPDOWNSQL ?? string.Empty,
-                    SOURCE = TableSchemaQueryType.OnlyTable
+                    SOURCE = schemaType,
+                    DATA_TYPE = dataType
                 };
             })
             .ToList();
@@ -360,13 +387,26 @@ public class FormService : IFormService
 
         // 4. 判斷要 Insert 還是 Update
         // - rowId 為 null 代表新增，否則代表修改現有資料
-        // - 實際 rowId 需給定（新增時產生新 Guid）
-        var isInsert = rowId == null;
-        var realRowId = rowId ?? Guid.NewGuid();
+        // 1. 查主鍵型別
+        var (pkName, pkType, _) = FindPk(master, rowId);
+
+        // 2. 判斷是否為 Identity 欄位
+        bool isIdentity = IsIdentityColumn(master.BASE_TABLE_NAME, pkName);
+
+        // 3. Insert/Update 決策
+        var isInsert = string.IsNullOrEmpty(rowId);
+        object? realRowId = null;
+
 
         // === Insert 寫入流程 ===
         if (isInsert)
         {
+            // 如果主鍵不是 Identity 才產生主鍵值
+            if (!isIdentity)
+            {
+                realRowId = GeneratePkValue(pkType);
+            }
+            
             // 組欄位名稱與對應參數名稱
             // - 主鍵欄位一定要寫入（Guid）
             var columns = new List<string> { $"[{master.PRIMARY_KEY}]" };
@@ -419,6 +459,78 @@ public class FormService : IFormService
         }
     }
 
+    private bool IsIdentityColumn(string tableName, string columnName)
+    {
+        var sql = @"SELECT COLUMNPROPERTY(OBJECT_ID(@TableName), @ColumnName, 'IsIdentity') AS IsIdentity";
+        var isIdentity = _con.ExecuteScalar<int>(sql, new { TableName = tableName, ColumnName = columnName });
+        return isIdentity == 1;
+    }
+    
+    // ========== 主鍵自動產生 Helper ==========
+    private static object GeneratePkValue(string pkType)
+    {
+        switch (pkType.ToLower())
+        {
+            case "uniqueidentifier": return Guid.NewGuid();
+            case "decimal":
+            case "numeric": return 0m;
+            case "bigint": return 0L;
+            case "int": return 0;
+            case "nvarchar":
+            case "varchar":
+            case "char": return Guid.NewGuid().ToString("N");
+            default: throw new NotSupportedException($"不支援的主鍵型別: {pkType}");
+        }
+    }
+    
+    /// <summary>
+    /// 動態查詢 view/table 的主鍵欄位名稱、型別，並將 id 轉型成正確型別
+    /// </summary>
+    private (string PkName, string PkType, object Value) FindPk(FORM_FIELD_Master master, string fromId)
+    {
+        // 組 LIKE 條件（如 "COLUMN_NAME LIKE '%ID%' OR COLUMN_NAME LIKE '%SID%'"）
+        var likeConditions = _excludeColumns
+            .Select(x => $"COLUMN_NAME LIKE '%{x}%'")
+            .ToList();
+        var whereClause = string.Join(" OR ", likeConditions);
+
+        // 查出 pkName、pkType
+        var sql = $@"
+SELECT COLUMN_NAME, DATA_TYPE 
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME = @TableName
+  AND ({whereClause})
+";
+        var pkInfo = _con.QueryFirstOrDefault<(string ColumnName, string DataType)>(sql, new { TableName = master.VIEW_TABLE_NAME });
+
+        if (pkInfo.Equals(default((string, string))))
+            throw new Exception("找不到符合規則的主鍵！");
+
+        // 動態轉換 fromId 型別
+        object idValue = ConvertPkType(fromId, pkInfo.DataType);
+
+        return (pkInfo.ColumnName, pkInfo.DataType, idValue);
+    }
+
+    /// <summary>
+    /// 根據 SQL 型別，將傳入 id 轉換為 DB 支援的型別
+    /// </summary>
+    private static object ConvertPkType(string? id, string pkType)
+    {
+        if (id == null) throw new ArgumentNullException(nameof(id));
+        switch (pkType.ToLower())
+        {
+            case "uniqueidentifier": return Guid.Parse(id.ToString());
+            case "decimal":
+            case "numeric": return Convert.ToDecimal(id);
+            case "bigint": return Convert.ToInt64(id);
+            case "int": return Convert.ToInt32(id);
+            case "nvarchar":
+            case "varchar":
+            case "char": return id.ToString();
+            default: throw new NotSupportedException($"不支援的型別: {pkType}");
+        }
+    }
 
 private static class Sql
     {

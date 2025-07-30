@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using ClassLibrary;
 
 namespace DynamicForm.Models;
 
@@ -12,5 +13,5 @@ public class FORM_FIELD_Master
     public Guid? VIEW_TABLE_ID { get; set; }
     public string PRIMARY_KEY { get; set; }
     public int STATUS { get; set; }  
-    public int SCHEMA_TYPE { get; set; }  
+    public TableSchemaQueryType SCHEMA_TYPE { get; set; }  
 }
