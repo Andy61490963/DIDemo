@@ -371,6 +371,11 @@ public class FormService : IFormService
         var configs = _con.Query<(Guid Id, string Column, int ControlType)>(
             "SELECT ID, COLUMN_NAME, CONTROL_TYPE FROM FORM_FIELD_CONFIG"
         ).ToDictionary(c => c.Id);
+        var sourceMap = GetViewColumnSources(master.VIEW_TABLE_NAME);
+        var baseColumns = sourceMap
+            .Where(kv => string.Equals(kv.Value, master.BASE_TABLE_NAME, StringComparison.OrdinalIgnoreCase))
+            .Select(kv => kv.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         // 3. 分類欄位答案（依照型態拆成兩組）
         // - normalFields: 一般型態（非下拉選）欄位，用於直接寫入主資料表
@@ -381,8 +386,10 @@ public class FormService : IFormService
         // 逐一處理前端傳來的欄位答案
         foreach (var field in input.InputFields)
         {
-            // 欄位 ID 在設定中找不到就跳過（可能是無效欄位或設定異常）
+            // 欄位 ID 在設定中找不到或不屬於主表則跳過
             if (!configs.TryGetValue(field.FieldConfigId, out var cfg))
+                continue;
+            if (!baseColumns.Contains(cfg.Column))
                 continue;
 
             // 如果是 Dropdown 型態
