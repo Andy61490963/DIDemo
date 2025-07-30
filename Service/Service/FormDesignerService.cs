@@ -14,14 +14,17 @@ namespace DynamicForm.Service.Service;
 public class FormDesignerService : IFormDesignerService
 {
     private readonly SqlConnection _con;
-    private readonly DropdownSqlSettings _dropdownSqlSettings;
-
-    public FormDesignerService(SqlConnection connection, IOptions<DropdownSqlSettings> options)
+    private readonly IConfiguration _configuration;
+    
+    public FormDesignerService(SqlConnection connection, IConfiguration configuration)
     {
         _con = connection;
-        _dropdownSqlSettings = options.Value;
+        _configuration = configuration;
+        _excludeColumns = _configuration.GetSection("DropdownSqlSettings:ExcludeColumns").Get<List<string>>() ?? new();;
     }
 
+    private readonly List<string> _excludeColumns;
+    
     #region Public API
     public FormDesignerIndexViewModel GetFormDesignerIndexViewModel(Guid? id)
     {
@@ -108,7 +111,12 @@ public class FormDesignerService : IFormDesignerService
                 DEFAULT_VALUE          = cfg?.DEFAULT_VALUE ??  string.Empty,
                 SchemaType             = schemaType
             };
-        }).ToList();
+        })
+        // 用設定檔過濾
+        .Where(f => !_excludeColumns.Any(ex => 
+            f.COLUMN_NAME.Contains(ex, StringComparison.OrdinalIgnoreCase)))
+        .ToList();
+        
         var masterId = configs.Values.FirstOrDefault()?.FORM_FIELD_Master_ID ?? Guid.Empty;
 
         var result = new FormFieldListViewModel
@@ -395,10 +403,12 @@ public class FormDesignerService : IFormDesignerService
                 return result;
             }
 
-            if (!string.Equals(columns[0].ColumnName, _dropdownSqlSettings.IdColumnName, StringComparison.OrdinalIgnoreCase))
+            // 檢查第一個欄位是否包含任一個 _excludeColumns 關鍵字
+            if (!_excludeColumns.Any(ex =>
+                    columns[0].ColumnName.Contains(ex, StringComparison.OrdinalIgnoreCase)))
             {
                 result.Success = false;
-                result.Message = $"第一個欄位必須為 '{_dropdownSqlSettings.IdColumnName}'。";
+                result.Message = $"第一個欄位必須包含任一關鍵字：{string.Join(", ", _excludeColumns)}";
                 return result;
             }
 

@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using ClassLibrary;
 using Dapper;
 using DynamicForm.Models;
@@ -16,6 +15,135 @@ public class FormService : IFormService
         _con = connection;
     }
 
+    /// <summary>
+    /// 取得指定表單對應檢視表的所有資料
+    /// 會將下拉選單欄位的值直接轉成對應顯示文字
+    /// </summary>
+    public FormListDataViewModel GetFormList()
+    {
+        // 1. 查詢該 SCHEMA_TYPE 下的主表設定（Master）
+        var master = _con.QueryFirstOrDefault<FORM_FIELD_Master>(
+            "/**/SELECT * FROM FORM_FIELD_Master WHERE SCHEMA_TYPE = @TYPE",
+            new { TYPE = TableSchemaQueryType.All.ToInt() });
+
+        // 找不到主表就回傳空結果
+        if (master == null)
+        {
+            return new FormListDataViewModel();
+        }
+
+        // 2. 取得檢視表的所有欄位名稱
+        var columns = _con.Query<string>(
+            "/**/SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @table",
+            new { table = master.VIEW_TABLE_NAME }).ToList();
+
+        // 3. 查出所有欄位的設定（包含下拉選欄位型別）
+        var fieldConfigs = _con.Query<(Guid Id, string Column, int Type)>(
+            "/**/SELECT ID, COLUMN_NAME, CONTROL_TYPE FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @id",
+            new { id = master.BASE_TABLE_ID }).ToList();
+
+        // 4. 將所有 Dropdown 欄位整理成列表，方便後續查找
+        var dropdownColumns = fieldConfigs
+            .Where(f => (FormControlType)f.Type == FormControlType.Dropdown)
+            .Select(f => (f.Column, f.Id))
+            .ToList();
+
+        // 5. 查詢檢視表全部資料，並存成 List<FormDataRow>
+        var rows = new List<FormDataRow>();
+        
+        // 存每一筆 row 的主鍵 ID
+        var rowIds = new List<Guid>();
+        var rawRows = _con.Query($"SELECT * FROM [{master.VIEW_TABLE_NAME}]");
+        foreach (IDictionary<string, object?> row in rawRows)
+        {
+            var vmRow = new FormDataRow();
+            foreach (var kv in row)
+            {
+                // 主鍵欄位要存到 vmRow.Id，方便之後查下拉選答案，比對 主表主鍵 和 設定的主鍵 有沒有相同(目前限制Guid)
+                if (string.Equals(kv.Key, master.PRIMARY_KEY, StringComparison.OrdinalIgnoreCase) && kv.Value is Guid id)
+                {
+                    vmRow.Id = id;
+                    rowIds.Add(id);
+                }
+                // 其他欄位裝進 Cells（key-value）
+                vmRow.Cells.Add(new FormDataCell { ColumnName = kv.Key, Value = kv.Value });
+            }
+            rows.Add(vmRow);
+        }
+
+        // 6. 若無資料，直接回傳（節省下方查詢）
+        if (!rowIds.Any())
+        {
+            return new FormListDataViewModel { FormId = master.ID, Columns = columns, Rows = rows };
+        }
+
+        // 7. 查出所有資料列對應的下拉選答案（一次批次查）
+        var dropdownAnswers = _con.Query<(string RowId, Guid FieldId, Guid OptionId)>(
+            "/**/SELECT ROW_ID, FORM_FIELD_CONFIG_ID AS FieldId, FORM_FIELD_DROPDOWN_OPTIONS_ID AS OptionId " +
+            "FROM FORM_FIELD_DROPDOWN_ANSWER WHERE ROW_ID IN @RowIds",
+            new { RowIds = rowIds.Select(id => id.ToString()).ToList() }).ToList();
+
+        // 8. 撈出所有 OptionId → OptionText 的對應表（只查一次）
+        var optionIds = dropdownAnswers.Select(a => a.OptionId).Distinct().ToList();
+        var optionTextMap = optionIds.Any()
+            ? _con.Query<(Guid Id, string Text)>(
+                "/**/SELECT ID, OPTION_TEXT AS Text FROM FORM_FIELD_DROPDOWN_OPTIONS WHERE ID IN @Ids",
+                new { Ids = optionIds })
+                .ToDictionary(x => x.Id, x => x.Text)
+            : new Dictionary<Guid, string>();
+
+        // 9. 建立 RowId → (ConfigId → OptionId) 的對照表，加速查找
+        var answerGroupMap = dropdownAnswers
+            .GroupBy(a => a.RowId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.ToDictionary(x => x.FieldId, x => x.OptionId),
+                StringComparer.OrdinalIgnoreCase
+            );
+
+        // 10. 將所有下拉選欄位的值替換為對應顯示文字
+        foreach (var row in rows)
+        {
+            // 找到這一列的所有 Dropdown 答案（如果沒有就略過）
+            if (!answerGroupMap.TryGetValue(row.Id.ToString(), out var answers))
+            {
+                continue;
+            }
+
+            // 先把所有下拉欄位的答案 OptionId 存成查找表，
+            // 再回頭把資料表裡原本的 id 值，一個一個查，
+            // 如果是下拉欄位，就把它覆蓋成 OptionText（顯示用文字）。
+            foreach (var (columnName, configId) in dropdownColumns)
+            {
+                // 取得該欄位的 OptionId
+                if (answers.TryGetValue(configId, out var optionId) && optionTextMap.TryGetValue(optionId, out var optionText))
+                {
+                    // 找到該 Cell，直接用 OptionText 覆蓋原本值
+                    var cell = row.Cells.FirstOrDefault(c => string.Equals(c.ColumnName, columnName, StringComparison.OrdinalIgnoreCase));
+                    if (cell != null)
+                    {
+                        cell.Value = optionText;
+                    }
+                }
+            }
+        }
+
+        // 11. 組成回傳 ViewModel
+        return new FormListDataViewModel
+        {
+            FormId = master.ID,
+            Columns = columns,
+            Rows = rows
+        };
+    }
+    
+    /// <summary>
+    /// 取得 單一
+    /// </summary>
+    /// <param name="id"></param>
+    /// <param name="fromId"></param>
+    /// <returns></returns>
+    /// <exception cref="InvalidOperationException"></exception>
     public FormSubmissionViewModel GetFormSubmission(Guid id, Guid? fromId = null)
     {
         // 1. 查 Master 設定
@@ -47,6 +175,8 @@ public class FormService : IFormService
         var baseMap = baseFields.ToDictionary(f => f.COLUMN_NAME, f => f, StringComparer.OrdinalIgnoreCase);
 
         var merged = new List<FormFieldInputViewModel>();
+        
+        // 組合起來，判斷誰可以編輯(主檔欄位的可以編輯)
         foreach (var viewField in viewFields)
         {
             if (baseMap.TryGetValue(viewField.COLUMN_NAME, out var baseField))
@@ -104,8 +234,12 @@ public class FormService : IFormService
         };
     }
 
-
-    private List<FormFieldInputViewModel> GetFields(Guid masterId)
+    /// <summary>
+    /// 取得 欄位
+    /// </summary>
+    /// <param name="masterId"></param>
+    /// <returns></returns>
+   private List<FormFieldInputViewModel> GetFields(Guid masterId)
     {
         var sql = @"SELECT FFC.*, FFM.FORM_NAME
                     FROM FORM_FIELD_CONFIG FFC
@@ -130,196 +264,54 @@ public class FormService : IFormService
                     WHERE C.FORM_FIELD_Master_ID = @ID;";
 
         using var multi = _con.QueryMultiple(sql, new { ID = masterId });
+
         var fieldConfigs = multi.Read<FormFieldConfigDto>().ToList();
         var validationRules = multi.Read<FormFieldValidationRuleDto>().ToList();
         var dropdownConfigs = multi.Read<FORM_FIELD_DROPDOWN>().ToList();
         var dropdownOptions = multi.Read<FORM_FIELD_DROPDOWN_OPTIONS>().ToList();
 
-        var ruleMap = validationRules.GroupBy(r => r.FIELD_CONFIG_ID)
-                                     .ToDictionary(g => g.Key, g => (IReadOnlyList<FormFieldValidationRuleDto>)g.ToList());
-        var dropdownConfigMap = dropdownConfigs.GroupBy(d => d.FORM_FIELD_CONFIG_ID)
-                                               .ToDictionary(g => g.Key, g => g.First());
-        var optionMap = dropdownOptions.GroupBy(o => o.FORM_FIELD_DROPDOWN_ID)
-                                       .ToDictionary(g => g.Key, g => (IReadOnlyList<FORM_FIELD_DROPDOWN_OPTIONS>)g.ToList());
-
-        var fieldViewModels = fieldConfigs.Select(field =>
-        {
-            dropdownConfigMap.TryGetValue(field.ID, out var dropdown);
-            var isUseSql = dropdown?.ISUSESQL ?? false;
-            var dropdownId = dropdown?.ID ?? Guid.Empty;
-            var options = optionMap.TryGetValue(dropdownId, out var opts) ? opts.ToList() : new List<FORM_FIELD_DROPDOWN_OPTIONS>();
-            
-            var finalOptions = isUseSql
-                ? options.Where(x => !string.IsNullOrWhiteSpace(x.OPTION_TABLE)).ToList()
-                : options.Where(x => string.IsNullOrWhiteSpace(x.OPTION_TABLE)).ToList();
-            
-            return new FormFieldInputViewModel
+        // 用 LINQ 聚合，不需要 Dictionary
+        var fieldViewModels = fieldConfigs
+            .Select(field =>
             {
-                FieldConfigId = field.ID,
-                COLUMN_NAME = field.COLUMN_NAME,
-                CONTROL_TYPE = field.CONTROL_TYPE,
-                DefaultValue = field.DEFAULT_VALUE,
-                IS_VISIBLE = field.IS_VISIBLE,
-                IS_EDITABLE = field.IS_EDITABLE,
-                ValidationRules = ruleMap.TryGetValue(field.ID, out var rules) ? rules.ToList() : new(),
-                OptionList = finalOptions,
-                ISUSESQL = isUseSql,
-                DROPDOWNSQL = dropdown?.DROPDOWNSQL ?? string.Empty,
-                SOURCE = TableSchemaQueryType.OnlyTable
-            };
-        }).ToList();
+                // 1. 找出對應的下拉選單設定
+                var dropdown = dropdownConfigs.FirstOrDefault(d => d.FORM_FIELD_CONFIG_ID == field.ID);
+                var isUseSql = dropdown?.ISUSESQL ?? false;
+                var dropdownId = dropdown?.ID ?? Guid.Empty;
+
+                // 2. 找出此 dropdown 下的所有 options
+                var options = dropdownOptions.Where(o => o.FORM_FIELD_DROPDOWN_ID == dropdownId).ToList();
+
+                // 3. 根據 isUseSql 決定 option 顯示邏輯
+                var finalOptions = isUseSql
+                    ? options.Where(x => !string.IsNullOrWhiteSpace(x.OPTION_TABLE)).ToList()
+                    : options.Where(x => string.IsNullOrWhiteSpace(x.OPTION_TABLE)).ToList();
+
+                // 4. 找出 validation rules
+                var rules = validationRules
+                    .Where(r => r.FIELD_CONFIG_ID == field.ID)
+                    .OrderBy(r => r.VALIDATION_ORDER)
+                    .ToList();
+
+                return new FormFieldInputViewModel
+                {
+                    FieldConfigId = field.ID,
+                    COLUMN_NAME = field.COLUMN_NAME,
+                    CONTROL_TYPE = field.CONTROL_TYPE,
+                    DefaultValue = field.DEFAULT_VALUE,
+                    IS_VISIBLE = field.IS_VISIBLE,
+                    IS_EDITABLE = field.IS_EDITABLE,
+                    ValidationRules = rules,
+                    OptionList = finalOptions,
+                    ISUSESQL = isUseSql,
+                    DROPDOWNSQL = dropdown?.DROPDOWNSQL ?? string.Empty,
+                    SOURCE = TableSchemaQueryType.OnlyTable
+                };
+            })
+            .ToList();
 
         return fieldViewModels;
     }
-    
-    /// <summary>
-    /// 取得指定表單對應檢視表的所有資料
-    /// </summary>
-    public FormListDataViewModel GetFormList()
-    {
-        var master = _con.QueryFirstOrDefault<FORM_FIELD_Master>(
-            "SELECT * FROM FORM_FIELD_Master WHERE SCHEMA_TYPE = @TYPE",
-            new { TYPE = TableSchemaQueryType.All.ToInt() });
-
-        if (master == null)
-            return new FormListDataViewModel();
-
-        // 取得顯示欄位名稱清單
-        var columns = _con.Query<string>(
-            "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @table",
-            new { table = master.VIEW_TABLE_NAME }).ToList();
-
-        // 取得欄位設定：包含控制型別（Dropdown用）
-        var fieldConfigs = _con.Query<(Guid Id, string Column, int Type)>(
-            "SELECT ID, COLUMN_NAME, CONTROL_TYPE FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @id",
-            new { id = master.BASE_TABLE_ID }).ToList();
-
-        // 找出 dropdown 欄位名稱對應的欄位設定ID
-        var dropdownColumns = new List<(string Column, Guid ConfigId)>();
-        foreach (var cfg in fieldConfigs)
-        {
-            if ((FormControlType)cfg.Type == FormControlType.Dropdown)
-            {
-                dropdownColumns.Add((cfg.Column, cfg.Id));
-            }
-        }
-
-        // 撈資料表內容
-        var rows = new List<FormDataRow>();
-        var rowIds = new List<Guid>();
-        var rawRows = _con.Query($"SELECT * FROM [{master.VIEW_TABLE_NAME}]");
-
-        foreach (IDictionary<string, object?> row in rawRows)
-        {
-            var vmRow = new FormDataRow();
-            foreach (var kv in row)
-            {
-                if (string.Equals(kv.Key, master.PRIMARY_KEY, StringComparison.OrdinalIgnoreCase) && kv.Value is Guid id)
-                {
-                    vmRow.Id = id;
-                    rowIds.Add(id);
-                }
-                vmRow.Cells.Add(new FormDataCell { ColumnName = kv.Key, Value = kv.Value });
-            }
-            rows.Add(vmRow);
-        }
-
-        // 沒有資料就早點返回
-        if (!rowIds.Any())
-            return new FormListDataViewModel { FormId = master.ID, Columns = columns, Rows = rows };
-
-        // 撈出所有 dropdown 答案
-        var dropdownAnswers = _con.Query<(string RowId, Guid FieldId, Guid OptionId)>(
-            "SELECT ROW_ID, FORM_FIELD_CONFIG_ID AS FieldId, FORM_FIELD_DROPDOWN_OPTIONS_ID AS OptionId " +
-            "FROM FORM_FIELD_DROPDOWN_ANSWER WHERE ROW_ID IN @RowIds",
-            new { RowIds = rowIds.Select(id => id.ToString()).ToList() }).ToList();
-
-        // 撈出對應 OptionId 的顯示文字
-        var optionIds = dropdownAnswers.Select(a => a.OptionId).Distinct().ToList();
-        var optionTexts = new List<(Guid Id, string Text)>();
-        if (optionIds.Any())
-        {
-            var options = _con.Query<(Guid Id, string Text)>(
-                "SELECT ID, OPTION_TEXT AS Text FROM FORM_FIELD_DROPDOWN_OPTIONS WHERE ID IN @Ids",
-                new { Ids = optionIds });
-            optionTexts.AddRange(options);
-        }
-
-        // 建立 RowId 與 Dropdown 答案的對應關係
-        var answerGroups = new List<AnswerGroup>();
-        foreach (var ans in dropdownAnswers)
-        {
-            AnswerGroup? group = null;
-            foreach (var g in answerGroups)
-            {
-                if (string.Equals(g.RowId, ans.RowId, StringComparison.OrdinalIgnoreCase))
-                {
-                    group = g;
-                    break;
-                }
-            }
-            if (group == null)
-            {
-                group = new AnswerGroup { RowId = ans.RowId };
-                answerGroups.Add(group);
-            }
-            group.Answers.Add((ans.FieldId, ans.OptionId));
-        }
-
-        // 將每一列的 dropdown 欄位用 OptionText 取代
-        foreach (var row in rows)
-        {
-            var rowGroup = answerGroups.FirstOrDefault(g => string.Equals(g.RowId, row.Id.ToString(), StringComparison.OrdinalIgnoreCase));
-            if (rowGroup == null)
-                continue;
-
-            foreach (var (columnName, configId) in dropdownColumns)
-            {
-                // 找到指定欄位的 OptionId
-                Guid? optionId = null;
-                foreach (var a in rowGroup.Answers)
-                {
-                    if (a.FieldId == configId)
-                    {
-                        optionId = a.OptionId;
-                        break;
-                    }
-                }
-                if (optionId == null)
-                    continue;
-
-                // 取得顯示文字
-                string? optionText = null;
-                foreach (var opt in optionTexts)
-                {
-                    if (opt.Id == optionId)
-                    {
-                        optionText = opt.Text;
-                        break;
-                    }
-                }
-                if (optionText == null)
-                    continue;
-
-                foreach (var cell in row.Cells)
-                {
-                    if (string.Equals(cell.ColumnName, columnName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        cell.Value = optionText;
-                        break;
-                    }
-                }
-            }
-        }
-
-        return new FormListDataViewModel
-        {
-            FormId = master.ID,
-            Columns = columns,
-            Rows = rows
-        };
-    }
-
 
     /// <summary>
     /// 儲存或更新表單資料（含下拉選項答案）
@@ -440,10 +432,4 @@ WHEN NOT MATCHED THEN
     INSERT (ID, FORM_FIELD_CONFIG_ID, FORM_FIELD_DROPDOWN_OPTIONS_ID, ROW_ID)
     VALUES (NEWID(), src.FORM_FIELD_CONFIG_ID, @OptionId, src.ROW_ID);";
     }
-}
-
-internal class AnswerGroup
-{
-    public string RowId { get; set; } = string.Empty;
-    public List<(Guid FieldId, Guid OptionId)> Answers { get; } = new();
 }
