@@ -14,7 +14,7 @@
      data-table-name="@Model?.TableName"
      data-schema-type="@((int?)Model?.type)">
     @* 只有 SchemaType 為 OnlyView (1) 時顯示批次設定按鈕 *@
-    @if (Model?.type == TableSchemaQueryType.OnlyView)
+    @if (Model?.type == TableSchemaQueryType.OnlyTable)
     {
         <div class="d-flex justify-content-end mb-2">
             <button type="button"

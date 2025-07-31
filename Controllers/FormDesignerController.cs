@@ -100,7 +100,7 @@ public class FormDesignerController : Controller
     [HttpPost]
     public IActionResult SetAllEditable(Guid formMasterId, string tableName, bool isEditable, TableSchemaQueryType schemaType)
     {
-        if (schemaType != TableSchemaQueryType.OnlyView)
+        if (schemaType != TableSchemaQueryType.OnlyTable)
         {
             return BadRequest("僅支援檢視欄位清單的批次設定。");
         }
@@ -123,7 +123,7 @@ public class FormDesignerController : Controller
     [HttpPost]
     public IActionResult SetAllRequired(Guid formMasterId, string tableName, bool isRequired, TableSchemaQueryType schemaType)
     {
-        if (schemaType != TableSchemaQueryType.OnlyView)
+        if (schemaType != TableSchemaQueryType.OnlyTable)
         {
             return BadRequest("僅支援檢視欄位清單的批次設定。");
         }
