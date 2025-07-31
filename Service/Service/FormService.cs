@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+using System.Collections.Generic;
 using ClassLibrary;
 using Dapper;
 using DynamicForm.Helper;
@@ -157,20 +157,27 @@ public class FormService : IFormService
     /// <returns></returns>
    private List<FormFieldInputViewModel> GetFields(Guid masterId, TableSchemaQueryType schemaType, string tableName)
     {
-        // 1. 查詢欄位型別
-        var columnTypes = _con.Query<(string COLUMN_NAME, string DATA_TYPE)>(
-            @"SELECT COLUMN_NAME, DATA_TYPE
+        var columnTypes = LoadColumnTypes(tableName);
+        var configData = LoadFieldConfigData(masterId);
+
+        return configData.FieldConfigs
+            .Select(cfg => BuildFieldViewModel(cfg, configData, columnTypes, schemaType))
+            .ToList();
+    }
+
+    private Dictionary<string, string> LoadColumnTypes(string tableName)
+    {
+        return _con.Query<(string COLUMN_NAME, string DATA_TYPE)>(
+                @"SELECT COLUMN_NAME, DATA_TYPE
           FROM INFORMATION_SCHEMA.COLUMNS
           WHERE TABLE_NAME = @TableName",
-            new { TableName = tableName }
-        ).ToDictionary(x => x.COLUMN_NAME, x => x.DATA_TYPE, StringComparer.OrdinalIgnoreCase);
+                new { TableName = tableName })
+            .ToDictionary(x => x.COLUMN_NAME, x => x.DATA_TYPE, StringComparer.OrdinalIgnoreCase);
+    }
 
-        // 2. 取得來源表資訊（僅 View 需要）
-        // Dictionary<string, string?> sourceTableMap = schemaType == TableSchemaQueryType.OnlyView
-        //     ? GetViewColumnSources(tableName)
-        //     : columnTypes.Keys.ToDictionary(k => k, _ => tableName, StringComparer.OrdinalIgnoreCase);
-        
-        var sql = @"SELECT FFC.*, FFM.FORM_NAME
+    private FieldConfigData LoadFieldConfigData(Guid masterId)
+    {
+        const string sql = @"SELECT FFC.*, FFM.FORM_NAME
                     FROM FORM_FIELD_CONFIG FFC
                     JOIN FORM_FIELD_Master FFM ON FFM.ID = FFC.FORM_FIELD_Master_ID
                     WHERE FFM.ID = @ID
@@ -194,60 +201,60 @@ public class FormService : IFormService
 
         using var multi = _con.QueryMultiple(sql, new { ID = masterId });
 
-        var fieldConfigs = multi.Read<FormFieldConfigDto>().ToList();
-        var validationRules = multi.Read<FormFieldValidationRuleDto>().ToList();
-        var dropdownConfigs = multi.Read<FORM_FIELD_DROPDOWN>().ToList();
-        var dropdownOptions = multi.Read<FORM_FIELD_DROPDOWN_OPTIONS>().ToList();
+        return new FieldConfigData(
+            multi.Read<FormFieldConfigDto>().ToList(),
+            multi.Read<FormFieldValidationRuleDto>().ToList(),
+            multi.Read<FORM_FIELD_DROPDOWN>().ToList(),
+            multi.Read<FORM_FIELD_DROPDOWN_OPTIONS>().ToList());
+    }
 
-        // 用 LINQ 聚合，不需要 Dictionary
-        var fieldViewModels = fieldConfigs
-            .Select(field =>
-            {
-                // 1. 找出對應的下拉選單設定
-                var dropdown = dropdownConfigs.FirstOrDefault(d => d.FORM_FIELD_CONFIG_ID == field.ID);
-                var isUseSql = dropdown?.ISUSESQL ?? false;
-                var dropdownId = dropdown?.ID ?? Guid.Empty;
+    private FormFieldInputViewModel BuildFieldViewModel(
+        FormFieldConfigDto field,
+        FieldConfigData data,
+        Dictionary<string, string> columnTypes,
+        TableSchemaQueryType schemaType)
+    {
+        var dropdown = data.DropdownConfigs.FirstOrDefault(d => d.FORM_FIELD_CONFIG_ID == field.ID);
+        var isUseSql = dropdown?.ISUSESQL ?? false;
+        var dropdownId = dropdown?.ID ?? Guid.Empty;
 
-                // 2. 找出此 dropdown 下的所有 options
-                var options = dropdownOptions.Where(o => o.FORM_FIELD_DROPDOWN_ID == dropdownId).ToList();
+        var options = data.DropdownOptions.Where(o => o.FORM_FIELD_DROPDOWN_ID == dropdownId).ToList();
+        var finalOptions = isUseSql
+            ? options.Where(x => !string.IsNullOrWhiteSpace(x.OPTION_TABLE)).ToList()
+            : options.Where(x => string.IsNullOrWhiteSpace(x.OPTION_TABLE)).ToList();
 
-                // 3. 根據 isUseSql 決定 option 顯示邏輯
-                var finalOptions = isUseSql
-                    ? options.Where(x => !string.IsNullOrWhiteSpace(x.OPTION_TABLE)).ToList()
-                    : options.Where(x => string.IsNullOrWhiteSpace(x.OPTION_TABLE)).ToList();
-
-                // 4. 找出 validation rules
-                var rules = validationRules
-                    .Where(r => r.FIELD_CONFIG_ID == field.ID)
-                    .OrderBy(r => r.VALIDATION_ORDER)
-                    .ToList();
-
-                // 取型別：找不到預設 nvarchar
-                var dataType = columnTypes.TryGetValue(field.COLUMN_NAME, out var dtype)
-                    ? dtype
-                    : "nvarchar";
-                
-                return new FormFieldInputViewModel
-                {
-                    FieldConfigId = field.ID,
-                    COLUMN_NAME = field.COLUMN_NAME,
-                    CONTROL_TYPE = field.CONTROL_TYPE,
-                    DefaultValue = field.DEFAULT_VALUE,
-                    IS_VISIBLE = field.IS_VISIBLE,
-                    IS_EDITABLE = field.IS_EDITABLE,
-                    ValidationRules = rules,
-                    OptionList = finalOptions,
-                    ISUSESQL = isUseSql,
-                    DROPDOWNSQL = dropdown?.DROPDOWNSQL ?? string.Empty,
-                    SOURCE = schemaType,
-                    DATA_TYPE = dataType,
-                    SOURCE_TABLE = TableSchemaQueryType.OnlyTable.ToString()
-                };
-            })
+        var rules = data.ValidationRules
+            .Where(r => r.FIELD_CONFIG_ID == field.ID)
+            .OrderBy(r => r.VALIDATION_ORDER)
             .ToList();
 
-        return fieldViewModels;
+        var dataType = columnTypes.TryGetValue(field.COLUMN_NAME, out var dtype)
+            ? dtype
+            : "nvarchar";
+
+        return new FormFieldInputViewModel
+        {
+            FieldConfigId = field.ID,
+            COLUMN_NAME = field.COLUMN_NAME,
+            CONTROL_TYPE = field.CONTROL_TYPE,
+            DefaultValue = field.DEFAULT_VALUE,
+            IS_VISIBLE = field.IS_VISIBLE,
+            IS_EDITABLE = field.IS_EDITABLE,
+            ValidationRules = rules,
+            OptionList = finalOptions,
+            ISUSESQL = isUseSql,
+            DROPDOWNSQL = dropdown?.DROPDOWNSQL ?? string.Empty,
+            SOURCE = schemaType,
+            DATA_TYPE = dataType,
+            SOURCE_TABLE = TableSchemaQueryType.OnlyTable.ToString()
+        };
     }
+
+    private sealed record FieldConfigData(
+        List<FormFieldConfigDto> FieldConfigs,
+        List<FormFieldValidationRuleDto> ValidationRules,
+        List<FORM_FIELD_DROPDOWN> DropdownConfigs,
+        List<FORM_FIELD_DROPDOWN_OPTIONS> DropdownOptions);
 
     /// <summary>
     /// 儲存或更新表單資料（含下拉選項答案）
@@ -268,25 +275,7 @@ public class FormService : IFormService
         ).ToDictionary(c => c.Id);
 
         // 1. 欄位 mapping & 型別處理
-        var normalFields = new List<(string Column, object? Value)>();
-        var dropdownAnswers = new List<(Guid ConfigId, Guid OptionId)>();
-
-        foreach (var field in input.InputFields)
-        {
-            if (!configs.TryGetValue(field.FieldConfigId, out var cfg))
-                continue;
-
-            if ((FormControlType)cfg.ControlType == FormControlType.Dropdown)
-            {
-                if (Guid.TryParse(field.Value, out var optionId))
-                    dropdownAnswers.Add((cfg.Id, optionId));
-            }
-            else
-            {
-                var val = ConvertToColumnType(cfg.DataType, field.Value);
-                normalFields.Add((cfg.Column, val));
-            }
-        }
+        var (normalFields, dropdownAnswers) = MapInputFields(input.InputFields, configs);
 
         // 2. Insert/Update 決策
         var (pkName, pkType, typedRowId) = FindPk(master, rowId);
@@ -304,12 +293,39 @@ public class FormService : IFormService
             _con.Execute(Sql.UpsertDropdownAnswer, new { ConfigId, RowId = realRowId, OptionId });
     }
 
+    private (List<(string Column, object? Value)> NormalFields, List<(Guid ConfigId, Guid OptionId)> DropdownAnswers)
+        MapInputFields(IEnumerable<FormInputField> inputFields,
+            Dictionary<Guid, (Guid Id, string Column, int ControlType, string? DataType)> configs)
+    {
+        var normalFields = new List<(string Column, object? Value)>();
+        var dropdownAnswers = new List<(Guid ConfigId, Guid OptionId)>();
+
+        foreach (var field in inputFields)
+        {
+            if (!configs.TryGetValue(field.FieldConfigId, out var cfg))
+                continue;
+
+            if ((FormControlType)cfg.ControlType == FormControlType.Dropdown)
+            {
+                if (Guid.TryParse(field.Value, out var optionId))
+                    dropdownAnswers.Add((cfg.Id, optionId));
+            }
+            else
+            {
+                var val = ConvertToColumnType(cfg.DataType, field.Value);
+                normalFields.Add((cfg.Column, val));
+            }
+        }
+
+        return (normalFields, dropdownAnswers);
+    }
+
     /// <summary>
     /// 型別轉換，集中管理。可以支援 int、datetime、decimal、bool、string、null…
     /// </summary>
     private object? ConvertToColumnType(string? sqlType, object? value)
     {
-        if (value == null || value is null) return null;
+        if (value is null) return null;
         var str = value.ToString();
 
         if (string.IsNullOrWhiteSpace(sqlType)) return value;
@@ -323,7 +339,7 @@ public class FormService : IFormService
             case "numeric":
                 return decimal.TryParse(str, out var d) ? d : null;
             case "bit":
-                return (str == "1" || str?.ToLower() == "true") ? true : false;
+                return str == "1" || str.Equals("true", StringComparison.OrdinalIgnoreCase);
             case "datetime":
             case "smalldatetime":
             case "date":
