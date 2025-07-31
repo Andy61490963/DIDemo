@@ -4,6 +4,7 @@ using DynamicForm.Service.Interface;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using System.Collections.Generic;
+using System;
 
 namespace DynamicForm.Controllers;
 
@@ -302,9 +303,16 @@ public class FormDesignerController : Controller
             SCHEMA_TYPE = TableSchemaQueryType.All
         };
 
-        var id = _formDesignerService.SaveFormHeader(master);
-
-        return Json(new { success = true, id });
+        try
+        {
+            var id = _formDesignerService.SaveFormHeader(master);
+            return Json(new { success = true, id });
+        }
+        catch (InvalidOperationException ex)
+        {
+            // 主表或顯示用 View 查詢失敗時回傳錯誤訊息
+            return BadRequest(ex.Message);
+        }
     }
     
     /// <summary>
