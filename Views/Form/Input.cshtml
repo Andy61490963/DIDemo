@@ -14,8 +14,7 @@
 
             var colSize = "col-md-4";
 
-            // var isRequired = field.ValidationRules.Any(r => r.VALIDATION_TYPE == ValidationType.Required);
-            var isRequired = false;
+            var isRequired = field.IS_REQUIRED;
             var maxLength = field.ValidationRules.FirstOrDefault(r => r.VALIDATION_TYPE == ValidationType.Max)?.VALIDATION_VALUE;
             var controlType = field.CONTROL_TYPE;
 
@@ -40,7 +39,7 @@
 
                                 <!-- 右側輸入區 -->
                                 <div class="col-md-8">
-                                    <textarea name="InputFields[@i].Value" class="form-control" maxlength="@maxLength" @(field.IS_EDITABLE ? "" : "disabled")>@(field.CurrentValue ?? field.DefaultValue)</textarea>
+                                    <textarea name="InputFields[@i].Value" class="form-control" maxlength="@maxLength" @(isRequired ? "required" : "") @(field.IS_EDITABLE ? "" : "disabled")>@(field.CurrentValue ?? field.DefaultValue)</textarea>
                                 </div>
                             </div>
                         </div>
@@ -68,7 +67,7 @@
                                             data-id="@field.FieldConfigId"
                                             data-usesql="@field.ISUSESQL.ToString().ToLower()"
                                             data-sql="@Html.Raw(field.DROPDOWNSQL)"
-                                            @(field.IS_EDITABLE ? "" : "disabled")>
+                                            @(isRequired ? "required" : "") @(field.IS_EDITABLE ? "" : "disabled")>
                                         <option value="">-- 請選擇 --</option>
                                         @foreach (var opt in field.OptionList ?? new())
                                         {
@@ -88,7 +87,7 @@
                                name="InputFields[@i].Value"
                                value="true"
                                class="form-check-input"
-                               @(field.IS_EDITABLE ? "" : "disabled") />
+                               @(isRequired ? "required" : "") @(field.IS_EDITABLE ? "" : "disabled") />
                         <label class="form-check-label">啟用</label>
                     </div>
                 }
