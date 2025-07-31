@@ -196,6 +196,7 @@ public class FormDesignerService : IFormDesignerService
             FORM_FIELD_Master_ID = formMasterId,
             TABLE_NAME = model.TableName,
             model.COLUMN_NAME,
+            model.DATA_TYPE,
             CONTROL_TYPE = controlType,
             model.IS_REQUIRED,
             model.IS_VISIBLE,
@@ -658,11 +659,11 @@ WHEN MATCHED THEN
         EDIT_TIME      = GETDATE()
 WHEN NOT MATCHED THEN
     INSERT (
-        ID, FORM_FIELD_Master_ID, TABLE_NAME, COLUMN_NAME,
+        ID, FORM_FIELD_Master_ID, TABLE_NAME, COLUMN_NAME, DATA_TYPE,
         CONTROL_TYPE, IS_REQUIRED, IS_VISIBLE, IS_EDITABLE, DEFAULT_VALUE, CREATE_TIME
     )
     VALUES (
-        @ID, @FORM_FIELD_Master_ID, @TABLE_NAME, @COLUMN_NAME,
+        @ID, @FORM_FIELD_Master_ID, @TABLE_NAME, @COLUMN_NAME, @DATA_TYPE,
         @CONTROL_TYPE, @IS_REQUIRED, @IS_VISIBLE, @IS_EDITABLE, @DEFAULT_VALUE, GETDATE()
     );";
 

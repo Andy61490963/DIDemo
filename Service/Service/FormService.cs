@@ -258,115 +258,147 @@ public class FormService : IFormService
         var formId = input.FormId;
         var rowId = input.RowId;
 
-        // 1. 查詢表單主設定，確認表單是否存在，以及相關設定是否完整
-        var master = _con.QueryFirstOrDefault<FORM_FIELD_Master>(
-            "SELECT * FROM FORM_FIELD_Master WHERE ID = @id", new { id = formId });
+        // 查表單主設定
+        var master = _formFieldMasterService.GetFormFieldMasterFromId(formId);
 
-        // 2. 查詢該表單所有欄位設定（FORM_FIELD_CONFIG）
-        var configs = _con.Query<(Guid Id, string Column, int ControlType)>(
-            "SELECT ID, COLUMN_NAME, CONTROL_TYPE FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @Id",
+        // 查欄位設定
+        var configs = _con.Query<(Guid Id, string Column, int ControlType, string? DataType)>(
+            "SELECT ID, COLUMN_NAME, CONTROL_TYPE, DATA_TYPE FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @Id",
             new { Id = master.BASE_TABLE_ID }
         ).ToDictionary(c => c.Id);
 
-        // 3. 分類欄位答案（依照型態拆成兩組）
-        // - normalFields: 一般型態（非下拉選）欄位，用於直接寫入主資料表
-        // - dropdownAnswers: 下拉選單答案，需額外存到 FORM_FIELD_DROPDOWN_ANSWER 關聯表
+        // 1. 欄位 mapping & 型別處理
         var normalFields = new List<(string Column, object? Value)>();
         var dropdownAnswers = new List<(Guid ConfigId, Guid OptionId)>();
 
-        // 逐一處理前端傳來的欄位答案
         foreach (var field in input.InputFields)
         {
-            // 欄位 ID 在設定中找不到則跳過
             if (!configs.TryGetValue(field.FieldConfigId, out var cfg))
                 continue;
 
-            // 如果是 Dropdown 型態
             if ((FormControlType)cfg.ControlType == FormControlType.Dropdown)
             {
-                // Dropdown 值應該是 OptionId（Guid 字串），需驗證合法性
                 if (Guid.TryParse(field.Value, out var optionId))
                     dropdownAnswers.Add((cfg.Id, optionId));
             }
             else
             {
-                // 其他型態直接存（如 Text, Number, Date ...）
-                normalFields.Add((cfg.Column, field.Value));
+                var val = ConvertToColumnType(cfg.DataType, field.Value);
+                normalFields.Add((cfg.Column, val));
             }
         }
 
-        // 4. 判斷 Insert 或 Update，並處理主鍵資料
+        // 2. Insert/Update 決策
         var (pkName, pkType, typedRowId) = FindPk(master, rowId);
         bool isInsert = string.IsNullOrEmpty(rowId);
         bool isIdentity = IsIdentityColumn(master.BASE_TABLE_NAME, pkName);
         object? realRowId = typedRowId;
 
         if (isInsert)
+            realRowId = InsertRow(master, pkName, pkType, isIdentity, normalFields);
+        else
+            UpdateRow(master, pkName, normalFields, realRowId);
+
+        // 3. Dropdown Upsert
+        foreach (var (ConfigId, OptionId) in dropdownAnswers)
+            _con.Execute(Sql.UpsertDropdownAnswer, new { ConfigId, RowId = realRowId, OptionId });
+    }
+
+    /// <summary>
+    /// 型別轉換，集中管理。可以支援 int、datetime、decimal、bool、string、null…
+    /// </summary>
+    private object? ConvertToColumnType(string? sqlType, object? value)
+    {
+        if (value == null || value is null) return null;
+        var str = value.ToString();
+
+        if (string.IsNullOrWhiteSpace(sqlType)) return value;
+
+        switch (sqlType.ToLower())
         {
-            var columns = new List<string>();
-            var values = new List<string>();
-            var paramDict = new Dictionary<string, object>();
+            case "int":
+            case "bigint":
+                return long.TryParse(str, out var l) ? l : null;
+            case "decimal":
+            case "numeric":
+                return decimal.TryParse(str, out var d) ? d : null;
+            case "bit":
+                return (str == "1" || str?.ToLower() == "true") ? true : false;
+            case "datetime":
+            case "smalldatetime":
+            case "date":
+                if (DateTime.TryParse(str, out var dt)) return dt;
+                return null;
+            default:
+                return null;
+        }
+    }
 
-            if (!isIdentity)
-            {
-                realRowId = GeneratePkValue(pkType);
-                columns.Add($"[{master.PRIMARY_KEY}]");
-                values.Add("@ROWID");
-                paramDict["ROWID"] = realRowId!;
-            }
+    /// <summary>
+    /// 動態產生 insert，支援 identity or 非 identity
+    /// </summary>
+    private object InsertRow(FORM_FIELD_Master master, string pkName, string pkType, bool isIdentity, List<(string Column, object? Value)> normalFields)
+    {
+        var columns = new List<string>();
+        var values = new List<string>();
+        var paramDict = new Dictionary<string, object>();
 
-            int i = 0;
-            foreach (var field in normalFields)
-            {
-                if (string.Equals(field.Column, master.PRIMARY_KEY, StringComparison.OrdinalIgnoreCase))
-                    continue;
-                
-                var paramName = $"VAL{i}";
-                columns.Add($"[{field.Column}]");
-                values.Add($"@{paramName}");
-                paramDict[paramName] = field.Value;
-                i++;
-            }
+        if (!isIdentity)
+        {
+            var newId = GeneratePkValue(pkType);
+            columns.Add($"[{pkName}]");
+            values.Add("@ROWID");
+            paramDict["ROWID"] = newId!;
+        }
 
-            string sql;
-            if (isIdentity)
-            {
-                sql = $"INSERT INTO [{master.BASE_TABLE_NAME}] ({string.Join(", ", columns)}) OUTPUT INSERTED.[{master.PRIMARY_KEY}] VALUES ({string.Join(", ", values)})";
-                realRowId = _con.ExecuteScalar(sql, paramDict);
-            }
-            else
-            {
-                sql = $"INSERT INTO [{master.BASE_TABLE_NAME}] ({string.Join(", ", columns)}) VALUES ({string.Join(", ", values)})";
-                _con.Execute(sql, paramDict);
-            }
+        int i = 0;
+        foreach (var field in normalFields)
+        {
+            if (string.Equals(field.Column, pkName, StringComparison.OrdinalIgnoreCase))
+                continue;
+            var paramName = $"VAL{i}";
+            columns.Add($"[{field.Column}]");
+            values.Add($"@{paramName}");
+            paramDict[paramName] = field.Value ?? null;
+            i++;
+        }
+
+        string sql;
+        object? resultId = null;
+        if (isIdentity)
+        {
+            sql = $"INSERT INTO [{master.BASE_TABLE_NAME}] ({string.Join(", ", columns)}) OUTPUT INSERTED.[{pkName}] VALUES ({string.Join(", ", values)})";
+            resultId = _con.ExecuteScalar(sql, paramDict);
         }
         else
         {
-            realRowId = typedRowId;
-            if (normalFields.Any())
-            {
-                var setList = new List<string>();
-                var paramDict = new Dictionary<string, object> { ["ROWID"] = realRowId! };
-                int i = 0;
-                foreach (var field in normalFields)
-                {
-                    var paramName = $"VAL{i}";
-                    setList.Add($"[{field.Column}] = @{paramName}");
-                    paramDict[paramName] = field.Value;
-                    i++;
-                }
-
-                var sql = $"UPDATE [{master.BASE_TABLE_NAME}] SET {string.Join(", ", setList)} WHERE [{master.PRIMARY_KEY}] = @ROWID";
-                _con.Execute(sql, paramDict);
-            }
+            sql = $"INSERT INTO [{master.BASE_TABLE_NAME}] ({string.Join(", ", columns)}) VALUES ({string.Join(", ", values)})";
+            _con.Execute(sql, paramDict);
+            resultId = paramDict.ContainsKey("ROWID") ? paramDict["ROWID"] : null;
         }
-
-        // 5. 寫入/更新所有 Dropdown 選項答案（Upsert 到 FORM_FIELD_DROPDOWN_ANSWER）
-        foreach (var (ConfigId, OptionId) in dropdownAnswers)
-        {
-            _con.Execute(Sql.UpsertDropdownAnswer, new { ConfigId, RowId = realRowId, OptionId });
-        }
+        return resultId;
     }
+
+    /// <summary>
+    /// 動態產生 update
+    /// </summary>
+    private void UpdateRow(FORM_FIELD_Master master, string pkName, List<(string Column, object? Value)> normalFields, object realRowId)
+    {
+        if (!normalFields.Any()) return;
+        var setList = new List<string>();
+        var paramDict = new Dictionary<string, object> { ["ROWID"] = realRowId! };
+        int i = 0;
+        foreach (var field in normalFields)
+        {
+            var paramName = $"VAL{i}";
+            setList.Add($"[{field.Column}] = @{paramName}");
+            paramDict[paramName] = field.Value ?? null;
+            i++;
+        }
+        var sql = $"UPDATE [{master.BASE_TABLE_NAME}] SET {string.Join(", ", setList)} WHERE [{master.PRIMARY_KEY}] = @ROWID";
+        _con.Execute(sql, paramDict);
+    }
+
 
     private bool IsIdentityColumn(string tableName, string columnName)
     {
