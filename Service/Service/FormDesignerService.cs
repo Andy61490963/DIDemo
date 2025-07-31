@@ -190,6 +190,9 @@ public class FormDesignerService : IFormDesignerService
     {
         var controlType = model.CONTROL_TYPE ?? FormFieldHelper.GetDefaultControlType(model.DATA_TYPE);
 
+        // 只有在欄位可編輯時才允許設定必填
+        var isRequired = model.IS_EDITABLE && model.IS_REQUIRED;
+
         var param = new
         {
             ID = model.ID == Guid.Empty ? Guid.NewGuid() : model.ID,
@@ -198,7 +201,7 @@ public class FormDesignerService : IFormDesignerService
             model.COLUMN_NAME,
             model.DATA_TYPE,
             CONTROL_TYPE = controlType,
-            model.IS_REQUIRED,
+            IS_REQUIRED = isRequired,
             model.IS_VISIBLE,
             model.IS_EDITABLE,
             model.DEFAULT_VALUE

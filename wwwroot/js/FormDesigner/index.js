@@ -84,6 +84,7 @@ function loadFieldSetting(tableName, columnName, schemaType) {
         success: function (html) {
             $('#formFieldSetting').html(html);
             toggleDropdownButton();
+            syncEditableRequired();
         },
         error: function () {
             alert('載入欄位設定失敗');
@@ -100,7 +101,21 @@ function toggleDropdownButton() {
     }
 }
 
+// 當欄位不可編輯時，必填選項應一併取消並禁用
+function syncEditableRequired() {
+    const $editable = $('#editableCheck');
+    const $required = $('#isRequiredCheck');
+    if ($editable.length === 0 || $required.length === 0) return;
+
+    if (!$editable.prop('checked')) {
+        $required.prop('checked', false).prop('disabled', true);
+    } else {
+        $required.prop('disabled', false);
+    }
+}
+
 $(document).on('change', '#CONTROL_TYPE', toggleDropdownButton);
+$(document).on('change', '#editableCheck', syncEditableRequired);
 
 /*
 * 更新設定
