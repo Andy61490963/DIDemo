@@ -54,23 +54,15 @@
                                     @if (isRequired) { <span class="text-danger">*</span> } @field.Column
                                 </div>
                                 <div class="col-md-8">
-                                    @if (field.IS_EDITABLE)
-                                    {
-                                        <textarea name="@bindName" class="form-control"
-                                              @(isRequired ? "required" : "")
-                                              @Html.Raw(regexAttr)>@(field.CurrentValue ?? field.DefaultValue)</textarea>
-                                        <span class="text-danger validation-msg" data-for="@bindName"></span>
-                                    }
-                                    else
-                                    {
-                                        <textarea class="form-control" disabled>@(field.CurrentValue ?? field.DefaultValue)</textarea>
-                                        <input type="hidden" name="@bindName" value="@(field.CurrentValue ?? field.DefaultValue)" />
-                                    }
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                }
+                    <textarea name="@bindName" class="form-control"
+                              @(isRequired ? "required" : "")
+                              @Html.Raw(regexAttr)>@(field.CurrentValue ?? field.DefaultValue)</textarea>
+                    <span class="text-danger validation-msg" data-for="@bindName"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+}
                 @* ---------- Dropdown ---------- *@
                 else if (controlType == FormControlType.Dropdown)
                 {
@@ -81,53 +73,36 @@
                                     @if (isRequired) { <span class="text-danger">*</span> } @field.Column
                                 </div>
                                 <div class="col-md-8">
-                                    @if (field.IS_EDITABLE)
-                                    {
-                                        <select name="@bindName"
-                                                class="form-select dynamic-dropdown"
-                                                data-id="@field.FieldConfigId"
-                                                data-usesql="@field.ISUSESQL.ToString().ToLower()"
-                                                data-sql="@Html.Raw(field.DROPDOWNSQL)"
-                                                @(isRequired ? "required" : "")>
-                                            <option value="">-- 請選擇 --</option>
-                                            @foreach (var opt in field.OptionList ?? new())
-                                            {
-                                                var selected = field.CurrentValue is Guid gid && gid == opt.ID;
-                                                <option value="@opt.ID" selected="@(selected ? "selected" : null)">@opt.OPTION_TEXT</option>
-                                            }
-                                        </select>
-                                        <span class="text-danger validation-msg" data-for="@bindName"></span>
-                                    }
-                                    else
-                                    {
-                                        var selectedText = field.OptionList?.FirstOrDefault(o => o.ID.Equals(field.CurrentValue))?.OPTION_TEXT ?? "";
-                                        <input type="text" class="form-control" value="@selectedText" disabled />
-                                        <input type="hidden" name="@bindName" value="@(field.CurrentValue)" />
-                                    }
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                }
+                    <select name="@bindName"
+                            class="form-select dynamic-dropdown"
+                            data-id="@field.FieldConfigId"
+                            data-usesql="@field.ISUSESQL.ToString().ToLower()"
+                            data-sql="@Html.Raw(field.DROPDOWNSQL)"
+                            @(isRequired ? "required" : "")>
+                        <option value="">-- 請選擇 --</option>
+                        @foreach (var opt in field.OptionList ?? new())
+                        {
+                            var selected = field.CurrentValue is Guid gid && gid == opt.ID;
+                            <option value="@opt.ID" selected="@(selected ? "selected" : null)">@opt.OPTION_TEXT</option>
+                        }
+                    </select>
+                    <span class="text-danger validation-msg" data-for="@bindName"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+}
                 @* ---------- Checkbox ---------- *@
                 else if (controlType == FormControlType.Checkbox)
                 {
                     var isChecked = (field.CurrentValue?.ToString()?.ToLower() == "true");
                     <div class="form-check mt-1">
-                        @if (field.IS_EDITABLE)
-                        {
-                            <input type="checkbox" name="@bindName" value="true"
-                                   class="form-check-input" @(isChecked ? "checked" : "") />
-                            <span class="text-danger validation-msg" data-for="@bindName"></span>
-                        }
-                        else
-                        {
-                            <input type="checkbox" class="form-check-input" @(isChecked ? "checked" : "") disabled />
-                            <input type="hidden" name="@bindName" value="@(isChecked ? "true" : "")" />
-                        }
-                        <label class="form-check-label">啟用</label>
-                    </div>
-                }
+                    <input type="checkbox" name="@bindName" value="true"
+                           class="form-check-input" @(isChecked ? "checked" : "") />
+                    <span class="text-danger validation-msg" data-for="@bindName"></span>
+                    <label class="form-check-label">啟用</label>
+                </div>
+            }
                 @* ---------- Text / Number ---------- *@
                 else
                 {
@@ -138,26 +113,17 @@
                                     @if (isRequired) { <span class="text-danger">*</span> } @field.Column
                                 </div>
                                 <div class="col-md-8">
-                                    @if (field.IS_EDITABLE)
-                                    {
-                                        <input type="text" name="@bindName" class="form-control"
-                                               value="@(field.CurrentValue)"
-                                               data-required="@(isRequired.ToString().ToLower())"
-                                               @(isRequired ? "required" : "")
-                                               @Html.Raw(regexAttr) />
-                                        <span class="text-danger validation-msg" data-for="@bindName"></span>
-                                    }
-                                    else
-                                    {
-                                        <input type="text" class="form-control"
-                                               value="@(field.CurrentValue)" disabled />
-                                        <input type="hidden" name="@bindName" value="@(field.CurrentValue)" />
-                                    }
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                }
+                    <input type="text" name="@bindName" class="form-control"
+                           value="@(field.CurrentValue)"
+                           data-required="@(isRequired.ToString().ToLower())"
+                           @(isRequired ? "required" : "")
+                           @Html.Raw(regexAttr) />
+                    <span class="text-danger validation-msg" data-for="@bindName"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+}
             </div>
         }
     </div>

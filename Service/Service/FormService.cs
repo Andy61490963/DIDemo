@@ -159,7 +159,12 @@ public class FormService : IFormService
         var columnTypes = _formDataService.LoadColumnTypes(tableName);
         var configData = _formFieldConfigService.LoadFieldConfigData(masterId);
 
-        return configData.FieldConfigs
+        // 只保留可編輯欄位，將不可編輯欄位直接過濾掉以避免出現在前端
+        var editableConfigs = configData.FieldConfigs
+            .Where(cfg => cfg.IS_EDITABLE)
+            .ToList();
+
+        return editableConfigs
             .Select(cfg => BuildFieldViewModel(cfg, configData, columnTypes, schemaType))
             .ToList();
     }
@@ -222,10 +227,11 @@ public class FormService : IFormService
             var master = _formFieldMasterService.GetFormFieldMasterFromId(formId, tx);
 
             // 查欄位設定
+            // 取得欄位設定並帶出 IS_EDITABLE 欄位，後續用於權限檢查
             var configs = _con.Query<FormFieldConfigDto>(
-                "SELECT ID, COLUMN_NAME, CONTROL_TYPE, DATA_TYPE FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @Id",
+                "SELECT ID, COLUMN_NAME, CONTROL_TYPE, DATA_TYPE, IS_EDITABLE FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @Id",
                 new { Id = master.BASE_TABLE_ID },
-                transaction: tx).ToDictionary(x => x.ID);;
+                transaction: tx).ToDictionary(x => x.ID);
 
             // 1. 欄位 mapping & 型別處理
             var (normalFields, dropdownAnswers) = MapInputFields(input.InputFields, configs);
@@ -262,10 +268,10 @@ public class FormService : IFormService
             if (!configs.TryGetValue(field.FieldConfigId, out var cfg))
                 continue;                               // 找不到設定直接忽略
 
-            // --- 權限檢查 ---
-            // if (!cfg.IS_EDITABLE)
-            //     throw new ValidationException($"欄位「{cfg.COLUMN_NAME}」為唯讀，禁止修改。");
-            //
+            // 欄位若設定為不可編輯，直接忽略以防止未授權修改
+            if (!cfg.IS_EDITABLE)
+                continue;
+
             // // --- 必填檢查 ---
             // if (cfg.IS_REQUIRED && string.IsNullOrWhiteSpace(field.Value))
             //     throw new ValidationException($"欄位「{cfg.COLUMN_NAME}」為必填。");
