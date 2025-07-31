@@ -53,8 +53,9 @@
             @*     </div> *@
             @* </div> *@
             <div class="col-md-4 d-flex align-items-center">
+                @* 不可編輯時，必填也應禁用 *@
                 <div class="form-check">
-                    <input type="checkbox" asp-for="IS_REQUIRED" class="form-check-input" id="isRequiredCheck" />
+                    <input type="checkbox" asp-for="IS_REQUIRED" class="form-check-input" id="isRequiredCheck" disabled="@(!Model?.IS_EDITABLE ?? false)" />
                     <label class="form-check-label" for="isRequiredCheck">必填</label>
                 </div>
             </div>
