@@ -4,11 +4,11 @@ public static class ValidationRulesMap
 {
     private static readonly Dictionary<FormControlType, ValidationType[]> _map = new()
     {
-        { FormControlType.Text,     new[] { ValidationType.Regex, ValidationType.Email, ValidationType.Number } },
-        { FormControlType.Number,   new[] { ValidationType.Min, ValidationType.Max, ValidationType.Number } },
+        { FormControlType.Text,     new[] { ValidationType.Regex } },
+        { FormControlType.Number,   new[] { ValidationType.Min, ValidationType.Max } },
         { FormControlType.Date,     new[] { ValidationType.Min, ValidationType.Max } },
         { FormControlType.Checkbox, Array.Empty<ValidationType>() },
-        { FormControlType.Textarea, new[] { ValidationType.Regex, ValidationType.Email, ValidationType.Number } },
+        { FormControlType.Textarea, new[] { ValidationType.Regex } },
         { FormControlType.Dropdown, Array.Empty<ValidationType>() },
     };
 

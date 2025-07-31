@@ -200,8 +200,8 @@ $(document).on('click', '.save-rule', function () {
         VALIDATION_TYPE: parseInt($row.find('select[name="VALIDATION_TYPE"]').val()),
         VALIDATION_VALUE: $row.find('input[name="VALIDATION_VALUE"]').val(),
         MESSAGE_ZH: $row.find('input[name="MESSAGE_ZH"]').val(),
-        MESSAGE_EN: $row.find('input[name="MESSAGE_EN"]').val(),
-        VALIDATION_ORDER: parseInt($row.find('input[name="VALIDATION_ORDER"]').val())
+        MESSAGE_EN: $row.find('input[name="MESSAGE_EN"]').val()
+        // VALIDATION_ORDER: parseInt($row.find('input[name="VALIDATION_ORDER"]').val())
     };
 
     $.ajax({

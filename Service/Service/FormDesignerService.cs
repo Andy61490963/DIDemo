@@ -694,7 +694,6 @@ UPDATE FORM_FIELD_VALIDATION_RULE SET
     VALIDATION_VALUE = @VALIDATION_VALUE,
     MESSAGE_ZH       = @MESSAGE_ZH,
     MESSAGE_EN       = @MESSAGE_EN,
-    VALIDATION_ORDER = @VALIDATION_ORDER,
     EDIT_TIME        = GETDATE()
 WHERE ID = @ID";
         public const string DeleteValidationRule     = @"/**/

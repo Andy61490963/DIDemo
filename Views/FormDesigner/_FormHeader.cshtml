@@ -12,7 +12,7 @@
         <input asp-for="FORM_NAME" class="form-control" />
     </div>
     <div class="col-md-6 col-lg-3">
-        <label asp-for="BASE_TABLE_NAME" class="form-label">表格名稱</label>
+        <label asp-for="BASE_TABLE_NAME" class="form-label">主表名稱</label>
         <div class="input-group">
             <input asp-for="BASE_TABLE_NAME" class="form-control" id="tableNameInput" data-type=@TableSchemaQueryType.OnlyTable.ToInt() />
             <button class="btn btn-info" type="button" id="btnSearchTable">

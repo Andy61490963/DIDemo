@@ -11,11 +11,11 @@ public enum ValidationType
     Min = 2,
 
     [Display(Name = "正則表達式")]
-    Regex = 3,
+    Regex = 3
 
-    [Display(Name = "Email 格式")]
-    Email = 4,
-
-    [Display(Name = "數值格式")]
-    Number = 5
+    // [Display(Name = "Email 格式")]
+    // Email = 4,
+    //
+    // [Display(Name = "數值格式")]
+    // Number = 5
 }

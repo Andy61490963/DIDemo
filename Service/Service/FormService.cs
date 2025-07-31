@@ -269,6 +269,9 @@ public class FormService : IFormService
             // // --- 必填檢查 ---
             // if (cfg.IS_REQUIRED && string.IsNullOrWhiteSpace(field.Value))
             //     throw new ValidationException($"欄位「{cfg.COLUMN_NAME}」為必填。");
+            
+            if (string.IsNullOrEmpty(field.Value))
+                continue;
 
             if (cfg.CONTROL_TYPE == FormControlType.Dropdown)
             {
