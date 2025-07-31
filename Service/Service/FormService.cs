@@ -132,7 +132,7 @@ public class FormService : IFormService
             {
                 field.CurrentValue = optId;
             }
-            else if (dataRow?.TryGetValue(field.COLUMN_NAME, out var val) == true)
+            else if (dataRow?.TryGetValue(field.Column, out var val) == true)
             {
                 field.CurrentValue = val;
             }
@@ -235,7 +235,7 @@ public class FormService : IFormService
         return new FormFieldInputViewModel
         {
             FieldConfigId = field.ID,
-            COLUMN_NAME = field.COLUMN_NAME,
+            Column = field.COLUMN_NAME,
             CONTROL_TYPE = field.CONTROL_TYPE,
             DefaultValue = field.DEFAULT_VALUE,
             IS_VISIBLE = field.IS_VISIBLE,
@@ -304,6 +304,12 @@ public class FormService : IFormService
         {
             if (!configs.TryGetValue(field.FieldConfigId, out var cfg))
                 continue;
+
+            if (!string.IsNullOrWhiteSpace(field.Column) &&
+                !string.Equals(field.Column, cfg.Column, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
 
             if ((FormControlType)cfg.ControlType == FormControlType.Dropdown)
             {

@@ -21,6 +21,7 @@
 
             <div class="@colSize">
                 <input type="hidden" name="InputFields[@i].FieldConfigId" value="@field.FieldConfigId" />
+                <input type="hidden" name="InputFields[@i].Column" value="@field.Column" />
                 <input type="hidden" name="InputFields[@i].SOURCE_TABLE" value="@field.SOURCE_TABLE" />
                 @if (controlType == FormControlType.Textarea)
                 {
@@ -34,7 +35,7 @@
                                     {
                                         <span class="text-danger">*</span>
                                     }
-                                    @field.COLUMN_NAME
+                                    @field.Column
                                 </div>
 
                                 <!-- 右側輸入區 -->
@@ -57,7 +58,7 @@
                                     {
                                         <span class="text-danger">*</span>
                                     }
-                                    @field.COLUMN_NAME
+                                    @field.Column
                                 </div>
 
                                 <!-- 右側輸入區 -->
@@ -103,7 +104,7 @@
                                     {
                                         <span class="text-danger">*</span>
                                     }
-                                    @field.COLUMN_NAME
+                                    @field.Column
                                 </div>
 
                                 <!-- 右側輸入區 -->
