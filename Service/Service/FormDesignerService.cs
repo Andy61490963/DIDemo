@@ -222,6 +222,23 @@ public class FormDesignerService : IFormDesignerService
     }
 
     /// <summary>
+    /// 批次設定欄位的可編輯狀態。
+    /// 若設定為不可編輯，會同步取消必填。
+    /// </summary>
+    public void SetAllEditable(Guid formMasterId, string tableName, bool isEditable)
+    {
+        _con.Execute(Sql.SetAllEditable, new { formMasterId, tableName, isEditable });
+    }
+
+    /// <summary>
+    /// 批次設定欄位的必填狀態，僅對可編輯欄位生效。
+    /// </summary>
+    public void SetAllRequired(Guid formMasterId, string tableName, bool isRequired)
+    {
+        _con.Execute(Sql.SetAllRequired, new { formMasterId, tableName, isRequired });
+    }
+
+    /// <summary>
     /// 檢查指定 FORM_FIELD_CONFIG ID 是否已存在於設定資料表中。
     /// </summary>
     /// <param name="fieldId">欄位唯一識別碼</param>
@@ -677,6 +694,17 @@ WHEN NOT MATCHED THEN
 
         public const string CheckFieldExists         = @"/**/
 SELECT COUNT(1) FROM FORM_FIELD_CONFIG WHERE ID = @fieldId";
+
+        public const string SetAllEditable = @"/**/
+UPDATE FORM_FIELD_CONFIG
+SET IS_EDITABLE = @isEditable,
+    IS_REQUIRED = CASE WHEN @isEditable = 0 THEN 0 ELSE IS_REQUIRED END
+WHERE FORM_FIELD_Master_ID = @formMasterId AND TABLE_NAME = @tableName";
+
+        public const string SetAllRequired = @"/**/
+UPDATE FORM_FIELD_CONFIG
+SET IS_REQUIRED = CASE WHEN @isRequired = 1 AND IS_EDITABLE = 1 THEN 1 ELSE 0 END
+WHERE FORM_FIELD_Master_ID = @formMasterId AND TABLE_NAME = @tableName";
         
         public const string CountValidationRules     = @"/**/
 SELECT COUNT(1) FROM FORM_FIELD_VALIDATION_RULE WHERE FIELD_CONFIG_ID = @fieldId";

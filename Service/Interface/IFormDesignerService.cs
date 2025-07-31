@@ -12,6 +12,16 @@ public interface IFormDesignerService
 
     void UpsertField(FormFieldViewModel model, Guid formMasterId);
 
+    /// <summary>
+    /// 批次設定欄位的可編輯狀態。
+    /// </summary>
+    void SetAllEditable(Guid formMasterId, string tableName, bool isEditable);
+
+    /// <summary>
+    /// 批次設定欄位的必填狀態。
+    /// </summary>
+    void SetAllRequired(Guid formMasterId, string tableName, bool isRequired);
+
     bool CheckFieldExists(Guid fieldId);
     
     List<FormFieldValidationRuleDto> GetValidationRulesByFieldId(Guid fieldId);

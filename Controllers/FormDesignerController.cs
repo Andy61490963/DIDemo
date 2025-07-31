@@ -89,6 +89,52 @@ public class FormDesignerController : Controller
     }
 
     /// <summary>
+    /// 批次更新指定清單所有欄位的可編輯狀態。
+    /// 目前僅支援 SCHEMA_TYPE 為 OnlyView (1) 的欄位清單。
+    /// </summary>
+    /// <param name="formMasterId">FORM_FIELD_Master ID</param>
+    /// <param name="tableName">欄位所屬資料表名稱</param>
+    /// <param name="isEditable">更新後的可編輯狀態</param>
+    /// <param name="schemaType">查詢類型</param>
+    [HttpPost]
+    public IActionResult SetAllEditable(Guid formMasterId, string tableName, bool isEditable, TableSchemaQueryType schemaType)
+    {
+        if (schemaType != TableSchemaQueryType.OnlyView)
+        {
+            return BadRequest("僅支援檢視欄位清單的批次設定。");
+        }
+
+        _formDesignerService.SetAllEditable(formMasterId, tableName, isEditable);
+        var fields = _formDesignerService.GetFieldsByTableName(tableName, schemaType);
+        fields.ID = formMasterId;
+        fields.type = schemaType;
+        return PartialView("_FormFieldList", fields);
+    }
+
+    /// <summary>
+    /// 批次更新指定清單所有欄位的必填狀態。
+    /// 目前僅支援 SCHEMA_TYPE 為 OnlyView (1) 的欄位清單。
+    /// </summary>
+    /// <param name="formMasterId">FORM_FIELD_Master ID</param>
+    /// <param name="tableName">欄位所屬資料表名稱</param>
+    /// <param name="isRequired">更新後的必填狀態</param>
+    /// <param name="schemaType">查詢類型</param>
+    [HttpPost]
+    public IActionResult SetAllRequired(Guid formMasterId, string tableName, bool isRequired, TableSchemaQueryType schemaType)
+    {
+        if (schemaType != TableSchemaQueryType.OnlyView)
+        {
+            return BadRequest("僅支援檢視欄位清單的批次設定。");
+        }
+
+        _formDesignerService.SetAllRequired(formMasterId, tableName, isRequired);
+        var fields = _formDesignerService.GetFieldsByTableName(tableName, schemaType);
+        fields.ID = formMasterId;
+        fields.type = schemaType;
+        return PartialView("_FormFieldList", fields);
+    }
+
+    /// <summary>
     /// 檢查指定欄位 ID 是否存在於資料庫中(要先有控制元件，才能新增限制條件)
     /// </summary>
     /// <param name="fieldId">欄位唯一識別碼</param>
