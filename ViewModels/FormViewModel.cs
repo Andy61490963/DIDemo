@@ -14,7 +14,7 @@ public class FormSubmissionViewModel
 public class FormFieldInputViewModel
 {
     public Guid FieldConfigId { get; set; }
-    public string COLUMN_NAME { get; set; }
+    public string Column { get; set; } = string.Empty;
     public FormControlType CONTROL_TYPE { get; set; }
     public string? DefaultValue { get; set; }
     public bool IS_VISIBLE { get; set; }
