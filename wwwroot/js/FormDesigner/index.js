@@ -279,3 +279,48 @@ $(document).on('click', '.delete-rule', function () {
 $(document).on('click', '.closeModal', function () {
     $(this).closest('.modal').modal('hide');
 });
+
+/*
+ * 批次設定欄位的可編輯與必填
+ */
+function toggleAllEditable(btn) {
+    const $btn = $(btn);
+    const targetEditable = $btn.data('editable');
+    const $container = $btn.closest('.field-list-container');
+    const formMasterId = $container.data('master-id');
+    const tableName = $container.data('table-name');
+    const schemaType = $container.data('schema-type');
+
+    $.ajax({
+        url: '/FormDesigner/SetAllEditable',
+        type: 'POST',
+        data: { formMasterId, tableName, isEditable: targetEditable, schemaType },
+        success: function (html) {
+            $container.replaceWith(html);
+        },
+        error: function () {
+            alert('批次更新可編輯狀態失敗');
+        }
+    });
+}
+
+function toggleAllRequired(btn) {
+    const $btn = $(btn);
+    const targetRequired = $btn.data('required');
+    const $container = $btn.closest('.field-list-container');
+    const formMasterId = $container.data('master-id');
+    const tableName = $container.data('table-name');
+    const schemaType = $container.data('schema-type');
+
+    $.ajax({
+        url: '/FormDesigner/SetAllRequired',
+        type: 'POST',
+        data: { formMasterId, tableName, isRequired: targetRequired, schemaType },
+        success: function (html) {
+            $container.replaceWith(html);
+        },
+        error: function () {
+            alert('批次更新必填狀態失敗');
+        }
+    });
+}
