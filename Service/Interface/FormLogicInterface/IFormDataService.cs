@@ -6,4 +6,6 @@ namespace DynamicForm.Service.Interface.FormLogicInterface;
 public interface IFormDataService
 {
     List<IDictionary<string, object?>> GetRows(string tableName);
+
+    Dictionary<string, string> LoadColumnTypes(string tableName);
 }

@@ -21,4 +21,13 @@ public class FormDataService : IFormDataService
         return rows.Cast<IDictionary<string, object?>>().ToList();
     }
 
+    public Dictionary<string, string> LoadColumnTypes(string tableName)
+    {
+        return _con.Query<(string COLUMN_NAME, string DATA_TYPE)>(
+                @"/**/SELECT COLUMN_NAME, DATA_TYPE
+          FROM INFORMATION_SCHEMA.COLUMNS
+          WHERE TABLE_NAME = @TableName",
+                new { TableName = tableName })
+            .ToDictionary(x => x.COLUMN_NAME, x => x.DATA_TYPE, StringComparer.OrdinalIgnoreCase);
+    }
 }

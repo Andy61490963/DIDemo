@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using ClassLibrary;
 using Dapper;
 using DynamicForm.Helper;
@@ -33,10 +32,7 @@ public class FormService : IFormService
     }
     
     private readonly List<string> _excludeColumns;
-    /// <summary>
-    /// 取得指定表單對應檢視表的所有資料
-    /// 會將下拉選單欄位的值直接轉成對應顯示文字
-    /// </summary>
+
     /// <summary>
     /// 取得指定 SCHEMA_TYPE 下的表單資料清單，
     /// 已自動將下拉選欄位的值轉為顯示文字（OptionText）
@@ -63,7 +59,7 @@ public class FormService : IFormService
         //    同時收集所有資料列的主鍵 rowIds
         var rows = _dropdownService.ToFormDataRows(rawRows, master.PRIMARY_KEY, out var rowIds);
 
-        // // 6. 若無任何資料列，直接回傳結果，省略後面下拉選查詢
+        // 6. 若無任何資料列，直接回傳結果，省略後面下拉選查詢
         if (!rowIds.Any())
             return new FormListDataViewModel { FormId = master.ID, Columns = columns, Rows = rows };
         
@@ -157,55 +153,12 @@ public class FormService : IFormService
     /// <returns></returns>
    private List<FormFieldInputViewModel> GetFields(Guid masterId, TableSchemaQueryType schemaType, string tableName)
     {
-        var columnTypes = LoadColumnTypes(tableName);
-        var configData = LoadFieldConfigData(masterId);
+        var columnTypes = _formDataService.LoadColumnTypes(tableName);
+        var configData = _formFieldConfigService.LoadFieldConfigData(masterId);
 
         return configData.FieldConfigs
             .Select(cfg => BuildFieldViewModel(cfg, configData, columnTypes, schemaType))
             .ToList();
-    }
-
-    private Dictionary<string, string> LoadColumnTypes(string tableName)
-    {
-        return _con.Query<(string COLUMN_NAME, string DATA_TYPE)>(
-                @"SELECT COLUMN_NAME, DATA_TYPE
-          FROM INFORMATION_SCHEMA.COLUMNS
-          WHERE TABLE_NAME = @TableName",
-                new { TableName = tableName })
-            .ToDictionary(x => x.COLUMN_NAME, x => x.DATA_TYPE, StringComparer.OrdinalIgnoreCase);
-    }
-
-    private FieldConfigData LoadFieldConfigData(Guid masterId)
-    {
-        const string sql = @"SELECT FFC.*, FFM.FORM_NAME
-                    FROM FORM_FIELD_CONFIG FFC
-                    JOIN FORM_FIELD_Master FFM ON FFM.ID = FFC.FORM_FIELD_Master_ID
-                    WHERE FFM.ID = @ID
-                    ORDER BY FIELD_ORDER;
-
-                    SELECT R.*
-                    FROM FORM_FIELD_VALIDATION_RULE R
-                    JOIN FORM_FIELD_CONFIG C ON R.FIELD_CONFIG_ID = C.ID
-                    WHERE C.FORM_FIELD_Master_ID = @ID;
-
-                    SELECT D.*
-                    FROM FORM_FIELD_DROPDOWN D
-                    JOIN FORM_FIELD_CONFIG C ON D.FORM_FIELD_CONFIG_ID = C.ID
-                    WHERE C.FORM_FIELD_Master_ID = @ID;
-
-                    SELECT O.*
-                    FROM FORM_FIELD_DROPDOWN_OPTIONS O
-                    JOIN FORM_FIELD_DROPDOWN D ON O.FORM_FIELD_DROPDOWN_ID = D.ID
-                    JOIN FORM_FIELD_CONFIG C ON D.FORM_FIELD_CONFIG_ID = C.ID
-                    WHERE C.FORM_FIELD_Master_ID = @ID;";
-
-        using var multi = _con.QueryMultiple(sql, new { ID = masterId });
-
-        return new FieldConfigData(
-            multi.Read<FormFieldConfigDto>().ToList(),
-            multi.Read<FormFieldValidationRuleDto>().ToList(),
-            multi.Read<FORM_FIELD_DROPDOWN>().ToList(),
-            multi.Read<FORM_FIELD_DROPDOWN_OPTIONS>().ToList());
     }
 
     private FormFieldInputViewModel BuildFieldViewModel(
@@ -250,12 +203,6 @@ public class FormService : IFormService
         };
     }
 
-    private sealed record FieldConfigData(
-        List<FormFieldConfigDto> FieldConfigs,
-        List<FormFieldValidationRuleDto> ValidationRules,
-        List<FORM_FIELD_DROPDOWN> DropdownConfigs,
-        List<FORM_FIELD_DROPDOWN_OPTIONS> DropdownOptions);
-
     /// <summary>
     /// 儲存或更新表單資料（含下拉選項答案）
     /// </summary>
@@ -289,8 +236,8 @@ public class FormService : IFormService
             UpdateRow(master, pkName, normalFields, realRowId);
 
         // 3. Dropdown Upsert
-        foreach (var (ConfigId, OptionId) in dropdownAnswers)
-            _con.Execute(Sql.UpsertDropdownAnswer, new { ConfigId, RowId = realRowId, OptionId });
+        foreach (var (configId, optionId) in dropdownAnswers)
+            _con.Execute(Sql.UpsertDropdownAnswer, new { configId, RowId = realRowId, optionId });
     }
 
     private (List<(string Column, object? Value)> NormalFields, List<(Guid ConfigId, Guid OptionId)> DropdownAnswers)
@@ -318,42 +265,12 @@ public class FormService : IFormService
             }
             else
             {
-                var val = ConvertToColumnType(cfg.DataType, field.Value);
+                var val = ConvertToColumnTypeHelper.Convert(cfg.DataType, field.Value);
                 normalFields.Add((cfg.Column, val));
             }
         }
 
         return (normalFields, dropdownAnswers);
-    }
-
-    /// <summary>
-    /// 型別轉換，集中管理。可以支援 int、datetime、decimal、bool、string、null…
-    /// </summary>
-    private object? ConvertToColumnType(string? sqlType, object? value)
-    {
-        if (value is null) return null;
-        var str = value.ToString();
-
-        if (string.IsNullOrWhiteSpace(sqlType)) return value;
-
-        switch (sqlType.ToLower())
-        {
-            case "int":
-            case "bigint":
-                return long.TryParse(str, out var l) ? l : null;
-            case "decimal":
-            case "numeric":
-                return decimal.TryParse(str, out var d) ? d : null;
-            case "bit":
-                return str == "1" || str.Equals("true", StringComparison.OrdinalIgnoreCase);
-            case "datetime":
-            case "smalldatetime":
-            case "date":
-                if (DateTime.TryParse(str, out var dt)) return dt;
-                return null;
-            default:
-                return null;
-        }
     }
 
     /// <summary>
@@ -497,45 +414,6 @@ WHERE TABLE_NAME = @TableName
         }
     }
     
-    /// <summary>
-    /// 傳入 View 名稱，回傳欄位名稱與來源表對應（Key: 欄位名, Value: 來源表）
-    /// </summary>
-    public Dictionary<string, string?> GetViewColumnSources(string viewName)
-    {
-        // 1️⃣ 讀 View 定義
-        const string sql = @"
-            SELECT m.definition
-            FROM sys.views v
-            JOIN sys.sql_modules m ON m.object_id = v.object_id
-            WHERE v.name = @viewName;";
-        string? viewDef = _con.QueryFirstOrDefault<string>(sql, new { viewName });
-        if (string.IsNullOrWhiteSpace(viewDef))
-            throw new InvalidOperationException($"找不到 View：{viewName}");
-
-        // 2️⃣ ScriptDom 解析
-        var parser = new TSql150Parser(initialQuotedIdentifiers: false);
-        using var sr = new StringReader(viewDef);
-        var fragment = parser.Parse(sr, out var errors);
-        if (errors.Count > 0)
-            throw new InvalidOperationException($"SQL 解析失敗：{errors[0].Message}");
-
-        // 3️⃣ 先收集「別名 ➜ 表名」
-        var alias2Table = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var tblVisitor  = new TableAliasVisitor(alias2Table);
-        fragment.Accept(tblVisitor);
-
-        // 4️⃣ 再收集 SELECT 欄位（保持順序）
-        var colVisitor = new ColumnVisitor(alias2Table);
-        fragment.Accept(colVisitor);
-
-        // 5️⃣ 轉成 Dictionary（插入順序即輸出順序）
-        var dict = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (col, tbl) in colVisitor.Columns)
-            dict.Add(col, tbl);
-
-        return dict;
-    }
-
     /* ---------- Visitors ---------- */
 
     /// <summary>掃 FROM / JOIN，建立 alias ➜ table 對照</summary>
