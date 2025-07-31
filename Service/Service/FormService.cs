@@ -1,9 +1,11 @@
+using System.ComponentModel.DataAnnotations;
 using ClassLibrary;
 using Dapper;
 using DynamicForm.Helper;
 using DynamicForm.Models;
 using DynamicForm.Service.Interface;
 using DynamicForm.Service.Interface.FormLogicInterface;
+using DynamicForm.Service.Interface.TransactionInterface;
 using Microsoft.Data.SqlClient;
 
 namespace DynamicForm.Service.Service;
@@ -11,6 +13,7 @@ namespace DynamicForm.Service.Service;
 public class FormService : IFormService
 {
     private readonly SqlConnection _con;
+    private readonly ITransactionService _txService;
     private readonly IConfiguration _configuration;
     private readonly IFormFieldMasterService _formFieldMasterService;
     private readonly ISchemaService _schemaService;
@@ -18,9 +21,10 @@ public class FormService : IFormService
     private readonly IFormDataService _formDataService;
     private readonly IDropdownService _dropdownService;
     
-    public FormService(SqlConnection connection, IFormFieldMasterService formFieldMasterService, ISchemaService schemaService, IFormFieldConfigService formFieldConfigService, IDropdownService dropdownService, IFormDataService formDataService, IConfiguration configuration)
+    public FormService(SqlConnection connection, ITransactionService txService, IFormFieldMasterService formFieldMasterService, ISchemaService schemaService, IFormFieldConfigService formFieldConfigService, IDropdownService dropdownService, IFormDataService formDataService, IConfiguration configuration)
     {
         _con = connection;
+        _txService = txService;
         _configuration = configuration;
         _formFieldMasterService = formFieldMasterService;
         _schemaService = schemaService;
@@ -103,7 +107,7 @@ public class FormService : IFormService
         if (!string.IsNullOrWhiteSpace(rowId))
         {
             // 3.1 取得主表主鍵名稱/型別/值
-            var (pkName, pkType, pkValue) = FindPk(master, rowId);
+            var (pkName, pkType, pkValue) = _schemaService.ResolvePk(master.BASE_TABLE_NAME, rowId);
 
             // 3.2 查詢主表資料（參數化防注入）
             var sql = $"SELECT * FROM [{master.BASE_TABLE_NAME}] WHERE [{pkName}] = @id";
@@ -208,85 +212,101 @@ public class FormService : IFormService
     /// <param name="input">前端送出的表單資料</param>
     public void SubmitForm(FormSubmissionInputModel input)
     {
-        var formId = input.FormId;
-        var rowId = input.RowId;
+        _txService.WithTransaction(tx =>
+        {
+            var formId = input.FormId;
+            var rowId = input.RowId;
 
-        // 查表單主設定
-        var master = _formFieldMasterService.GetFormFieldMasterFromId(formId);
+            // 查表單主設定
+            var master = _formFieldMasterService.GetFormFieldMasterFromId(formId, tx);
 
-        // 查欄位設定
-        var configs = _con.Query<(Guid Id, string Column, int ControlType, string? DataType)>(
-            "SELECT ID, COLUMN_NAME, CONTROL_TYPE, DATA_TYPE FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @Id",
-            new { Id = master.BASE_TABLE_ID }
-        ).ToDictionary(c => c.Id);
+            // 查欄位設定
+            var configs = _con.Query<FormFieldConfigDto>(
+                "SELECT ID, COLUMN_NAME, CONTROL_TYPE, DATA_TYPE FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @Id",
+                new { Id = master.BASE_TABLE_ID },
+                transaction: tx).ToDictionary(x => x.ID);;
 
-        // 1. 欄位 mapping & 型別處理
-        var (normalFields, dropdownAnswers) = MapInputFields(input.InputFields, configs);
+            // 1. 欄位 mapping & 型別處理
+            var (normalFields, dropdownAnswers) = MapInputFields(input.InputFields, configs);
 
-        // 2. Insert/Update 決策
-        var (pkName, pkType, typedRowId) = FindPk(master, rowId);
-        bool isInsert = string.IsNullOrEmpty(rowId);
-        bool isIdentity = IsIdentityColumn(master.BASE_TABLE_NAME, pkName);
-        object? realRowId = typedRowId;
+            // 2. Insert/Update 決策
+            var (pkName, pkType, typedRowId) = _schemaService.ResolvePk(master.BASE_TABLE_NAME, rowId, tx);
+            bool isInsert = string.IsNullOrEmpty(rowId);
+            bool isIdentity = _schemaService.IsIdentityColumn(master.BASE_TABLE_NAME, pkName, tx);
+            object? realRowId = typedRowId;
 
-        if (isInsert)
-            realRowId = InsertRow(master, pkName, pkType, isIdentity, normalFields);
-        else
-            UpdateRow(master, pkName, normalFields, realRowId);
+            if (isInsert)
+                realRowId = InsertRow(master, pkName, pkType, isIdentity, normalFields, tx);
+            else
+                UpdateRow(master, pkName, normalFields, realRowId, tx);
 
-        // 3. Dropdown Upsert
-        foreach (var (configId, optionId) in dropdownAnswers)
-            _con.Execute(Sql.UpsertDropdownAnswer, new { configId, RowId = realRowId, optionId });
+            // 3. Dropdown Upsert
+            foreach (var (configId, optionId) in dropdownAnswers)
+            {
+                _con.Execute(Sql.UpsertDropdownAnswer, new { configId, RowId = realRowId, optionId }, transaction: tx);
+            }
+        });
     }
 
-    private (List<(string Column, object? Value)> NormalFields, List<(Guid ConfigId, Guid OptionId)> DropdownAnswers)
+    private (List<(string Column, object? Value)> NormalFields,
+        List<(Guid ConfigId, Guid OptionId)> DropdownAnswers)
         MapInputFields(IEnumerable<FormInputField> inputFields,
-            Dictionary<Guid, (Guid Id, string Column, int ControlType, string? DataType)> configs)
+            IReadOnlyDictionary<Guid, FormFieldConfigDto> configs)
     {
-        var normalFields = new List<(string Column, object? Value)>();
-        var dropdownAnswers = new List<(Guid ConfigId, Guid OptionId)>();
+        var normal = new List<(string Column, object? Value)>();
+        var ddAns  = new List<(Guid ConfigId, Guid OptionId)>();
 
         foreach (var field in inputFields)
         {
             if (!configs.TryGetValue(field.FieldConfigId, out var cfg))
-                continue;
+                continue;                               // 找不到設定直接忽略
 
-            if (!string.IsNullOrWhiteSpace(field.Column) &&
-                !string.Equals(field.Column, cfg.Column, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
+            // --- 權限檢查 ---
+            // if (!cfg.IS_EDITABLE)
+            //     throw new ValidationException($"欄位「{cfg.COLUMN_NAME}」為唯讀，禁止修改。");
+            //
+            // // --- 必填檢查 ---
+            // if (cfg.IS_REQUIRED && string.IsNullOrWhiteSpace(field.Value))
+            //     throw new ValidationException($"欄位「{cfg.COLUMN_NAME}」為必填。");
 
-            if ((FormControlType)cfg.ControlType == FormControlType.Dropdown)
+            if (cfg.CONTROL_TYPE == FormControlType.Dropdown)
             {
-                if (Guid.TryParse(field.Value, out var optionId))
-                    dropdownAnswers.Add((cfg.Id, optionId));
+                if (Guid.TryParse(field.Value, out var optId))
+                    ddAns.Add((cfg.ID, optId));
             }
             else
             {
-                var val = ConvertToColumnTypeHelper.Convert(cfg.DataType, field.Value);
-                normalFields.Add((cfg.Column, val));
+                var val = ConvertToColumnTypeHelper.Convert(cfg.DATA_TYPE, field.Value);
+                normal.Add((cfg.COLUMN_NAME, val));
             }
         }
-
-        return (normalFields, dropdownAnswers);
+        return (normal, ddAns);
     }
 
     /// <summary>
-    /// 動態產生 insert，支援 identity or 非 identity
+    /// 實作 INSERT 資料邏輯，支援 Identity 與非 Identity 主鍵模式
     /// </summary>
-    private object InsertRow(FORM_FIELD_Master master, string pkName, string pkType, bool isIdentity, List<(string Column, object? Value)> normalFields)
+    private object InsertRow(
+        FORM_FIELD_Master master,
+        string pkName,
+        string pkType,
+        bool isIdentity,
+        List<(string Column, object? Value)> normalFields,
+        SqlTransaction tx 
+    )
     {
+        const string RowIdParamName = "ROWID";
         var columns = new List<string>();
         var values = new List<string>();
         var paramDict = new Dictionary<string, object>();
 
+        // 若主鍵非 Identity，手動產生主鍵值
         if (!isIdentity)
         {
-            var newId = GeneratePkValue(pkType);
+            var newId = GeneratePkValueHelper.GeneratePkValue(pkType); // 支援 Guid / int / string 等
             columns.Add($"[{pkName}]");
-            values.Add("@ROWID");
-            paramDict["ROWID"] = newId!;
+            values.Add($"@{RowIdParamName}");
+            paramDict[RowIdParamName] = newId!;
         }
 
         int i = 0;
@@ -294,103 +314,90 @@ public class FormService : IFormService
         {
             if (string.Equals(field.Column, pkName, StringComparison.OrdinalIgnoreCase))
                 continue;
-            var paramName = $"VAL{i}";
+
+            var paramName = $"VAL{i++}";
             columns.Add($"[{field.Column}]");
             values.Add($"@{paramName}");
-            paramDict[paramName] = field.Value ?? null;
-            i++;
+            paramDict[paramName] = field.Value;
         }
 
         string sql;
-        object? resultId = null;
-        if (isIdentity)
+        object? resultId;
+
+        if (isIdentity && !normalFields.Any())
         {
-            sql = $"INSERT INTO [{master.BASE_TABLE_NAME}] ({string.Join(", ", columns)}) OUTPUT INSERTED.[{pkName}] VALUES ({string.Join(", ", values)})";
-            resultId = _con.ExecuteScalar(sql, paramDict);
+            sql = $@"
+                INSERT INTO [{master.BASE_TABLE_NAME}] DEFAULT VALUES;
+                SELECT CAST(SCOPE_IDENTITY() AS {pkType});";
+
+            resultId = _con.ExecuteScalar(sql, transaction: tx);
+        }
+        else if (isIdentity)
+        {
+            sql = $@"
+                INSERT INTO [{master.BASE_TABLE_NAME}]
+                    ({string.Join(", ", columns)})
+                OUTPUT INSERTED.[{pkName}]
+                VALUES ({string.Join(", ", values)})";
+
+            resultId = _con.ExecuteScalar(sql, paramDict, tx); 
         }
         else
         {
-            sql = $"INSERT INTO [{master.BASE_TABLE_NAME}] ({string.Join(", ", columns)}) VALUES ({string.Join(", ", values)})";
-            _con.Execute(sql, paramDict);
-            resultId = paramDict.ContainsKey("ROWID") ? paramDict["ROWID"] : null;
-        }
-        return resultId;
-    }
+            sql = $@"
+                INSERT INTO [{master.BASE_TABLE_NAME}]
+                    ({string.Join(", ", columns)})
+                VALUES ({string.Join(", ", values)})";
 
+            _con.Execute(sql, paramDict, tx); 
+            resultId = paramDict[RowIdParamName];
+        }
+
+        return resultId!;
+    }
+    
     /// <summary>
     /// 動態產生 update
     /// </summary>
-    private void UpdateRow(FORM_FIELD_Master master, string pkName, List<(string Column, object? Value)> normalFields, object realRowId)
+    /// <summary>
+    /// 動態產生並執行 UPDATE 語法，用於更新資料表中的指定主鍵資料列。
+    /// </summary>
+    /// <param name="master">表單主設定資料（包含 Base Table 與主鍵欄位名稱）</param>
+    /// <param name="pkName">表單 pkName </param>
+    /// <param name="normalFields">需要更新的欄位集合（欄位名與新值）</param>
+    /// <param name="realRowId">實際的主鍵值（用於 WHERE 條件）</param>
+    /// <param name="tx">交易條件</param>
+    private void UpdateRow(
+        FORM_FIELD_Master master,
+        string pkName,
+        List<(string Column, object? Value)> normalFields,
+        object realRowId,
+        SqlTransaction tx)
     {
+        // 若無更新欄位，直接結束，不執行 SQL
         if (!normalFields.Any()) return;
+
+        // 動態產生 SET 子句，並準備對應參數字典
         var setList = new List<string>();
         var paramDict = new Dictionary<string, object> { ["ROWID"] = realRowId! };
+
         int i = 0;
         foreach (var field in normalFields)
         {
+            // 每一個欄位會對應一組參數：VAL0、VAL1、... 以避免參數衝突
             var paramName = $"VAL{i}";
-            setList.Add($"[{field.Column}] = @{paramName}");
-            paramDict[paramName] = field.Value ?? null;
+            setList.Add($"[{field.Column}] = @{paramName}");         // 欄位名用中括號包起來避免保留字
+            paramDict[paramName] = field.Value ?? null;              // 允許欄位值為 null
             i++;
         }
-        var sql = $"UPDATE [{master.BASE_TABLE_NAME}] SET {string.Join(", ", setList)} WHERE [{master.PRIMARY_KEY}] = @ROWID";
-        _con.Execute(sql, paramDict);
-    }
 
-
-    private bool IsIdentityColumn(string tableName, string columnName)
-    {
-        var sql = @"SELECT COLUMNPROPERTY(OBJECT_ID(@TableName), @ColumnName, 'IsIdentity') AS IsIdentity";
-        var isIdentity = _con.ExecuteScalar<int>(sql, new { TableName = tableName, ColumnName = columnName });
-        return isIdentity == 1;
-    }
-    
-    // ========== 主鍵自動產生 Helper ==========
-    private static object GeneratePkValue(string pkType)
-    {
-        switch (pkType.ToLower())
-        {
-            case "uniqueidentifier": return Guid.NewGuid();
-            case "decimal": return RandomDecimalHelper.GenerateRandomDecimal();
-            case "numeric": return 0m;
-            case "bigint": return 0L;
-            case "int": return 0;
-            case "nvarchar":
-            case "varchar":
-            case "char": return Guid.NewGuid().ToString("N");
-            default: throw new NotSupportedException($"不支援的主鍵型別: {pkType}");
-        }
-    }
-    
-    /// <summary>
-    /// 動態查詢 view/table 的主鍵欄位名稱、型別，並將 id 轉型成正確型別
-    /// </summary>
-    private (string PkName, string PkType, object? Value) FindPk(FORM_FIELD_Master master, string? fromId)
-    {
-        // 組 LIKE 條件（如 "COLUMN_NAME LIKE '%ID%' OR COLUMN_NAME LIKE '%SID%'"）
-        var likeConditions = _excludeColumns
-            .Select(x => $"COLUMN_NAME LIKE '%{x}%'")
-            .ToList();
-        var whereClause = string.Join(" OR ", likeConditions);
-
-        // 查出 pkName、pkType
+        // 組合最終 SQL 語句：UPDATE 表 SET 欄位1 = @, 欄位2 = @ ... WHERE 主鍵 = @ROWID
         var sql = $@"
-SELECT COLUMN_NAME, DATA_TYPE 
-FROM INFORMATION_SCHEMA.COLUMNS
-WHERE TABLE_NAME = @TableName
-  AND ({whereClause})
-";
-        var pkInfo = _con.QueryFirstOrDefault<(string ColumnName, string DataType)>(sql, new { TableName = master.VIEW_TABLE_NAME });
+        UPDATE [{master.BASE_TABLE_NAME}] 
+        SET {string.Join(", ", setList)} 
+        WHERE [{pkName}] = @ROWID";
 
-        if (pkInfo.Equals(default((string, string))))
-            throw new Exception("找不到符合規則的主鍵！");
-
-        // 動態轉換 fromId 型別
-        object? idValue = fromId != null
-            ? ConvertToColumnTypeHelper.ConvertPkType(fromId, pkInfo.DataType)
-            : null;
-
-        return (pkInfo.ColumnName, pkInfo.DataType, idValue);
+        _con.Execute(sql, paramDict, transaction: tx);
     }
     
 private static class Sql

@@ -22,10 +22,10 @@ public class FormFieldMasterService : IFormFieldMasterService
             new { TYPE = type.ToInt() });
     }
     
-    public FORM_FIELD_Master? GetFormFieldMasterFromId(Guid id)
+    public FORM_FIELD_Master GetFormFieldMasterFromId(Guid id, SqlTransaction? tx = null)
     {
-        return _con.QueryFirstOrDefault<FORM_FIELD_Master>(
+        return _con.QueryFirst<FORM_FIELD_Master>(
             "/**/SELECT * FROM FORM_FIELD_Master WHERE ID = @id",
-            new { id });
+            new { id }, transaction: tx);
     }
 }

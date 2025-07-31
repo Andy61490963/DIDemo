@@ -2,7 +2,9 @@ using DynamicForm.Service.Interface;
 using DynamicForm.Service.Service;
 using DynamicForm.Models;
 using DynamicForm.Service.Interface.FormLogicInterface;
+using DynamicForm.Service.Interface.TransactionInterface;
 using DynamicForm.Service.Service.FormLogicService;
+using DynamicForm.Service.Service.TransactionService;
 using Microsoft.Data.SqlClient;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,6 +12,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOptions();
 
+builder.Services.AddScoped<ITransactionService, TransactionService>();
 // Service
 builder.Services.AddScoped<IFormListService, FormListService>();
 builder.Services.AddScoped<IFormDesignerService, FormDesignerService>();
@@ -21,6 +24,7 @@ builder.Services.AddScoped<IFormFieldConfigService, FormFieldConfigService>();
 builder.Services.AddScoped<IDropdownService, DropdownService>();
 builder.Services.AddScoped<IFormDataService, FormDataService>();
 builder.Services.AddScoped<IFormService, FormService>();
+
 
 
 builder.Services.AddScoped<SqlConnection, SqlConnection>(_ =>
