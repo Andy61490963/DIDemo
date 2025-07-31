@@ -6,6 +6,7 @@ using DynamicForm.Helper;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System;
 using DynamicForm.Service.Interface.FormLogicInterface;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Options;
@@ -501,7 +502,14 @@ public class FormDesignerService : IFormDesignerService
 
     public Guid SaveFormHeader(FORM_FIELD_Master model)
     {
-        // 若不存在則產生新 ID
+        // 確保主表與顯示用 View 皆能成功查詢，避免儲存無效設定
+        if (GetTableSchema(model.BASE_TABLE_NAME, TableSchemaQueryType.OnlyTable).Count == 0)
+            throw new InvalidOperationException("主表名稱查無資料");
+
+        if (GetTableSchema(model.VIEW_TABLE_NAME, TableSchemaQueryType.OnlyView).Count == 0)
+            throw new InvalidOperationException("顯示用 View 名稱查無資料");
+
+        // 若未指定 ID 則產生新 ID
         if (model.ID == Guid.Empty)
         {
             model.ID = Guid.NewGuid();
