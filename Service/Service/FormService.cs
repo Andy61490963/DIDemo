@@ -5,7 +5,6 @@ using DynamicForm.Models;
 using DynamicForm.Service.Interface;
 using DynamicForm.Service.Interface.FormLogicInterface;
 using Microsoft.Data.SqlClient;
-using Microsoft.SqlServer.TransactSql.ScriptDom;
 
 namespace DynamicForm.Service.Service;
 
@@ -414,51 +413,6 @@ WHERE TABLE_NAME = @TableName
         }
     }
     
-    /* ---------- Visitors ---------- */
-
-    /// <summary>掃 FROM / JOIN，建立 alias ➜ table 對照</summary>
-    private sealed class TableAliasVisitor : TSqlFragmentVisitor
-    {
-        private readonly Dictionary<string, string> _map;
-        public TableAliasVisitor(Dictionary<string, string> map) => _map = map;
-
-        public override void Visit(NamedTableReference node)
-        {
-            if (node.Alias is not null)
-                _map[node.Alias.Value] = node.SchemaObject.BaseIdentifier.Value;
-        }
-    }
-
-    /// <summary>掃最外層 SELECT，依序收集欄位</summary>
-    private sealed class ColumnVisitor : TSqlFragmentVisitor
-    {
-        private readonly Dictionary<string, string> _alias2Table;
-        private bool _done;                 // 只抓第一個 QuerySpecification
-        public List<(string Col, string? Tbl)> Columns { get; } = new();
-
-        public ColumnVisitor(Dictionary<string, string> alias2Table) => _alias2Table = alias2Table;
-
-        public override void Visit(QuerySpecification node)
-        {
-            if (_done) return;              // 只處理最外層
-            _done = true;
-
-            foreach (var elem in node.SelectElements)
-            {
-                if (elem is SelectScalarExpression sse &&
-                    sse.Expression is ColumnReferenceExpression col)
-                {
-                    var ids = col.MultiPartIdentifier.Identifiers;
-                    if (ids.Count < 2) continue; // 可能是單欄位或 *
-                    string alias = ids[0].Value;
-                    string colName = (sse.ColumnName?.Value) ?? ids[1].Value;
-                    _alias2Table.TryGetValue(alias, out var tbl);
-
-                    Columns.Add((colName, tbl)); // 順序 = 插入順序
-                }
-            }
-        }
-    }
 private static class Sql
     {
         public const string UpsertDropdownAnswer = @"
