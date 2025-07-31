@@ -3,10 +3,12 @@
 @using ClassLibrary
 @model FormFieldViewModel?
 @{ 
-    var isDisabled = Model?.FORM_FIELD_Master_ID == Guid.Empty; 
+    var isDisabled = (Model?.FORM_FIELD_Master_ID == Guid.Empty) || (Model?.IS_PK ?? false);   // ★ PK 也停用
     var schemaType = Model?.SchemaType;
     var updateTarget = schemaType == TableSchemaQueryType.OnlyView ? "#formViewFieldList" : "#formFieldList";
-    var showSettingRuleButton = Model != null && ValidationRulesMap.HasValidations(Model.CONTROL_TYPE ?? FormControlType.Text);
+    var showSettingRuleButton = Model != null
+                                && ValidationRulesMap.HasValidations(Model.CONTROL_TYPE ?? FormControlType.Text)
+                                && !(Model.IS_PK);                                            // PK 不顯示
 }
 <form id="field-setting-form" asp-action="UpdateFieldSetting" asp-controller="FormDesigner"
       data-ajax="true" data-ajax-method="post" data-ajax-mode="replace" data-ajax-update="@updateTarget">

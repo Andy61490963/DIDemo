@@ -83,6 +83,11 @@ public class FormFieldViewModel
     public Guid ID { get; set; }
     
     /// <summary>
+    /// 這個欄位是否為Pk
+    /// </summary>
+    public bool IS_PK { get; set; }
+    
+    /// <summary>
     /// parent
     /// </summary>
     public Guid FORM_FIELD_Master_ID { get; set; }

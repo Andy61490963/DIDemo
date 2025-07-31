@@ -297,7 +297,7 @@ public class FormDesignerController : Controller
             VIEW_TABLE_NAME = model.VIEW_TABLE_NAME,
             BASE_TABLE_ID = model.BASE_TABLE_ID,
             VIEW_TABLE_ID = model.VIEW_TABLE_ID,
-            PRIMARY_KEY = model.PRIMARY_KEY,
+            // PRIMARY_KEY = model.PRIMARY_KEY,
             STATUS = (int)TableStatusType.Active,
             SCHEMA_TYPE = TableSchemaQueryType.All
         };

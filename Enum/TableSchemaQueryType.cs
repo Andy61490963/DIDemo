@@ -4,7 +4,12 @@ namespace ClassLibrary;
 
 public enum TableSchemaQueryType
 {
-    OnlyTable = 0,   // 只查實體表
-    OnlyView = 1,    // 只查 View（V_ 開頭）
+    [Display(Name = "主表")]
+    OnlyTable = 0,   
+    
+    [Display(Name = "檢視表")]
+    OnlyView = 1,   
+    
+    [Display(Name = "主表與檢視表")]
     All = 2        
 }

@@ -22,7 +22,40 @@ public class SchemaService : ISchemaService
             "/**/SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @table",
             new { table }).ToList();
     }
+
+    /// <summary>
+    /// 取得資料表的主鍵欄位名稱（僅限單一主鍵）
+    /// </summary>
+    /// <param name="tableName">資料表名稱</param>
+    /// <returns>主鍵欄位名稱，若無主鍵則為 null</returns>
+    public string? GetPrimaryKeyColumn(string tableName)
+    {
+        const string sql = @"
+SELECT KU.COLUMN_NAME
+FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS TC
+JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE KU
+  ON TC.CONSTRAINT_NAME = KU.CONSTRAINT_NAME
+WHERE TC.CONSTRAINT_TYPE = 'PRIMARY KEY'
+  AND TC.TABLE_NAME = @tableName";
+
+        return _con.QueryFirstOrDefault<string>(sql, new { tableName });
+    }
     
+    /// <summary>抓取指定 Table 的主鍵欄位名稱集合 (忽略大小寫)</summary>
+    public HashSet<string> GetPrimaryKeyColumns(string tableName)
+    {
+        const string sqlPk = @"/**/
+SELECT KU.COLUMN_NAME
+FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS TC
+JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE KU
+  ON TC.CONSTRAINT_NAME = KU.CONSTRAINT_NAME
+WHERE TC.CONSTRAINT_TYPE = 'PRIMARY KEY'
+  AND TC.TABLE_NAME = @tableName";
+
+        return _con.Query<string>(sqlPk, new { tableName })
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
     /// <summary>
     /// 查詢主鍵欄位名稱、型別，並將 id 轉型成正確型別
     /// </summary>

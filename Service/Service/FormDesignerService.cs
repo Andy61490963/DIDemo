@@ -6,6 +6,7 @@ using DynamicForm.Helper;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using DynamicForm.Service.Interface.FormLogicInterface;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Options;
 
@@ -15,11 +16,13 @@ public class FormDesignerService : IFormDesignerService
 {
     private readonly SqlConnection _con;
     private readonly IConfiguration _configuration;
+    private readonly ISchemaService _schemaService;
     
-    public FormDesignerService(SqlConnection connection, IConfiguration configuration)
+    public FormDesignerService(SqlConnection connection, IConfiguration configuration, ISchemaService schemaService)
     {
         _con = connection;
         _configuration = configuration;
+        _schemaService = schemaService;
         _excludeColumns = _configuration.GetSection("DropdownSqlSettings:ExcludeColumns").Get<List<string>>() ?? new();
     }
 
@@ -87,36 +90,39 @@ public class FormDesignerService : IFormDesignerService
 
         var configs= GetFieldConfigs(tableName);
         var requiredFieldIds= GetRequiredFieldIds();
+
+        // 查 PK
+        var pk = _schemaService.GetPrimaryKeyColumns(tableName);
         
         var res = columns.Select(col =>
         {
             var hasConfig = configs.TryGetValue(col.COLUMN_NAME, out var cfg);
-            var fieldId   = hasConfig ? cfg!.ID : Guid.NewGuid();
-            var dataType  = col.DATA_TYPE;
+            var fieldId = hasConfig ? cfg!.ID : Guid.NewGuid();
+            var dataType = col.DATA_TYPE;
 
             return new FormFieldViewModel
             {
-                ID                     = fieldId,
-                FORM_FIELD_Master_ID   = cfg?.FORM_FIELD_Master_ID ?? Guid.Empty,
-                TableName              = tableName,
-                COLUMN_NAME            = col.COLUMN_NAME,
-                SOURCE_TABLE           = col.SOURCE_TABLE,
-                DATA_TYPE              = dataType,
-                CONTROL_TYPE           = cfg?.CONTROL_TYPE,
+                ID = fieldId,
+                FORM_FIELD_Master_ID = cfg?.FORM_FIELD_Master_ID ?? Guid.Empty,
+                TableName = tableName,
+                COLUMN_NAME = col.COLUMN_NAME,
+                SOURCE_TABLE = col.SOURCE_TABLE,
+                DATA_TYPE = dataType,
+                CONTROL_TYPE = cfg?.CONTROL_TYPE,
                 CONTROL_TYPE_WHITELIST = FormFieldHelper.GetControlTypeWhitelist(dataType),
-                IS_REQUIRED             = cfg?.IS_REQUIRED  ?? true,
-                IS_VISIBLE             = cfg?.IS_VISIBLE  ?? true,
-                IS_EDITABLE            = cfg?.IS_EDITABLE ?? true,
-                IS_VALIDATION_RULE     = requiredFieldIds.Contains(fieldId),
-                //EDITOR_WIDTH           = cfg?.COLUMN_SPAN ?? FormFieldHelper.GetDefaultEditorWidth(dataType),
-                DEFAULT_VALUE          = cfg?.DEFAULT_VALUE ??  string.Empty,
-                SchemaType             = schemaType
+                IS_REQUIRED = cfg?.IS_REQUIRED ?? true,
+                IS_VISIBLE = cfg?.IS_VISIBLE ?? true,
+                IS_EDITABLE = cfg?.IS_EDITABLE ?? true,
+                IS_VALIDATION_RULE = requiredFieldIds.Contains(fieldId),
+                IS_PK = pk.Contains(col.COLUMN_NAME),
+                DEFAULT_VALUE = cfg?.DEFAULT_VALUE ?? string.Empty,
+                SchemaType = schemaType
             };
-        })
+        }).ToList();
         // 用設定檔過濾
-        .Where(f => !_excludeColumns.Any(ex => 
-            f.COLUMN_NAME.Contains(ex, StringComparison.OrdinalIgnoreCase)))
-        .ToList();
+        // .Where(f => !_excludeColumns.Any(ex => 
+        //     f.COLUMN_NAME.Contains(ex, StringComparison.OrdinalIgnoreCase)))
+        // .ToList();
         
         var masterId = configs.Values.FirstOrDefault()?.FORM_FIELD_Master_ID ?? Guid.Empty;
 
@@ -597,7 +603,7 @@ FROM sys.dm_exec_describe_first_result_set_for_object(@vid, NULL);";
         var list = _con.Query<ViewColumnSource>(sql, new { ViewName = viewName });
         return list.ToDictionary(x => x.COLUMN_NAME, x => x.SOURCE_TABLE, StringComparer.OrdinalIgnoreCase);
     }
-
+    
     #endregion
 
     #region SQL
@@ -630,16 +636,15 @@ WHEN MATCHED THEN
         FORM_NAME        = @FORM_NAME,
         BASE_TABLE_NAME  = @BASE_TABLE_NAME,
         VIEW_TABLE_NAME  = @VIEW_TABLE_NAME,
-        PRIMARY_KEY      = @PRIMARY_KEY,
         BASE_TABLE_ID    = @BASE_TABLE_ID,
         VIEW_TABLE_ID    = @VIEW_TABLE_ID
 WHEN NOT MATCHED THEN
     INSERT (
         ID, FORM_NAME, BASE_TABLE_NAME, VIEW_TABLE_NAME,
-        PRIMARY_KEY, BASE_TABLE_ID, VIEW_TABLE_ID, STATUS, SCHEMA_TYPE)
+        BASE_TABLE_ID, VIEW_TABLE_ID, STATUS, SCHEMA_TYPE)
     VALUES (
         @ID, @FORM_NAME, @BASE_TABLE_NAME, @VIEW_TABLE_NAME,
-        @PRIMARY_KEY, @BASE_TABLE_ID, @VIEW_TABLE_ID, @STATUS, @SCHEMA_TYPE)
+        @BASE_TABLE_ID, @VIEW_TABLE_ID, @STATUS, @SCHEMA_TYPE)
 OUTPUT INSERTED.ID;";
 
         public const string CheckFormMasterExists = @"/**/

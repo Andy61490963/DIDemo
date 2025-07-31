@@ -4,7 +4,12 @@ namespace ClassLibrary;
 
 public enum TableStatusType
 {
-    Draft = 0,    // 編輯中
-    Active = 1,   // 啟用
-    Disabled = 2  // 停用
+    [Display(Name = "編輯中")]
+    Draft = 0,   
+    
+    [Display(Name = "啟用")]
+    Active = 1,  
+    
+    [Display(Name = "停用")]
+    Disabled = 2 
 }

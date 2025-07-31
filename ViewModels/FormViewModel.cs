@@ -9,6 +9,8 @@ public class FormSubmissionViewModel
     public string? TargetTableToUpsert { get; set; }
     public string FormName { get; set; }
     public List<FormFieldInputViewModel> Fields { get; set; }
+    
+    
 }
 
 public class FormFieldInputViewModel

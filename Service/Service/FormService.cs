@@ -58,9 +58,14 @@ public class FormService : IFormService
         // 4. 取得檢視表的所有原始資料（rawRows 為每列 Dictionary<string, object?>）
         var rawRows = _formDataService.GetRows(master.VIEW_TABLE_NAME);
 
+        var pk = _schemaService.GetPrimaryKeyColumn(master.BASE_TABLE_NAME);
+        
+        if (pk == null)
+            throw new InvalidOperationException("No primary key column found");
+        
         // 5. 將 rawRows 轉換為 FormDataRow（每列帶主鍵 Id 與所有欄位 Cell）
         //    同時收集所有資料列的主鍵 rowIds
-        var rows = _dropdownService.ToFormDataRows(rawRows, master.PRIMARY_KEY, out var rowIds);
+        var rows = _dropdownService.ToFormDataRows(rawRows, pk, out var rowIds);
 
         // 6. 若無任何資料列，直接回傳結果，省略後面下拉選查詢
         if (!rowIds.Any())
