@@ -387,30 +387,10 @@ WHERE TABLE_NAME = @TableName
 
         // 動態轉換 fromId 型別
         object? idValue = fromId != null
-            ? ConvertPkType(fromId, pkInfo.DataType)
+            ? ConvertToColumnTypeHelper.ConvertPkType(fromId, pkInfo.DataType)
             : null;
 
         return (pkInfo.ColumnName, pkInfo.DataType, idValue);
-    }
-
-    /// <summary>
-    /// 根據 SQL 型別，將傳入 id 轉換為 DB 支援的型別
-    /// </summary>
-    private static object ConvertPkType(string? id, string pkType)
-    {
-        if (id == null) throw new ArgumentNullException(nameof(id));
-        switch (pkType.ToLower())
-        {
-            case "uniqueidentifier": return Guid.Parse(id.ToString());
-            case "decimal":
-            case "numeric": return Convert.ToDecimal(id);
-            case "bigint": return Convert.ToInt64(id);
-            case "int": return Convert.ToInt32(id);
-            case "nvarchar":
-            case "varchar":
-            case "char": return id.ToString();
-            default: throw new NotSupportedException($"不支援的型別: {pkType}");
-        }
     }
     
 private static class Sql

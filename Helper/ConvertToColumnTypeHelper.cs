@@ -41,4 +41,27 @@ public static class ConvertToColumnTypeHelper
                 return str;
         }
     }
+    
+    /// <summary>
+    /// 根據 SQL 型別，將傳入 id 轉換為 DB 支援的型別
+    /// </summary>
+    public static object ConvertPkType(string? id, string pkType)
+    {
+        if (id == null) throw new ArgumentNullException(nameof(id));
+        switch (pkType.ToLower())
+        {
+            case "uniqueidentifier": return Guid.Parse(id);
+            
+            case "decimal":
+            case "numeric": return System.Convert.ToDecimal(id);
+            
+            case "bigint": return System.Convert.ToInt64(id);
+            case "int": return System.Convert.ToInt32(id);
+            
+            case "nvarchar":
+            case "varchar":
+            case "char": return id;
+            default: throw new NotSupportedException($"不支援的型別: {pkType}");
+        }
+    }
 }
