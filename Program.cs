@@ -82,7 +82,7 @@ app.UseSwagger();
 app.UseSwaggerUI(options =>
 {
     options.SwaggerEndpoint("/swagger/v1/swagger.json", "Dynamic Form API v1");
-    options.RoutePrefix = ""; // 讓你直接輸入 localhost:5000 就開 Swagger UI
+    options.RoutePrefix = ""; 
 });
 
 app.MapControllers();

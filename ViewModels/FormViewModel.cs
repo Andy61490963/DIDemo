@@ -20,7 +20,6 @@ public class FormFieldInputViewModel
     public FormControlType CONTROL_TYPE { get; set; }
     public string? DefaultValue { get; set; }
     public bool IS_REQUIRED { get; set; }
-    public bool IS_VISIBLE { get; set; }
     public bool IS_EDITABLE { get; set; }
     
     /// <summary>

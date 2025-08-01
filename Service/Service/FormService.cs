@@ -205,7 +205,6 @@ public class FormService : IFormService
             CONTROL_TYPE = field.CONTROL_TYPE,
             DefaultValue = field.DEFAULT_VALUE,
             IS_REQUIRED = field.IS_REQUIRED,
-            IS_VISIBLE = field.IS_VISIBLE,
             IS_EDITABLE = field.IS_EDITABLE,
             ValidationRules = rules,
             OptionList = finalOptions,
