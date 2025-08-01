@@ -1,4 +1,4 @@
-namespace DynamicForm.Models;
+namespace DynamicForm.ViewModels;
 
 /// <summary>
 /// 描述 View 欄位的來源表資訊

@@ -90,20 +90,6 @@ public static class FormFieldHelper
     }
 
     /// <summary>
-    /// 取得控制元件建議寬度（px）。
-    /// </summary>
-    public static int GetDefaultEditorWidth(string dataType)
-    {
-        return ParseSqlDataType(dataType) switch
-        {
-            SqlDataType.NVarChar or SqlDataType.VarChar => 200,
-            SqlDataType.Text => 300,
-            SqlDataType.Int or SqlDataType.Decimal => 100,
-            _ => 150
-        };
-    }
-
-    /// <summary>
     /// 取得預設控制元件型別。
     /// </summary>
     public static FormControlType GetDefaultControlType(string dataType)

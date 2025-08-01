@@ -1,3 +1,4 @@
+using System.Reflection;
 using DynamicForm.Service.Interface;
 using DynamicForm.Service.Service;
 using DynamicForm.Models;
@@ -6,8 +7,30 @@ using DynamicForm.Service.Interface.TransactionInterface;
 using DynamicForm.Service.Service.FormLogicService;
 using DynamicForm.Service.Service.TransactionService;
 using Microsoft.Data.SqlClient;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Swagger 註冊
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Dynamic Form API",
+        Version = "v1",
+        Description = "表單設計系統的 API 文件"
+    });
+
+    // 加入 XML 註解（讓 <summary> 顯示在 Swagger UI）
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath))
+    {
+        options.IncludeXmlComments(xmlPath, includeControllerXmlComments: true);
+    }
+});
+
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOptions();
@@ -46,19 +69,23 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddAuthorization();
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllers();
 var app = builder.Build();
 
-app.UseStaticFiles();
 app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseHttpsRedirection();
 
-app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
+// 加入 Swagger 中介軟體（無論開發或正式環境都開啟）
+app.UseSwagger();
+app.UseSwaggerUI(options =>
+{
+    options.SwaggerEndpoint("/swagger/v1/swagger.json", "Dynamic Form API v1");
+    options.RoutePrefix = ""; 
+});
 
+app.MapControllers();
 app.Run();
 
 /// <summary>
