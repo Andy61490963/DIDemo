@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace DynamicForm.Models;
+namespace DynamicForm.ViewModels;
 
 /// <summary>
 /// ViewModel for submitting form data from client.

@@ -1,6 +1,7 @@
 using ClassLibrary;
+using DynamicForm.Models;
 
-namespace DynamicForm.Models;
+namespace DynamicForm.ViewModels;
 
 public class FormFieldListViewModel
 {

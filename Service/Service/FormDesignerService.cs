@@ -5,6 +5,7 @@ using DynamicForm.Service.Interface;
 using DynamicForm.Helper;
 using System.Text.RegularExpressions;
 using DynamicForm.Service.Interface.FormLogicInterface;
+using DynamicForm.ViewModels;
 using Microsoft.Data.SqlClient;
 
 namespace DynamicForm.Service.Service;
@@ -169,7 +170,6 @@ public class FormDesignerService : IFormDesignerService
                     CONTROL_TYPE = FormControlType.Text,
                     IS_REQUIRED = true,
                     IS_EDITABLE = true,
-                    EDITOR_WIDTH = FormFieldHelper.GetDefaultEditorWidth(col.DATA_TYPE),
                     DEFAULT_VALUE = string.Empty,
                     SchemaType = schemaType
                 };

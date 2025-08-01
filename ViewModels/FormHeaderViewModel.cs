@@ -1,4 +1,4 @@
-namespace DynamicForm.Models;
+namespace DynamicForm.ViewModels;
 
 public class FormHeaderViewModel
 {

@@ -1,6 +1,6 @@
 using ClassLibrary;
 
-namespace DynamicForm.Models;
+namespace DynamicForm.ViewModels;
 
 public class FormFieldViewModel
 {
@@ -58,16 +58,6 @@ public class FormFieldViewModel
     /// 是否有輸入限制條件
     /// </summary>
     public bool IS_VALIDATION_RULE { get; set; }
-
-    /// <summary>
-    /// 語系
-    /// </summary>
-    public List<string> LANG_CODES { get; set; } = new(); // e.g. ["zh-TW", "en-US"]
-
-    /// <summary>
-    /// 寬度
-    /// </summary>
-    public int EDITOR_WIDTH { get; set; }
 
     /// <summary>
     /// 控制類別

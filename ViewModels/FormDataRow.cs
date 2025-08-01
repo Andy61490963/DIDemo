@@ -1,4 +1,6 @@
-namespace DynamicForm.Models;
+using DynamicForm.Models;
+
+namespace DynamicForm.ViewModels;
 
 public class FormDataRow
 {

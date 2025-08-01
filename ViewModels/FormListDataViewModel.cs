@@ -1,4 +1,6 @@
-namespace DynamicForm.Models
+using DynamicForm.Models;
+
+namespace DynamicForm.ViewModels
 {
     /// <summary>
     /// 資料列表用 ViewModel

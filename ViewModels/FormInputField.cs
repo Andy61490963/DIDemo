@@ -1,4 +1,4 @@
-namespace DynamicForm.Models;
+namespace DynamicForm.ViewModels;
 
 /// <summary>
 /// Represent single field input for submission.
