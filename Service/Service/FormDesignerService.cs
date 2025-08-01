@@ -3,13 +3,9 @@ using Dapper;
 using DynamicForm.Models;
 using DynamicForm.Service.Interface;
 using DynamicForm.Helper;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text.RegularExpressions;
-using System;
 using DynamicForm.Service.Interface.FormLogicInterface;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Options;
 
 namespace DynamicForm.Service.Service;
 
@@ -45,13 +41,13 @@ public class FormDesignerService : IFormDesignerService
         // 主表欄位
         var baseFields = GetFieldsByTableName(master.BASE_TABLE_NAME, TableSchemaQueryType.OnlyTable);
         baseFields.ID = master.ID;
-        baseFields.type = TableSchemaQueryType.OnlyTable;
+        baseFields.SchemaQueryType = TableSchemaQueryType.OnlyTable;
         result.BaseFields = baseFields;
 
         // View 欄位
         var viewFields = GetFieldsByTableName(master.VIEW_TABLE_NAME, TableSchemaQueryType.OnlyView);
         viewFields.ID = master.ID;
-        viewFields.type = TableSchemaQueryType.OnlyView;
+        viewFields.SchemaQueryType = TableSchemaQueryType.OnlyView;
         result.ViewFields = viewFields;
 
         return result;
@@ -132,7 +128,7 @@ public class FormDesignerService : IFormDesignerService
             ID = masterId,
             TableName = tableName,
             Fields = res,
-            type = schemaType
+            SchemaQueryType = schemaType
         };
 
         return result;
@@ -185,7 +181,7 @@ public class FormDesignerService : IFormDesignerService
         }
 
         var result = GetFieldsByTableName(tableName, schemaType);
-        result.type = schemaType;
+        result.SchemaQueryType = schemaType;
         return result;
     }
 
@@ -223,12 +219,22 @@ public class FormDesignerService : IFormDesignerService
     }
 
     /// <summary>
+    /// 批次設定欄位的必填狀態，僅對可編輯欄位生效。
+    /// </summary>
+    public Guid GetFormFieldMasterChildren(Guid formMasterId)
+    {
+        Guid children = _con.QueryFirstOrDefault<Guid>(Sql.GetFormFieldMasterChildren, new { formMasterId, SchemaType = TableSchemaQueryType.All.ToInt() });
+        return children;
+    }
+    
+    /// <summary>
     /// 批次設定欄位的可編輯狀態。
     /// 若設定為不可編輯，會同步取消必填。
     /// </summary>
     public void SetAllEditable(Guid formMasterId, string tableName, bool isEditable)
     {
-        _con.Execute(Sql.SetAllEditable, new { formMasterId, tableName, isEditable });
+        Guid children = GetFormFieldMasterChildren(formMasterId);
+        _con.Execute(Sql.SetAllEditable, new { formMasterId = children, tableName, isEditable });
     }
 
     /// <summary>
@@ -236,7 +242,8 @@ public class FormDesignerService : IFormDesignerService
     /// </summary>
     public void SetAllRequired(Guid formMasterId, string tableName, bool isRequired)
     {
-        _con.Execute(Sql.SetAllRequired, new { formMasterId, tableName, isRequired });
+        Guid children = GetFormFieldMasterChildren(formMasterId);
+        _con.Execute(Sql.SetAllRequired, new { formMasterId = children, tableName, isRequired });
     }
 
     /// <summary>
@@ -634,6 +641,12 @@ FROM sys.dm_exec_describe_first_result_set_for_object(@vid, NULL);";
     #region SQL
     private static class Sql
     {
+        public const string GetFormFieldMasterChildren = @"/**/
+SELECT BASE_TABLE_ID 
+FROM FORM_FIELD_Master 
+WHERE id = @formMasterId
+AND SCHEMA_TYPE = @SchemaType";
+        
         public const string FieldConfigSelect = @"/**/
 SELECT *
 FROM FORM_FIELD_CONFIG";
@@ -705,9 +718,17 @@ SELECT COUNT(1) FROM FORM_FIELD_CONFIG WHERE ID = @fieldId";
 
         public const string SetAllEditable = @"/**/
 UPDATE FORM_FIELD_CONFIG
-SET IS_EDITABLE = @isEditable,
-    IS_REQUIRED = CASE WHEN @isEditable = 0 THEN 0 ELSE IS_REQUIRED END
-WHERE FORM_FIELD_Master_ID = @formMasterId AND TABLE_NAME = @tableName";
+SET IS_EDITABLE = @isEditable
+WHERE FORM_FIELD_Master_ID = @formMasterId AND TABLE_NAME = @tableName;
+
+-- 若不可編輯，強制取消必填
+IF (@isEditable = 0)
+BEGIN
+    UPDATE FORM_FIELD_CONFIG
+    SET IS_REQUIRED = 0
+    WHERE FORM_FIELD_Master_ID = @formMasterId AND TABLE_NAME = @tableName;
+END
+";
 
         public const string SetAllRequired = @"/**/
 UPDATE FORM_FIELD_CONFIG

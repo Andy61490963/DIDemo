@@ -12,9 +12,9 @@
 <div class="field-list-container"
      data-master-id="@Model?.ID"
      data-table-name="@Model?.TableName"
-     data-schema-type="@((int?)Model?.type)">
+     data-schema-type="@((int?)Model?.SchemaQueryType)">
     @* 只有 SchemaType 為 OnlyView (1) 時顯示批次設定按鈕 *@
-    @if (Model?.type == TableSchemaQueryType.OnlyTable)
+    @if (Model?.SchemaQueryType == TableSchemaQueryType.OnlyTable)
     {
         <div class="d-flex justify-content-end mb-2">
             <button type="button"
@@ -51,7 +51,7 @@
             foreach (var field in Model.Fields)
             {
                 var rowClass = field.IS_PK ? "table-secondary" : "";
-                <tr class="@rowClass" onclick="loadFieldSetting('@Model.TableName','@field.COLUMN_NAME','@Model.type')" style="cursor:pointer;">
+                <tr class="@rowClass" onclick="loadFieldSetting('@Model.TableName','@field.COLUMN_NAME','@Model.SchemaQueryType')" style="cursor:pointer;">
                     <td>@field.COLUMN_NAME</td>
                     <td>@field.DATA_TYPE</td>
                     <td>@(field.CONTROL_TYPE ?? FormControlType.Text)</td>

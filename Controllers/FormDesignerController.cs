@@ -3,8 +3,6 @@ using DynamicForm.Models;
 using DynamicForm.Service.Interface;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using System.Collections.Generic;
-using System;
 
 namespace DynamicForm.Controllers;
 
@@ -26,7 +24,9 @@ public class FormDesignerController : Controller
     public IActionResult Index(Guid? id)
     {
         var model = new FormDesignerIndexViewModel();
-
+        model.BaseFields.SchemaQueryType = TableSchemaQueryType.OnlyTable;
+        model.ViewFields.SchemaQueryType = TableSchemaQueryType.OnlyView;
+        
         if (id.HasValue)
         {
             model = _formDesignerService.GetFormDesignerIndexViewModel(id);
@@ -76,7 +76,8 @@ public class FormDesignerController : Controller
         var formMasterId = _formDesignerService.GetOrCreateFormMasterId(master);
         
         // 2. 驗證控制類型變更是否合法（不能改已有驗證規則的欄位）
-        if (_formDesignerService.HasValidationRules(model.ID) &&
+        if (model.ID != Guid.Empty &&
+            _formDesignerService.HasValidationRules(model.ID) &&
             _formDesignerService.GetControlTypeByFieldId(model.ID) != model.CONTROL_TYPE)
         {
             return Conflict("已有驗證規則，無法變更控制元件類型");
@@ -85,7 +86,7 @@ public class FormDesignerController : Controller
         _formDesignerService.UpsertField(model, formMasterId);
         var fields = _formDesignerService.EnsureFieldsSaved(model.TableName, schemaType);
         fields.ID = formMasterId;
-        fields.type = schemaType;
+        fields.SchemaQueryType = schemaType;
         return PartialView("_FormFieldList", fields);
     }
 
@@ -108,7 +109,7 @@ public class FormDesignerController : Controller
         _formDesignerService.SetAllEditable(formMasterId, tableName, isEditable);
         var fields = _formDesignerService.GetFieldsByTableName(tableName, schemaType);
         fields.ID = formMasterId;
-        fields.type = schemaType;
+        fields.SchemaQueryType = schemaType;
         return PartialView("_FormFieldList", fields);
     }
 
@@ -131,7 +132,7 @@ public class FormDesignerController : Controller
         _formDesignerService.SetAllRequired(formMasterId, tableName, isRequired);
         var fields = _formDesignerService.GetFieldsByTableName(tableName, schemaType);
         fields.ID = formMasterId;
-        fields.type = schemaType;
+        fields.SchemaQueryType = schemaType;
         return PartialView("_FormFieldList", fields);
     }
 
