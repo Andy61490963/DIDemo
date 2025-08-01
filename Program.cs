@@ -46,19 +46,14 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddAuthorization();
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllers();
 var app = builder.Build();
 
-app.UseStaticFiles();
 app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseHttpsRedirection();
-
-app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
-
+app.MapControllers();
 app.Run();
 
 /// <summary>

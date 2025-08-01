@@ -5,7 +5,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DynamicForm.Controllers;
 
-public class FormController : Controller
+[ApiController]
+[Route("api/[controller]")]
+public class FormController : ControllerBase
 {
     private readonly IFormService _formService;
 
@@ -14,10 +16,11 @@ public class FormController : Controller
         _formService = formService;
     }
     
-    public IActionResult Index()
+    [HttpGet]
+    public IActionResult GetForms()
     {
         var vm = _formService.GetFormList();
-        return View(vm);
+        return Ok(vm);
     }
     
     /// <summary>
@@ -26,20 +29,20 @@ public class FormController : Controller
     /// <param name="formId">FORM_FIELD_Master.ID</param>
     /// <param name="id">資料主鍵，新增時可不傳</param>
     /// <returns>回傳填寫表單的畫面</returns>
-    [HttpGet]
-    public IActionResult Input(Guid formId, string? id)
+    [HttpGet("{formId}")]
+    public IActionResult GetForm(Guid formId, string? id)
     {
         var vm = id != null
-            ? _formService.GetFormSubmission(formId, id) // 編輯/檢視
-            : _formService.GetFormSubmission(formId); // 新增
-        return View("Input", vm);
+            ? _formService.GetFormSubmission(formId, id)
+            : _formService.GetFormSubmission(formId);
+        return Ok(vm);
     }
     
     [HttpPost]
-    public IActionResult SubmitForm(FormSubmissionInputModel input)
+    public IActionResult SubmitForm([FromBody] FormSubmissionInputModel input)
     {
         _formService.SubmitForm(input);
-        return RedirectToAction("Index");
+        return NoContent();
     }
 
 }

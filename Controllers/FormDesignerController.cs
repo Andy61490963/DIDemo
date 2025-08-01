@@ -6,7 +6,9 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace DynamicForm.Controllers;
 
-public class FormDesignerController : Controller
+[ApiController]
+[Route("api/[controller]")]
+public class FormDesignerController : ControllerBase
 {
     private readonly IFormDesignerService _formDesignerService;
     private readonly IFormListService _formListService;
@@ -18,21 +20,22 @@ public class FormDesignerController : Controller
     }
     
     /// <summary>
-    /// 顯示表單設計器主畫面，包含表單主檔與欄位設定資訊。
+    /// 取得表單設計器主畫面資料，包含表單主檔與欄位設定資訊。
     /// </summary>
     /// <param name="id">FORM_FIELD_Master 的唯一識別編號</param>
-    public IActionResult Index(Guid? id)
+    [HttpGet]
+    public IActionResult GetDesigner(Guid? id)
     {
         var model = new FormDesignerIndexViewModel();
         model.BaseFields.SchemaQueryType = TableSchemaQueryType.OnlyTable;
         model.ViewFields.SchemaQueryType = TableSchemaQueryType.OnlyView;
-        
+
         if (id.HasValue)
         {
             model = _formDesignerService.GetFormDesignerIndexViewModel(id);
         }
 
-        return View(model);
+        return Ok(model);
     }
     
     /// <summary>
@@ -43,9 +46,8 @@ public class FormDesignerController : Controller
     [HttpGet]
     public IActionResult QueryFields(string tableName, TableSchemaQueryType schemaType)
     {
-        FormFieldListViewModel result = _formDesignerService.EnsureFieldsSaved(tableName, schemaType);
-
-        return PartialView("_FormFieldList", result);
+        var result = _formDesignerService.EnsureFieldsSaved(tableName, schemaType);
+        return Ok(result);
     }
     
     /// <summary>
@@ -57,37 +59,34 @@ public class FormDesignerController : Controller
     [HttpGet]
     public IActionResult GetFieldSetting(string tableName, string columnName, TableSchemaQueryType schemaType)
     {
-        FormFieldViewModel? field = _formDesignerService.GetFieldsByTableName(tableName, schemaType).Fields
+        var field = _formDesignerService.GetFieldsByTableName(tableName, schemaType).Fields
                        .FirstOrDefault(x => x.COLUMN_NAME == columnName);
-        
-        return PartialView("_FormFieldSetting", field);
+        return Ok(field);
     }
     
     /// <summary>
-    /// 儲存欄位設定，包含新增或更新邏輯，並重新回傳欄位列表 PartialView。
+    /// 儲存欄位設定，包含新增或更新邏輯，並回傳最新的欄位列表。
     /// </summary>
     /// <param name="model">欄位設定 ViewModel</param>
     /// <param name="schemaType">查詢類型</param>
     [HttpPost]
-    public IActionResult UpdateFieldSetting(FormFieldViewModel model, TableSchemaQueryType schemaType)
+    public IActionResult UpdateFieldSetting([FromBody] FormFieldViewModel model, TableSchemaQueryType schemaType)
     {
-        // 1. 取得 FORM_FIELD_Master ID，如果不存在就新增
         var master = new FORM_FIELD_Master { ID = model.FORM_FIELD_Master_ID };
         var formMasterId = _formDesignerService.GetOrCreateFormMasterId(master);
-        
-        // 2. 驗證控制類型變更是否合法（不能改已有驗證規則的欄位）
+
         if (model.ID != Guid.Empty &&
             _formDesignerService.HasValidationRules(model.ID) &&
             _formDesignerService.GetControlTypeByFieldId(model.ID) != model.CONTROL_TYPE)
         {
             return Conflict("已有驗證規則，無法變更控制元件類型");
         }
-        
+
         _formDesignerService.UpsertField(model, formMasterId);
         var fields = _formDesignerService.EnsureFieldsSaved(model.TableName, schemaType);
         fields.ID = formMasterId;
         fields.SchemaQueryType = schemaType;
-        return PartialView("_FormFieldList", fields);
+        return Ok(fields);
     }
 
     /// <summary>
@@ -110,7 +109,7 @@ public class FormDesignerController : Controller
         var fields = _formDesignerService.GetFieldsByTableName(tableName, schemaType);
         fields.ID = formMasterId;
         fields.SchemaQueryType = schemaType;
-        return PartialView("_FormFieldList", fields);
+        return Ok(fields);
     }
 
     /// <summary>
@@ -133,7 +132,7 @@ public class FormDesignerController : Controller
         var fields = _formDesignerService.GetFieldsByTableName(tableName, schemaType);
         fields.ID = formMasterId;
         fields.SchemaQueryType = schemaType;
-        return PartialView("_FormFieldList", fields);
+        return Ok(fields);
     }
 
     /// <summary>
@@ -144,25 +143,24 @@ public class FormDesignerController : Controller
     public IActionResult CheckFieldExists(Guid fieldId)
     {
         var exists = _formDesignerService.CheckFieldExists(fieldId);
-        return Json(exists);
+        return Ok(exists);
     }
     
     /// <summary>
-    /// 顯示設定欄位驗證規則的 Modal 畫面。
+    /// 取得欄位驗證規則設定。
     /// </summary>
     /// <param name="fieldId">欄位唯一識別碼</param>
-    [HttpPost]
+    [HttpGet]
     public IActionResult SettingRule(Guid fieldId)
     {
         if (fieldId == Guid.Empty)
         {
             return BadRequest("請先設定控制元件後再新增驗證條件。");
         }
-        
-        ViewBag.ValidationTypeOptions = GetValidationTypeOptions(fieldId);
 
-        List<FormFieldValidationRuleDto> rules = _formDesignerService.GetValidationRulesByFieldId(fieldId);
-        return PartialView("SettingRule/_SettingRuleModal", rules);
+        var validationTypeOptions = GetValidationTypeOptions(fieldId);
+        var rules = _formDesignerService.GetValidationRulesByFieldId(fieldId);
+        return Ok(new { validationTypeOptions, rules });
     }
  
     /// <summary>
@@ -172,14 +170,13 @@ public class FormDesignerController : Controller
     [HttpPost]
     public IActionResult CreateEmptyValidationRule(Guid fieldConfigId)
     {
-        ViewBag.ValidationTypeOptions = GetValidationTypeOptions(fieldConfigId);
-        
+        var validationTypeOptions = GetValidationTypeOptions(fieldConfigId);
         var newRule = _formDesignerService.CreateEmptyValidationRule(fieldConfigId);
         _formDesignerService.InsertValidationRule(newRule);
-        
-        List<FormFieldValidationRuleDto> rules = _formDesignerService.GetValidationRulesByFieldId(fieldConfigId);
 
-        return PartialView("SettingRule/_ValidationRuleRow", rules);
+        var rules = _formDesignerService.GetValidationRulesByFieldId(fieldConfigId);
+
+        return Ok(new { validationTypeOptions, rules });
     }
 
     /// <summary>
@@ -190,35 +187,33 @@ public class FormDesignerController : Controller
     public IActionResult SaveValidationRule([FromBody] FormFieldValidationRuleDto rule)
     {
         _formDesignerService.SaveValidationRule(rule);
-        return Json(new { success = true });
+        return Ok();
     }
 
     /// <summary>
-    /// 刪除指定驗證規則，並回傳更新後的規則列表 PartialView。
+    /// 刪除指定驗證規則，並回傳更新後的規則列表。
     /// </summary>
     /// <param name="id">驗證規則 ID</param>
     /// <param name="fieldConfigId">欄位設定 ID</param>
-    [HttpPost]
+    [HttpDelete("validation-rule/{id}")]
     public IActionResult DeleteValidationRule(Guid id, Guid fieldConfigId)
     {
         _formDesignerService.DeleteValidationRule(id);
-
-        ViewBag.ValidationTypeOptions = GetValidationTypeOptions(fieldConfigId);
-
+        var validationTypeOptions = GetValidationTypeOptions(fieldConfigId);
         var rules = _formDesignerService.GetValidationRulesByFieldId(fieldConfigId);
-        return PartialView("SettingRule/_ValidationRuleRow", rules);
+        return Ok(new { validationTypeOptions, rules });
     }
     
     /// <summary>
     /// 開啟下拉選項設定 Modal，若尚未建立則自動建立對應的 Dropdown 設定。
     /// </summary>
     /// <param name="fieldId">欄位設定 ID</param>
-    [HttpPost]
+    [HttpGet]
     public IActionResult DropdownSetting(Guid fieldId)
     {
         _formDesignerService.EnsureDropdownCreated(fieldId);
         var setting = _formDesignerService.GetDropdownSetting(fieldId);
-        return PartialView("Dropdown/_DropdownModal", setting);
+        return Ok(setting);
     }
 
     /// <summary>
@@ -230,19 +225,19 @@ public class FormDesignerController : Controller
     public IActionResult SaveDropdownSql(Guid fieldId, string sql)
     {
         _formDesignerService.SaveDropdownSql(fieldId, sql);
-        return Json(new { success = true });
+        return Ok();
     }
 
     /// <summary>
-    /// 新增一筆空白下拉選項，並回傳更新後的下拉選項 PartialView。
+    /// 新增一筆空白下拉選項，並回傳更新後的下拉選項清單。
     /// </summary>
     /// <param name="dropdownId">下拉選單 ID</param>
     [HttpPost]
     public IActionResult NewDropdownOption(Guid dropdownId)
     {
-        Guid newId = _formDesignerService.SaveDropdownOption(null, dropdownId, "", "");
+        _formDesignerService.SaveDropdownOption(null, dropdownId, "", "");
         var options = _formDesignerService.GetDropdownOptions(dropdownId);
-        return PartialView("Dropdown/_DropdownOptionItem", options);
+        return Ok(options);
     }
 
     /// <summary>
@@ -255,20 +250,20 @@ public class FormDesignerController : Controller
     public IActionResult SaveDropdownOption(Guid id, Guid dropdownId, string optionText, string optionValue)
     {
         _formDesignerService.SaveDropdownOption(id, dropdownId, optionText, optionValue);
-        return Json(new { success = true });
+        return Ok();
     }
     
     /// <summary>
-    /// 刪除指定的下拉選項，並回傳更新後的選項 PartialView。
+    /// 刪除指定的下拉選項，並回傳更新後的選項清單。
     /// </summary>
     /// <param name="optionId">選項 ID</param>
     /// <param name="dropdownId">所屬下拉選單 ID</param>
-    [HttpPost]
+    [HttpDelete]
     public IActionResult DeleteOption(Guid optionId, Guid dropdownId)
     {
         _formDesignerService.DeleteDropdownOption(optionId);
         var options = _formDesignerService.GetDropdownOptions(dropdownId);
-        return PartialView("Dropdown/_DropdownOptionItem", options);
+        return Ok(options);
     }
 
     /// <summary>
@@ -280,19 +275,18 @@ public class FormDesignerController : Controller
     public IActionResult SetDropdownMode(Guid dropdownId, bool isUseSql)
     {
         _formDesignerService.SetDropdownMode(dropdownId, isUseSql);
-        return Json(new { success = true });
+        return Ok();
     }
     
     /// <summary>
-    /// 驗證使用者輸入的 SQL 是否能正確執行，並回傳驗證結果 PartialView。
+    /// 驗證使用者輸入的 SQL 是否能正確執行，並回傳驗證結果。
     /// </summary>
     /// <param name="sql">使用者輸入的 SQL 語法</param>
     [HttpPost]
     public IActionResult ValidateDropdownSql(string sql)
     {
         var res = _formDesignerService.ValidateDropdownSql(sql);
-
-        return PartialView("Dropdown/_ValidateSqlResult", res);
+        return Ok(res);
     }
 
     /// <summary>
@@ -311,7 +305,7 @@ public class FormDesignerController : Controller
         }
 
         var options = _formDesignerService.GetDropdownOptions(dropdownId);
-        return PartialView("Dropdown/_DropdownOptionItem", options);
+        return Ok(options);
     }
 
     /// <summary>
@@ -353,7 +347,7 @@ public class FormDesignerController : Controller
         try
         {
             var id = _formDesignerService.SaveFormHeader(master);
-            return Json(new { success = true, id });
+            return Ok(new { id });
         }
         catch (InvalidOperationException ex)
         {

@@ -4,7 +4,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DynamicForm.Controllers;
 
-public class FormListController : Controller
+[ApiController]
+[Route("api/[controller]")]
+public class FormListController : ControllerBase
 {
     private readonly IFormListService _service;
 
@@ -13,21 +15,23 @@ public class FormListController : Controller
         _service = service;
     }
 
-    public IActionResult Index(string? q)
+    [HttpGet]
+    public IActionResult GetFormMasters(string? q)
     {
         var list = _service.GetFormMasters();
         if (!string.IsNullOrWhiteSpace(q))
         {
-            list = list.Where(x => x.FORM_NAME != null && x.FORM_NAME.Contains(q, StringComparison.OrdinalIgnoreCase)).ToList();
+            list = list
+                .Where(x => x.FORM_NAME != null && x.FORM_NAME.Contains(q, StringComparison.OrdinalIgnoreCase))
+                .ToList();
         }
-        ViewBag.Query = q;
-        return View(list);
+        return Ok(list);
     }
 
-    [HttpPost]
+    [HttpDelete("{id}")]
     public IActionResult Delete(Guid id)
     {
         _service.DeleteFormMaster(id);
-        return RedirectToAction("Index");
+        return NoContent();
     }
 }
