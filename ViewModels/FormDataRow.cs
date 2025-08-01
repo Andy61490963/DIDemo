@@ -1,11 +1,5 @@
 namespace DynamicForm.Models;
 
-public class FormDataCell
-{
-    public string ColumnName { get; set; } = string.Empty;
-    public object? Value { get; set; }
-}
-
 public class FormDataRow
 {
     public object Id { get; set; }
@@ -22,11 +16,4 @@ public class FormDataRow
     }
 
     public object? this[string columnName] => GetValue(columnName);
-}
-
-public class DropdownAnswerDto
-{
-    public string RowId { get; set; } = default!;
-    public Guid FieldId { get; set; }
-    public Guid OptionId { get; set; }
 }

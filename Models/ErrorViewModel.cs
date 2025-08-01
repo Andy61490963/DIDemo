@@ -6,9 +6,3 @@ public class ErrorViewModel
 
     public bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
 }
-
-public class Option
-{
-    public string label { get; set; }
-    public string value { get; set; }
-}
