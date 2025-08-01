@@ -504,9 +504,19 @@ public class FormDesignerService : IFormDesignerService
             foreach (var row in rows)
             {
                 var dict = (IDictionary<string, object>)row;
-                var optionValue = dict.TryGetValue("ID", out var v) ? v?.ToString() ?? string.Empty : string.Empty;
-                var optionText  = dict.TryGetValue("NAME", out var t) ? t?.ToString() ?? string.Empty : string.Empty;
+                
+                if (!dict.ContainsKey("ID") || !dict.ContainsKey("NAME"))
+                {
+                    return new ValidateSqlResultViewModel
+                    {
+                        Success = false,
+                        Message = "SQL 查詢結果必須使用別名命名欄位為 ID 與 NAME（例如：SELECT A AS ID, B AS NAME）"
+                    };
+                }
 
+                var optionValue = dict["ID"].ToString() ?? string.Empty;
+                var optionText  = dict["NAME"].ToString() ?? string.Empty;
+                
                 _con.Execute(Sql.InsertOptionIgnoreDuplicate, new
                 {
                     DropdownId = dropdownId,
