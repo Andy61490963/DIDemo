@@ -12,11 +12,15 @@
       <PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" Version="170.64.0" />
     </ItemGroup>
 
-    <ItemGroup>
+  <ItemGroup>
       <_ContentIncludedByDefault Remove="Views\FormBuilder\Edit.cshtml" />
       <_ContentIncludedByDefault Remove="Views\FormBuilder\FieldEdit.cshtml" />
       <_ContentIncludedByDefault Remove="Views\FormBuilder\index.cshtml" />
-    </ItemGroup>
+      <!-- Exclude test project files from main project compilation -->
+      <Compile Remove="DynamicForm.Tests\**" />
+      <EmbeddedResource Remove="DynamicForm.Tests\**" />
+      <None Remove="DynamicForm.Tests\**" />
+  </ItemGroup>
 
     <ItemGroup>
       <Folder Include="Models\" />
