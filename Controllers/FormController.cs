@@ -5,6 +5,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DynamicForm.Controllers;
 
+/// <summary>
+/// 表單主檔變更 API
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class FormController : ControllerBase
@@ -29,7 +32,7 @@ public class FormController : ControllerBase
     /// <param name="formId">FORM_FIELD_Master.ID</param>
     /// <param name="id">資料主鍵，新增時可不傳</param>
     /// <returns>回傳填寫表單的畫面</returns>
-    [HttpGet("{formId}")]
+    [HttpPost("{formId}")]
     public IActionResult GetForm(Guid formId, string? id)
     {
         var vm = id != null

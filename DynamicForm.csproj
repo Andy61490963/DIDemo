@@ -4,12 +4,17 @@
         <TargetFramework>net8.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
+		
+		<!-- 產生 XML 註解檔 -->
+	    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+	    <NoWarn>$(NoWarn);1591</NoWarn> <!-- 避免每個未標註 <summary> 都報警告 -->
     </PropertyGroup>
 
     <ItemGroup>
       <PackageReference Include="Dapper" Version="2.1.66" />
       <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.0-preview2.25178.5" />
       <PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" Version="170.64.0" />
+      <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.3" />
     </ItemGroup>
 
   <ItemGroup>
@@ -18,9 +23,5 @@
       <EmbeddedResource Remove="DynamicForm.Tests\**" />
       <None Remove="DynamicForm.Tests\**" />
   </ItemGroup>
-
-    <ItemGroup>
-      <Folder Include="Models\" />
-    </ItemGroup>
 
 </Project>
