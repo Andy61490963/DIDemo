@@ -10,7 +10,7 @@
         @for (var i = 0; i < Model.Fields.Count; i++)
         {
             var field        = Model.Fields[i];
-            if (!field.IS_VISIBLE) { continue; }
+            if (!field.IS_EDITABLE) { continue; }
 
             var colSize      = "col-md-4";
             var isRequired   = field.IS_REQUIRED;
