@@ -43,18 +43,20 @@ public class FormService : IFormService
     public FormListDataViewModel GetFormList()
     {
         // 1. 查詢主表（Form 設定 Master），根據 SCHEMA_TYPE 取得表單主設定
-        var master = _formFieldMasterService.GetFormFieldMaster(TableSchemaQueryType.All);
+        // var master = _formFieldMasterService.GetFormFieldMaster(TableSchemaQueryType.All);
+        //
+        // // [防呆] 找不到主表就直接回傳空的 ViewModel，避免後續 NullReference
+        // if (master == null) 
+        //     return new FormListDataViewModel();
+        //
+        // // 2. 取得檢視表的所有欄位名稱（資料表的 Schema）
+        // var columns = _schemaService.GetFormFieldMaster(master.VIEW_TABLE_NAME);
+        //
+        // // 3. 取得該表單的所有欄位設定（包含型別、控制項型態等）
+        // var fieldConfigs = _formFieldConfigService.GetFormFieldConfig(master.BASE_TABLE_ID);
+
+        var (master, columns, fieldConfigs) = _formFieldMasterService.GetFormMetaAggregate(TableSchemaQueryType.All);
         
-        // [防呆] 找不到主表就直接回傳空的 ViewModel，避免後續 NullReference
-        if (master == null) 
-            return new FormListDataViewModel();
-
-        // 2. 取得檢視表的所有欄位名稱（資料表的 Schema）
-        var columns = _schemaService.GetFormFieldMaster(master.VIEW_TABLE_NAME);
-
-        // 3. 取得該表單的所有欄位設定（包含型別、控制項型態等）
-        var fieldConfigs = _formFieldConfigService.GetFormFieldConfig(master.BASE_TABLE_ID);
-
         // 4. 取得檢視表的所有原始資料（rawRows 為每列 Dictionary<string, object?>）
         var rawRows = _formDataService.GetRows(master.VIEW_TABLE_NAME);
 
