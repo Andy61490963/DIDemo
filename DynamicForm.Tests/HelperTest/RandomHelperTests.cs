@@ -1,7 +1,7 @@
 using DynamicForm.Helper;
 using Xunit;
 
-namespace DynamicForm.Tests;
+namespace DynamicForm.Tests.HelperTest;
 
 public class RandomHelperTests
 {

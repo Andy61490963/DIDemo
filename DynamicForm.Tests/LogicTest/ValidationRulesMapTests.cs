@@ -1,7 +1,7 @@
 using ClassLibrary;
 using Xunit;
 
-namespace DynamicForm.Tests;
+namespace DynamicForm.Tests.LogicTest;
 
 public class ValidationRulesMapTests
 {

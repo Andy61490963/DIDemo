@@ -3,7 +3,7 @@ using DynamicForm.Service.Service.FormLogicService;
 using Microsoft.Data.SqlClient;
 using Xunit;
 
-namespace DynamicForm.Tests;
+namespace DynamicForm.Tests.LogicTest;
 
 public class DropdownServiceTests
 {

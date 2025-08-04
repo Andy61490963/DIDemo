@@ -4,7 +4,7 @@ using DynamicForm.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 
-namespace DynamicForm.Tests;
+namespace DynamicForm.Tests.ApiControllerTest;
 
 /// <summary>
 /// 測試 <see cref="FormController"/> 的 API 行為。

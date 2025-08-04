@@ -2,7 +2,7 @@ using System;
 using DynamicForm.Helper;
 using Xunit;
 
-namespace DynamicForm.Tests;
+namespace DynamicForm.Tests.HelperTest;
 
 public class ConvertToColumnTypeHelperTests
 {
