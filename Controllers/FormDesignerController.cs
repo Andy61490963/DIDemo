@@ -4,6 +4,7 @@ using DynamicForm.Service.Interface;
 using DynamicForm.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using DynamicForm.Helper;
 
 namespace DynamicForm.Controllers;
 
@@ -42,13 +43,20 @@ public class FormDesignerController : ControllerBase
     [HttpGet("tables/{tableName}/fields")]
     public IActionResult GetFields(string tableName, [FromQuery] TableSchemaQueryType schemaType)
     {
-        var result = _formDesignerService.EnsureFieldsSaved(tableName, schemaType);
-
-        if (result == null)
+        try
         {
-            return NotFound();
+            var result = _formDesignerService.EnsureFieldsSaved(tableName, schemaType);
+
+            if (result == null)
+            {
+                return NotFound();
+            }
+            return Ok(result);
         }
-        return Ok(result);
+        catch (HttpStatusCodeException ex)
+        {
+            return StatusCode((int)ex.StatusCode, ex.Message);
+        }
     }
 
     /// <summary>
@@ -69,19 +77,32 @@ public class FormDesignerController : ControllerBase
     [HttpPost("fields")]
     public IActionResult UpsertField([FromBody] FormFieldViewModel model, [FromQuery] TableSchemaQueryType schemaType)
     {
-        var master = new FORM_FIELD_Master { ID = model.FORM_FIELD_Master_ID };
-        var formMasterId = _formDesignerService.GetOrCreateFormMasterId(master);
+        try
+        {
+            var ensure = _formDesignerService.EnsureFieldsSaved(model.TableName, schemaType);
+            if (ensure == null)
+            {
+                return NotFound();
+            }
 
-        if (model.ID != Guid.Empty &&
-            _formDesignerService.HasValidationRules(model.ID) &&
-            _formDesignerService.GetControlTypeByFieldId(model.ID) != model.CONTROL_TYPE)
-            return Conflict("已有驗證規則，無法變更控制元件類型");
+            if (model.ID != Guid.Empty &&
+                _formDesignerService.HasValidationRules(model.ID) &&
+                _formDesignerService.GetControlTypeByFieldId(model.ID) != model.CONTROL_TYPE)
+                return Conflict("已有驗證規則，無法變更控制元件類型");
 
-        _formDesignerService.UpsertField(model, formMasterId);
-        var fields = _formDesignerService.EnsureFieldsSaved(model.TableName, schemaType);
-        fields.ID = formMasterId;
-        fields.SchemaQueryType = schemaType;
-        return Ok(fields);
+            var master = new FORM_FIELD_Master { ID = model.FORM_FIELD_Master_ID };
+            var formMasterId = _formDesignerService.GetOrCreateFormMasterId(master);
+
+            _formDesignerService.UpsertField(model, formMasterId);
+            var fields = _formDesignerService.GetFieldsByTableName(model.TableName, schemaType);
+            fields.ID = formMasterId;
+            fields.SchemaQueryType = schemaType;
+            return Ok(fields);
+        }
+        catch (HttpStatusCodeException ex)
+        {
+            return StatusCode((int)ex.StatusCode, ex.Message);
+        }
     }
 
     // ────────── 批次設定 ──────────

@@ -3,6 +3,7 @@ using Dapper;
 using DynamicForm.Models;
 using DynamicForm.Service.Interface;
 using DynamicForm.Helper;
+using System.Net;
 using System.Text.RegularExpressions;
 using DynamicForm.Service.Interface.FormLogicInterface;
 using DynamicForm.ViewModels;
@@ -15,16 +16,19 @@ public class FormDesignerService : IFormDesignerService
     private readonly SqlConnection _con;
     private readonly IConfiguration _configuration;
     private readonly ISchemaService _schemaService;
-    
+
     public FormDesignerService(SqlConnection connection, IConfiguration configuration, ISchemaService schemaService)
     {
         _con = connection;
         _configuration = configuration;
         _schemaService = schemaService;
         _excludeColumns = _configuration.GetSection("DropdownSqlSettings:ExcludeColumns").Get<List<string>>() ?? new();
+        _requiredColumns = _configuration.GetSection("FormDesignerSettings:RequiredColumns").Get<List<string>>()
+                         ?? new() { "CREATE_USER", "CREATE_TIME", "EDIT_USER", "EDIT_TIME" };
     }
 
     private readonly List<string> _excludeColumns;
+    private readonly List<string> _requiredColumns;
     
     #region Public API
     public FormDesignerIndexViewModel GetFormDesignerIndexViewModel(Guid? id)
@@ -141,8 +145,16 @@ public class FormDesignerService : IFormDesignerService
     public FormFieldListViewModel? EnsureFieldsSaved(string tableName, TableSchemaQueryType schemaType)
     {
         var columns = GetTableSchema(tableName, schemaType);
-        
+
         if (columns.Count == 0) return null;
+
+        var missingColumns = _requiredColumns
+            .Where(req => !columns.Any(c => c.COLUMN_NAME.Equals(req, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+        if (missingColumns.Count > 0)
+            throw new HttpStatusCodeException(
+                HttpStatusCode.BadRequest,
+                $"缺少必要欄位：{string.Join(", ", missingColumns)}");
 
         FORM_FIELD_Master model = new FORM_FIELD_Master
         {
