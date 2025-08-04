@@ -138,10 +138,11 @@ public class FormDesignerService : IFormDesignerService
     /// </summary>
     /// <param name="tableName">資料表名稱</param>
     /// <returns>包含欄位設定的 ViewModel</returns>
-    public FormFieldListViewModel EnsureFieldsSaved(string tableName, TableSchemaQueryType schemaType)
+    public FormFieldListViewModel? EnsureFieldsSaved(string tableName, TableSchemaQueryType schemaType)
     {
         var columns = GetTableSchema(tableName, schemaType);
-        if (columns.Count == 0) return new();
+        
+        if (columns.Count == 0) return null;
 
         FORM_FIELD_Master model = new FORM_FIELD_Master
         {
@@ -153,31 +154,18 @@ public class FormDesignerService : IFormDesignerService
         var masterId = configs.Values.FirstOrDefault()?.FORM_FIELD_Master_ID
                        ?? GetOrCreateFormMasterId(model);
 
+        // 新增還沒存過的欄位
         foreach (var col in columns)
         {
             if (!configs.ContainsKey(col.COLUMN_NAME))
             {
-                var vm = new FormFieldViewModel
-                {
-                    ID = Guid.NewGuid(),
-                    FORM_FIELD_Master_ID = masterId,
-                    TableName = tableName,
-                    COLUMN_NAME = col.COLUMN_NAME,
-                    DATA_TYPE = col.DATA_TYPE,
-                    // CONTROL_TYPE = FormFieldHelper.GetDefaultControlType(col.DATA_TYPE),
-                    CONTROL_TYPE = FormControlType.Text,
-                    IS_REQUIRED = true,
-                    IS_EDITABLE = true,
-                    DEFAULT_VALUE = string.Empty,
-                    SchemaType = schemaType
-                };
-
+                var vm = CreateDefaultFieldConfig(col.COLUMN_NAME, col.DATA_TYPE, masterId, tableName, schemaType);
                 UpsertField(vm, masterId);
             }
         }
 
+        // 重新查一次所有欄位，確保資料同步
         var result = GetFieldsByTableName(tableName, schemaType);
-        result.SchemaQueryType = schemaType;
         return result;
     }
 
@@ -608,6 +596,23 @@ public class FormDesignerService : IFormDesignerService
         return res;
     }
     
+    private FormFieldViewModel CreateDefaultFieldConfig(string columnName, string dataType, Guid masterId, string tableName, TableSchemaQueryType schemaType)
+    {
+        return new FormFieldViewModel
+        {
+            ID = Guid.NewGuid(),
+            FORM_FIELD_Master_ID = masterId,
+            TableName = tableName,
+            COLUMN_NAME = columnName,
+            DATA_TYPE = dataType,
+            CONTROL_TYPE = FormFieldHelper.GetDefaultControlType(dataType), // 依型態決定 ControlType
+            IS_REQUIRED = false,
+            IS_EDITABLE = true,
+            DEFAULT_VALUE = "",
+            SchemaType = schemaType
+        };
+    }
+
     #endregion
 
     #region SQL

@@ -29,13 +29,13 @@ public class FormController : ControllerBase
     /// 取得編輯/檢視/新增資料表單
     /// </summary>
     /// <param name="formId">FORM_FIELD_Master.ID</param>
-    /// <param name="id">資料主鍵，新增時可不傳</param>
+    /// <param name="pk">資料主鍵，新增時可不傳</param>
     /// <returns>回傳填寫表單的畫面</returns>
     [HttpPost("{formId}")]
-    public IActionResult GetForm(Guid formId, string? id)
+    public IActionResult GetForm(Guid formId, string? pk)
     {
-        var vm = id != null
-            ? _formService.GetFormSubmission(formId, id)
+        var vm = pk != null
+            ? _formService.GetFormSubmission(formId, pk)
             : _formService.GetFormSubmission(formId);
         return Ok(vm);
     }

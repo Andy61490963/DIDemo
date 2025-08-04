@@ -34,7 +34,7 @@ public class FormListController : ControllerBase
         if (!string.IsNullOrWhiteSpace(q))
         {
             list = list
-                .Where(x => x.FORM_NAME != null && x.FORM_NAME.Contains(q, StringComparison.OrdinalIgnoreCase))
+                .Where(x => x.FORM_NAME.Contains(q, StringComparison.OrdinalIgnoreCase))
                 .ToList();
         }
         return Ok(list);

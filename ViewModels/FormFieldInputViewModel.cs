@@ -13,11 +13,6 @@ public class FormFieldInputViewModel
     public bool IS_REQUIRED { get; set; }
     public bool IS_EDITABLE { get; set; }
 
-    /// <summary>
-    /// 欄位來源：主表或檢視表
-    /// </summary>
-    public TableSchemaQueryType SOURCE { get; set; }
-
     public List<FormFieldValidationRuleDto> ValidationRules { get; set; } = new();
 
     public bool ISUSESQL { get; set; }
@@ -27,7 +22,7 @@ public class FormFieldInputViewModel
     /// <summary>
     /// 若欄位來自 View，可紀錄其實際來源表
     /// </summary>
-    public string? SOURCE_TABLE { get; set; }
+    public TableSchemaQueryType? SOURCE_TABLE { get; set; }
 
     public object? CurrentValue { get; set; }
 }

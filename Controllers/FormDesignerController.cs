@@ -43,6 +43,11 @@ public class FormDesignerController : ControllerBase
     public IActionResult GetFields(string tableName, [FromQuery] TableSchemaQueryType schemaType)
     {
         var result = _formDesignerService.EnsureFieldsSaved(tableName, schemaType);
+
+        if (result == null)
+        {
+            return NotFound();
+        }
         return Ok(result);
     }
 

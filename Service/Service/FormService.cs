@@ -93,7 +93,7 @@ public class FormService : IFormService
     /// 根據表單設定抓取主表欄位與現有資料（編輯時用）
     /// 只對主表進行欄位組裝，Dropdown 顯示選項答案
     /// </summary>
-    public FormSubmissionViewModel GetFormSubmission(Guid formMasterId, string? rowId = null)
+    public FormSubmissionViewModel GetFormSubmission(Guid formMasterId, string? pk = null)
     {
         // 1. 查主設定
         var master = _formFieldMasterService.GetFormFieldMasterFromId(formMasterId);
@@ -109,10 +109,10 @@ public class FormService : IFormService
         IDictionary<string, object?>? dataRow = null;
         Dictionary<Guid, Guid>? dropdownAnswers = null;
 
-        if (!string.IsNullOrWhiteSpace(rowId))
+        if (!string.IsNullOrWhiteSpace(pk))
         {
             // 3.1 取得主表主鍵名稱/型別/值
-            var (pkName, pkType, pkValue) = _schemaService.ResolvePk(master.BASE_TABLE_NAME, rowId);
+            var (pkName, pkType, pkValue) = _schemaService.ResolvePk(master.BASE_TABLE_NAME, pk);
 
             // 3.2 查詢主表資料（參數化防注入）
             var sql = $"SELECT * FROM [{master.BASE_TABLE_NAME}] WHERE [{pkName}] = @id";
@@ -123,8 +123,8 @@ public class FormService : IFormService
             {
                 dropdownAnswers = _con.Query<(Guid FieldId, Guid OptionId)>(
                     @"/**/SELECT FORM_FIELD_CONFIG_ID AS FieldId, FORM_FIELD_DROPDOWN_OPTIONS_ID AS OptionId 
-                      FROM FORM_FIELD_DROPDOWN_ANSWER WHERE ROW_ID = @RowId",
-                    new { RowId = rowId })
+                      FROM FORM_FIELD_DROPDOWN_ANSWER WHERE ROW_ID = @Pk",
+                    new { Pk = pk })
                     .ToDictionary(x => x.FieldId, x => x.OptionId);
             }
         }
@@ -147,7 +147,7 @@ public class FormService : IFormService
         return new FormSubmissionViewModel
         {
             FormId = master.ID,
-            RowId = rowId,
+            Pk = pk,
             TargetTableToUpsert = master.BASE_TABLE_NAME,
             FormName = master.FORM_NAME,
             Fields = fields
@@ -210,9 +210,8 @@ public class FormService : IFormService
             OptionList = finalOptions,
             ISUSESQL = isUseSql,
             DROPDOWNSQL = dropdown?.DROPDOWNSQL ?? string.Empty,
-            SOURCE = schemaType,
             DATA_TYPE = dataType,
-            SOURCE_TABLE = TableSchemaQueryType.OnlyTable.ToString()
+            SOURCE_TABLE = TableSchemaQueryType.OnlyTable
         };
     }
 
@@ -225,7 +224,7 @@ public class FormService : IFormService
         _txService.WithTransaction(tx =>
         {
             var formId = input.FormId;
-            var rowId = input.RowId;
+            var pk = input.Pk;
 
             // 查表單主設定
             var master = _formFieldMasterService.GetFormFieldMasterFromId(formId, tx);
@@ -241,8 +240,8 @@ public class FormService : IFormService
             var (normalFields, dropdownAnswers) = MapInputFields(input.InputFields, configs);
 
             // 2. Insert/Update 決策
-            var (pkName, pkType, typedRowId) = _schemaService.ResolvePk(master.BASE_TABLE_NAME, rowId, tx);
-            bool isInsert = string.IsNullOrEmpty(rowId);
+            var (pkName, pkType, typedRowId) = _schemaService.ResolvePk(master.BASE_TABLE_NAME, pk, tx);
+            bool isInsert = string.IsNullOrEmpty(pk);
             bool isIdentity = _schemaService.IsIdentityColumn(master.BASE_TABLE_NAME, pkName, tx);
             object? realRowId = typedRowId;
 

@@ -8,7 +8,7 @@ public interface IFormDesignerService
 {
     FormDesignerIndexViewModel GetFormDesignerIndexViewModel(Guid? id);
     Guid GetOrCreateFormMasterId(FORM_FIELD_Master model);
-    FormFieldListViewModel EnsureFieldsSaved(string tableName, TableSchemaQueryType type);
+    FormFieldListViewModel? EnsureFieldsSaved(string tableName, TableSchemaQueryType type);
     FormFieldListViewModel GetFieldsByTableName(string tableName, TableSchemaQueryType schemaType);
 
     void UpsertField(FormFieldViewModel model, Guid formMasterId);
