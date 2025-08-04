@@ -5,6 +5,8 @@ using DynamicForm.Service.Interface;
 using DynamicForm.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
+using DynamicForm.Helper;
+using System.Net;
 
 namespace DynamicForm.Tests.ApiControllerTest;
 
@@ -127,6 +129,37 @@ public class FormDesignerControllerTests
         Assert.NotNull(result);
         var value = result.Value?.GetType().GetProperty("id")?.GetValue(result.Value);
         Assert.Equal(id, value);
+    }
+
+    [Fact]
+    public void GetFields_MissingSystemColumns_ReturnsBadRequest()
+    {
+        var controller = CreateController();
+        _designerMock
+            .Setup(s => s.EnsureFieldsSaved("T", TableSchemaQueryType.OnlyTable))
+            .Throws(new HttpStatusCodeException(HttpStatusCode.BadRequest, "缺少必要欄位"));
+
+        var result = controller.GetFields("T", TableSchemaQueryType.OnlyTable);
+
+        var obj = Assert.IsType<ObjectResult>(result);
+        Assert.Equal((int)HttpStatusCode.BadRequest, obj.StatusCode);
+        Assert.Equal("缺少必要欄位", obj.Value);
+    }
+
+    [Fact]
+    public void UpsertField_MissingSystemColumns_ReturnsBadRequest()
+    {
+        var controller = CreateController();
+        var vm = new FormFieldViewModel { TableName = "T" };
+        _designerMock
+            .Setup(s => s.EnsureFieldsSaved("T", TableSchemaQueryType.OnlyTable))
+            .Throws(new HttpStatusCodeException(HttpStatusCode.BadRequest, "缺少必要欄位"));
+
+        var result = controller.UpsertField(vm, TableSchemaQueryType.OnlyTable);
+
+        var obj = Assert.IsType<ObjectResult>(result);
+        Assert.Equal((int)HttpStatusCode.BadRequest, obj.StatusCode);
+        _designerMock.Verify(s => s.UpsertField(It.IsAny<FormFieldViewModel>(), It.IsAny<Guid>()), Times.Never);
     }
 }
 
