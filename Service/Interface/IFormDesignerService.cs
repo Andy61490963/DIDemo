@@ -60,9 +60,8 @@ public interface IFormDesignerService
     /// </summary>
     /// <param name="sql">要執行的查詢語法（僅限 SELECT）</param>
     /// <param name="dropdownId">目標下拉選單 ID</param>
-    /// <param name="optionTable">來源資料表名稱</param>
     /// <returns>SQL 驗證與匯入結果</returns>
-    ValidateSqlResultViewModel ImportDropdownOptionsFromSql(string sql, Guid dropdownId, string optionTable);
+    ValidateSqlResultViewModel ImportDropdownOptionsFromSql(string sql, Guid dropdownId);
     Guid SaveFormHeader(FORM_FIELD_Master model);
 
     /// <summary>

@@ -39,7 +39,7 @@ public class FormDesignerControllerTests
     {
         var controller = CreateController();
 
-        var result = controller.SetAllEditable(Guid.NewGuid(), "t", true, TableSchemaQueryType.All);
+        var result = controller.BatchSetEditable(Guid.NewGuid(), "t", true, TableSchemaQueryType.All);
 
         Assert.IsType<BadRequestObjectResult>(result);
     }
@@ -52,7 +52,7 @@ public class FormDesignerControllerTests
         var fields = new FormFieldListViewModel();
         _designerMock.Setup(s => s.GetFieldsByTableName("t", TableSchemaQueryType.OnlyTable)).Returns(fields);
 
-        var result = controller.SetAllEditable(formId, "t", true, TableSchemaQueryType.OnlyTable) as OkObjectResult;
+        var result = controller.BatchSetEditable(formId, "t", true, TableSchemaQueryType.OnlyTable) as OkObjectResult;
 
         _designerMock.Verify(s => s.SetAllEditable(formId, "t", true), Times.Once);
         Assert.NotNull(result);
@@ -67,7 +67,7 @@ public class FormDesignerControllerTests
     {
         var controller = CreateController();
 
-        var result = controller.SetAllRequired(Guid.NewGuid(), "t", true, TableSchemaQueryType.All);
+        var result = controller.BatchSetRequired(Guid.NewGuid(), "t", true, TableSchemaQueryType.All);
 
         Assert.IsType<BadRequestObjectResult>(result);
     }
@@ -80,7 +80,7 @@ public class FormDesignerControllerTests
         var fields = new FormFieldListViewModel();
         _designerMock.Setup(s => s.GetFieldsByTableName("t", TableSchemaQueryType.OnlyTable)).Returns(fields);
 
-        var result = controller.SetAllRequired(formId, "t", true, TableSchemaQueryType.OnlyTable) as OkObjectResult;
+        var result = controller.BatchSetRequired(formId, "t", true, TableSchemaQueryType.OnlyTable) as OkObjectResult;
 
         _designerMock.Verify(s => s.SetAllRequired(formId, "t", true), Times.Once);
         Assert.NotNull(result);

@@ -228,8 +228,8 @@ public class FormDesignerService : IFormDesignerService
     /// </summary>
     public void SetAllEditable(Guid formMasterId, string tableName, bool isEditable)
     {
-        Guid children = GetFormFieldMasterChildren(formMasterId);
-        _con.Execute(Sql.SetAllEditable, new { formMasterId = children, tableName, isEditable });
+        // Guid children = GetFormFieldMasterChildren(formMasterId);
+        _con.Execute(Sql.SetAllEditable, new { formMasterId, tableName, isEditable });
     }
 
     /// <summary>
@@ -237,8 +237,8 @@ public class FormDesignerService : IFormDesignerService
     /// </summary>
     public void SetAllRequired(Guid formMasterId, string tableName, bool isRequired)
     {
-        Guid children = GetFormFieldMasterChildren(formMasterId);
-        _con.Execute(Sql.SetAllRequired, new { formMasterId = children, tableName, isRequired });
+        // Guid children = GetFormFieldMasterChildren(formMasterId);
+        _con.Execute(Sql.SetAllRequired, new { formMasterId, tableName, isRequired });
     }
 
     /// <summary>
@@ -391,9 +391,9 @@ public class FormDesignerService : IFormDesignerService
         _con.Execute(Sql.DeleteDropdownOption, new { optionId });
     }
     
-    public void SaveDropdownSql(Guid fieldId, string sql)
+    public void SaveDropdownSql(Guid dropdownId, string sql)
     {
-        _con.Execute(Sql.UpsertDropdownSql, new { fieldId, sql });
+        _con.Execute(Sql.UpsertDropdownSql, new { dropdownId, sql });
     }
     
     public void SetDropdownMode(Guid dropdownId, bool isUseSql)
@@ -470,15 +470,11 @@ public class FormDesignerService : IFormDesignerService
         return result;
     }
 
-    public ValidateSqlResultViewModel ImportDropdownOptionsFromSql(string sql, Guid dropdownId, string optionTable)
+    public ValidateSqlResultViewModel ImportDropdownOptionsFromSql(string sql, Guid dropdownId)
     {
-        // 若未指定資料表名稱，嘗試從 SQL 中解析
-        if (string.IsNullOrWhiteSpace(optionTable))
-        {
-            var match = Regex.Match(sql, @"from\s+([a-zA-Z0-9_]+)", RegexOptions.IgnoreCase);
-            optionTable = match.Success ? match.Groups[1].Value : string.Empty;
-        }
-
+        var match = Regex.Match(sql, @"from\s+([a-zA-Z0-9_]+)", RegexOptions.IgnoreCase);
+        var optionTable = match.Success ? match.Groups[1].Value : string.Empty;
+        
         var validation = ValidateDropdownSql(sql);
         if (!validation.Success)
             return validation;
@@ -761,22 +757,9 @@ SELECT * FROM FORM_FIELD_DROPDOWN_OPTIONS WHERE FORM_FIELD_DROPDOWN_ID = @dropDo
 ";
 
         public const string UpsertDropdownSql = @"/**/
-MERGE FORM_FIELD_DROPDOWN AS target
-USING (
-    SELECT 
-        @fieldId AS FORM_FIELD_CONFIG_ID,
-        @sql AS DROPDOWNSQL
-) AS source
-ON target.FORM_FIELD_CONFIG_ID = source.FORM_FIELD_CONFIG_ID
-
-WHEN MATCHED THEN
-    UPDATE SET 
-        target.DROPDOWNSQL = source.DROPDOWNSQL,
-        target.ISUSESQL = 1
-
-WHEN NOT MATCHED THEN
-    INSERT (ID, FORM_FIELD_CONFIG_ID, DROPDOWNSQL, ISUSESQL)
-    VALUES (NEWID(), source.FORM_FIELD_CONFIG_ID, source.DROPDOWNSQL, 1);
+UPDATE FORM_FIELD_DROPDOWN
+  SET DROPDOWNSQL = @sql, ISUSESQL = 1
+  WHERE ID = @dropdownId;
 ";
         
         public const string UpsertDropdownOption = @"/**/
