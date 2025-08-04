@@ -25,14 +25,6 @@ public class FormFieldConfigDto
     public bool IS_EDITABLE { get; set; }
 
     public int FIELD_ORDER { get; set; }
-
-    public string? CREATE_USER { get; set; }
-
-    public DateTime? CREATE_TIME { get; set; }
-
-    public string? EDIT_USER { get; set; }
-
-    public DateTime? EDIT_TIME { get; set; }
     
     public string DATA_TYPE { get; set; }
 }

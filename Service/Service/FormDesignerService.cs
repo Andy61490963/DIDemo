@@ -23,8 +23,7 @@ public class FormDesignerService : IFormDesignerService
         _configuration = configuration;
         _schemaService = schemaService;
         _excludeColumns = _configuration.GetSection("DropdownSqlSettings:ExcludeColumns").Get<List<string>>() ?? new();
-        _requiredColumns = _configuration.GetSection("FormDesignerSettings:RequiredColumns").Get<List<string>>()
-                         ?? new() { "CREATE_USER", "CREATE_TIME", "EDIT_USER", "EDIT_TIME" };
+        _requiredColumns = _configuration.GetSection("FormDesignerSettings:RequiredColumns").Get<List<string>>() ?? new();
     }
 
     private readonly List<string> _excludeColumns;
