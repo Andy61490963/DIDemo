@@ -8,7 +8,5 @@ public class FormInputField
     public Guid FieldConfigId { get; set; }
     public string? Value { get; set; }
     public string? Column { get; set; }
-
-    public string? SOURCE_TABLE { get; set; }
 }
 

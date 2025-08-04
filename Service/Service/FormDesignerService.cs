@@ -104,7 +104,6 @@ public class FormDesignerService : IFormDesignerService
                 FORM_FIELD_Master_ID = cfg?.FORM_FIELD_Master_ID ?? Guid.Empty,
                 TableName = tableName,
                 COLUMN_NAME = col.COLUMN_NAME,
-                SOURCE_TABLE = col.SOURCE_TABLE,
                 DATA_TYPE = dataType,
                 CONTROL_TYPE = cfg?.CONTROL_TYPE,
                 CONTROL_TYPE_WHITELIST = FormFieldHelper.GetControlTypeWhitelist(dataType),
@@ -164,7 +163,6 @@ public class FormDesignerService : IFormDesignerService
                     FORM_FIELD_Master_ID = masterId,
                     TableName = tableName,
                     COLUMN_NAME = col.COLUMN_NAME,
-                    SOURCE_TABLE = col.SOURCE_TABLE,
                     DATA_TYPE = col.DATA_TYPE,
                     // CONTROL_TYPE = FormFieldHelper.GetDefaultControlType(col.DATA_TYPE),
                     CONTROL_TYPE = FormControlType.Text,
@@ -587,21 +585,7 @@ public class FormDesignerService : IFormDesignerService
     {
         var sql = Sql.TableSchemaSelect;
         var columns = _con.Query<DbColumnInfo>(sql, new { TableName = tableName, Type = (int)type }).ToList();
-
-        if (type == TableSchemaQueryType.OnlyView)
-        {
-            var srcMap = GetViewColumnSources(tableName);
-            foreach (var col in columns)
-            {
-                if (srcMap.TryGetValue(col.COLUMN_NAME, out var src))
-                    col.SOURCE_TABLE = src;
-            }
-        }
-        else
-        {
-            foreach (var col in columns) col.SOURCE_TABLE = tableName;
-        }
-
+        
         return columns;
     }
 
@@ -626,21 +610,6 @@ public class FormDesignerService : IFormDesignerService
     {
         var res = _con.Query<Guid>(Sql.GetRequiredFieldIds).ToHashSet();
         return res;
-    }
-
-    /// <summary>
-    /// 取得 View 欄位來源表資訊
-    /// </summary>
-    private Dictionary<string, string?> GetViewColumnSources(string viewName)
-    {
-        var sql = @"
-DECLARE @vid INT = OBJECT_ID(@ViewName);
-SELECT name AS COLUMN_NAME,
-       source_table AS SOURCE_TABLE
-FROM sys.dm_exec_describe_first_result_set_for_object(@vid, NULL);";
-
-        var list = _con.Query<ViewColumnSource>(sql, new { ViewName = viewName });
-        return list.ToDictionary(x => x.COLUMN_NAME, x => x.SOURCE_TABLE, StringComparer.OrdinalIgnoreCase);
     }
     
     #endregion
