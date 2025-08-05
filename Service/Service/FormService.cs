@@ -7,9 +7,9 @@ using DynamicForm.Service.Interface.FormLogicInterface;
 using DynamicForm.Service.Interface.TransactionInterface;
 using DynamicForm.ViewModels;
 using Microsoft.Data.SqlClient;
-using System.Data;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace DynamicForm.Service.Service;
 
@@ -17,27 +17,23 @@ public class FormService : IFormService
 {
     private readonly SqlConnection _con;
     private readonly ITransactionService _txService;
-    private readonly IConfiguration _configuration;
     private readonly IFormFieldMasterService _formFieldMasterService;
     private readonly ISchemaService _schemaService;
     private readonly IFormFieldConfigService _formFieldConfigService;
     private readonly IFormDataService _formDataService;
     private readonly IDropdownService _dropdownService;
     
-    public FormService(SqlConnection connection, ITransactionService txService, IFormFieldMasterService formFieldMasterService, ISchemaService schemaService, IFormFieldConfigService formFieldConfigService, IDropdownService dropdownService, IFormDataService formDataService, IConfiguration configuration)
+    public FormService(SqlConnection connection, ITransactionService txService, IFormFieldMasterService formFieldMasterService, ISchemaService schemaService, IFormFieldConfigService formFieldConfigService, IDropdownService dropdownService, IFormDataService formDataService)
     {
         _con = connection;
         _txService = txService;
-        _configuration = configuration;
         _formFieldMasterService = formFieldMasterService;
         _schemaService = schemaService;
         _formFieldConfigService = formFieldConfigService;
         _formDataService = formDataService;
         _dropdownService = dropdownService;
-        _excludeColumns = _configuration.GetSection("DropdownSqlSettings:ExcludeColumns").Get<List<string>>() ?? new();
     }
     
-    private readonly List<string> _excludeColumns;
 
     /// <summary>
     /// 取得指定 SCHEMA_TYPE 下的表單資料清單，
@@ -49,7 +45,7 @@ public class FormService : IFormService
 
         var results = new List<FormListDataViewModel>();
 
-        foreach (var (master, columns, fieldConfigs) in metas)
+        foreach (var (master, _, fieldConfigs) in metas)
         {
             var rawRows = _formDataService.GetRows(master.VIEW_TABLE_NAME);
             var pk = _schemaService.GetPrimaryKeyColumn(master.BASE_TABLE_NAME);
@@ -66,12 +62,36 @@ public class FormService : IFormService
                 _dropdownService.ReplaceDropdownIdsWithTexts(rows, fieldConfigs, dropdownAnswers, optionTextMap);
             }
 
-            results.Add(new FormListDataViewModel
+            var fieldTemplates = GetFields(master.VIEW_TABLE_ID, TableSchemaQueryType.OnlyView, master.VIEW_TABLE_NAME);
+            
+            foreach (var row in rows)
             {
-                FormMasterId = master.ID,
-                Columns = columns,
-                Rows = rows
-            });
+                var rowFields = fieldTemplates
+                    .Select(f => new FormFieldInputViewModel
+                    {
+                        FieldConfigId = f.FieldConfigId,
+                        Column = f.Column,
+                        DATA_TYPE = f.DATA_TYPE,
+                        CONTROL_TYPE = f.CONTROL_TYPE,
+                        DefaultValue = f.DefaultValue,
+                        IS_REQUIRED = f.IS_REQUIRED,
+                        IS_EDITABLE = f.IS_EDITABLE,
+                        ValidationRules = f.ValidationRules,
+                        ISUSESQL = f.ISUSESQL,
+                        DROPDOWNSQL = f.DROPDOWNSQL,
+                        OptionList = f.OptionList,
+                        SOURCE_TABLE = f.SOURCE_TABLE,
+                        CurrentValue = row.GetValue(f.Column)
+                    })
+                    .ToList();
+
+                results.Add(new FormListDataViewModel
+                {
+                    FormMasterId = master.ID,
+                    Pk = row.PkId?.ToString() ?? string.Empty,
+                    Fields = rowFields
+                });
+            }
         }
 
         return results;
@@ -87,11 +107,9 @@ public class FormService : IFormService
         var master = _formFieldMasterService.GetFormFieldMasterFromId(formMasterId);
         if (master == null)
             throw new InvalidOperationException($"FORM_FIELD_Master {formMasterId} not found");
-        if (master.BASE_TABLE_ID is null)
-            throw new InvalidOperationException("主表設定不完整");
 
         // 2. 取得主表欄位（只抓主表，不抓 view）
-        var fields = GetFields(master.BASE_TABLE_ID.Value, TableSchemaQueryType.OnlyTable, master.BASE_TABLE_NAME);
+        var fields = GetFields(master.BASE_TABLE_ID, TableSchemaQueryType.OnlyTable, master.BASE_TABLE_NAME);
 
         // 3. 撈主表實際資料（如果是編輯模式）
         IDictionary<string, object?>? dataRow = null;
@@ -191,6 +209,7 @@ public class FormService : IFormService
             FieldConfigId = field.ID,
             Column = field.COLUMN_NAME,
             CONTROL_TYPE = field.CONTROL_TYPE,
+            QUERY_CONDITION_TYPE = field.QUERY_CONDITION_TYPE,
             DefaultValue = field.DEFAULT_VALUE,
             IS_REQUIRED = field.IS_REQUIRED,
             IS_EDITABLE = field.IS_EDITABLE,
@@ -201,6 +220,30 @@ public class FormService : IFormService
             DATA_TYPE = dataType,
             SOURCE_TABLE = TableSchemaQueryType.OnlyTable,
         };
+    }
+
+    /// <summary>
+    /// 以 <see cref="FORM_FIELD_DROPDOWN_OPTIONS"/> 設定動態載入下拉選單選項。
+    /// </summary>
+    private List<FORM_FIELD_DROPDOWN_OPTIONS> LoadDropdownOptions(FORM_FIELD_DROPDOWN_OPTIONS config)
+    {
+        if (!IsSafeIdentifier(config.OPTION_TABLE) ||
+            !IsSafeIdentifier(config.OPTION_VALUE) ||
+            !IsSafeIdentifier(config.OPTION_TEXT))
+        {
+            return new();
+        }
+
+        var sql = $"SELECT [{config.OPTION_VALUE}] AS OPTION_VALUE, [{config.OPTION_TEXT}] AS OPTION_TEXT FROM [{config.OPTION_TABLE}]";
+        return _con.Query<FORM_FIELD_DROPDOWN_OPTIONS>(sql).ToList();
+    }
+
+    /// <summary>
+    /// 驗證資料表與欄位識別名稱，避免 SQL Injection。
+    /// </summary>
+    private static bool IsSafeIdentifier(string? identifier)
+    {
+        return !string.IsNullOrWhiteSpace(identifier) && Regex.IsMatch(identifier, "^[A-Za-z0-9_]+$");
     }
 
     /// <summary>
