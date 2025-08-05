@@ -183,6 +183,15 @@ public class FormDesignerService : IFormDesignerService
 
         // 重新查一次所有欄位，確保資料同步
         var result = GetFieldsByTableName(tableName, schemaType);
+        
+        // 對於檢視表，先預設有下拉選單的設定
+        if (schemaType == TableSchemaQueryType.OnlyView)
+        {
+            foreach (var field in result.Fields)
+            {
+                EnsureDropdownCreated(field.ID, null, null);
+            }
+        }
         return result;
     }
 
@@ -352,9 +361,9 @@ public class FormDesignerService : IFormDesignerService
         return res;
     }
 
-    public void EnsureDropdownCreated(Guid fieldId)
+    public void EnsureDropdownCreated(Guid fieldId, bool? isUseSql = false, string? sql = null)
     {
-        _con.Execute(Sql.EnsureDropdownExists, new { fieldId });
+        _con.Execute(Sql.EnsureDropdownExists, new { fieldId, isUseSql, sql });
     }
     
     public DropDownViewModel GetDropdownSetting(Guid fieldId)
@@ -773,8 +782,8 @@ IF NOT EXISTS (
     SELECT 1 FROM FORM_FIELD_DROPDOWN WHERE FORM_FIELD_CONFIG_ID = @fieldId
 )
 BEGIN
-    INSERT INTO FORM_FIELD_DROPDOWN (ID, FORM_FIELD_CONFIG_ID, ISUSESQL)
-    VALUES (NEWID(), @fieldId, 0)
+    INSERT INTO FORM_FIELD_DROPDOWN (ID, FORM_FIELD_CONFIG_ID, ISUSESQL, DROPDOWNSQL)
+    VALUES (NEWID(), @fieldId, @isUseSql, @sql)
 END
 ";
         

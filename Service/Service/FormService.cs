@@ -215,23 +215,8 @@ public class FormService : IFormService
             DROPDOWNSQL = dropdown?.DROPDOWNSQL ?? string.Empty,
             DATA_TYPE = dataType,
             SOURCE_TABLE = TableSchemaQueryType.OnlyTable,
-            QUERY_CONDITION_TYPE = field.QUERY_CONDITION_TYPE,
-            QUERY_CONDITION_SQL = field.QUERY_CONDITION_SQL ?? string.Empty,
-            QUERY_OPTIONS = field.QUERY_CONDITION_TYPE == QueryConditionType.Dropdown && !string.IsNullOrWhiteSpace(field.QUERY_CONDITION_SQL)
-                ? ExecuteQueryConditionSql(_con, field.QUERY_CONDITION_SQL, new { }).ToList()
-                : new List<Option>()
         };
     }
-
-    /// <summary>
-    /// 以參數化查詢執行查詢條件的 SQL，避免 SQL Injection。
-    /// </summary>
-    /// <param name="connection">資料庫連線物件</param>
-    /// <param name="sql">查詢語句</param>
-    /// <param name="parameters">查詢參數</param>
-    /// <returns>回傳選項集合</returns>
-    public static IEnumerable<Option> ExecuteQueryConditionSql(IDbConnection connection, string sql, object parameters)
-        => connection.Query<Option>(sql, parameters);
 
     /// <summary>
     /// 儲存或更新表單資料（含下拉選項答案）

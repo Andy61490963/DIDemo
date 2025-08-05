@@ -39,8 +39,14 @@ public interface IFormDesignerService
 
     bool DeleteValidationRule(Guid id);
 
-    // Dropdown option related
-    void EnsureDropdownCreated(Guid fieldId);
+    /// <summary>
+    /// 確保 FORM_FIELD_DROPDOWN 存在，
+    /// 可依需求指定預設的 SQL 來源與是否使用 SQL。
+    /// </summary>
+    /// <param name="fieldId">欄位設定 ID</param>
+    /// <param name="isUseSql">是否使用 SQL 為資料來源，預設為 false；OnlyView 可帶入 null</param>
+    /// <param name="sql">預設 SQL 查詢語句，預設為 null</param>
+    void EnsureDropdownCreated(Guid fieldId, bool? isUseSql = false, string? sql = null);
     
     DropDownViewModel GetDropdownSetting(Guid fieldId);
 
