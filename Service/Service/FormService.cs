@@ -34,38 +34,55 @@ public class FormService : IFormService
         _dropdownService = dropdownService;
     }
     
-
     /// <summary>
-    /// 取得指定 SCHEMA_TYPE 下的表單資料清單，
-    /// 已自動將下拉選欄位的值轉為顯示文字（OptionText）。
+    /// 取得所有表單的資料清單（含對應欄位值），
+    /// 並自動轉換下拉選單欄位的選項 ID 為顯示文字（OptionText）。
     /// </summary>
+    /// <param name="conditions">查詢條件（可選）</param>
+    /// <returns>轉換過欄位顯示內容的表單清單資料</returns>
     public List<FormListDataViewModel> GetFormList(IEnumerable<FormQueryCondition>? conditions = null)
     {
+        // 1. 取得所有表單主設定（含欄位設定），使用 VIEW 為主查詢來源
         var metas = _formFieldMasterService.GetFormMetaAggregates(TableSchemaQueryType.All);
 
+        // 2. 預備回傳結果容器
         var results = new List<FormListDataViewModel>();
 
-        foreach (var (master, _, fieldConfigs) in metas)
+        // 3. 對每一個表單主設定進行處理
+        foreach (var (master, fieldConfigs) in metas)
         {
+            // 3.1 根據 View 撈出該表單的資料列（使用傳入查詢條件）
             var rawRows = _formDataService.GetRows(master.VIEW_TABLE_NAME, conditions);
+
+            // 3.2 取得主表主鍵欄位，用於辨識每一筆資料的唯一性
             var pk = _schemaService.GetPrimaryKeyColumn(master.BASE_TABLE_NAME);
 
             if (pk == null)
                 throw new InvalidOperationException("No primary key column found");
 
+            // 3.3 將原始資料轉換為擴充型 Row，並解析出 RowId（主鍵值清單）
             var rows = _dropdownService.ToFormDataRows(rawRows, pk, out var rowIds);
 
+            // 3.4 若有資料，且包含 Dropdown 欄位，進行 OptionText 轉換
             if (rowIds.Any())
             {
+                // 取得所有 Row 對應的 Dropdown 選項答案（FIELD_ID ➜ OPTION_ID）
                 var dropdownAnswers = _dropdownService.GetAnswers(rowIds);
+
+                // 根據答案轉成顯示用文字對應表（OPTION_ID ➜ OPTION_TEXT）
                 var optionTextMap = _dropdownService.GetOptionTextMap(dropdownAnswers);
+
+                // 替換每一列資料中的 Dropdown 欄位值為對應的顯示文字
                 _dropdownService.ReplaceDropdownIdsWithTexts(rows, fieldConfigs, dropdownAnswers, optionTextMap);
             }
 
+            // 3.5 根據 VIEW 設定，組裝欄位模板（含控制型態、驗證等）
             var fieldTemplates = GetFields(master.VIEW_TABLE_ID, TableSchemaQueryType.OnlyView, master.VIEW_TABLE_NAME);
-            
+
+            // 3.6 將每一筆資料列組成 ViewModel，並加入回傳清單
             foreach (var row in rows)
             {
+                // 將每個欄位設定（template）填入對應的實際值（CurrentValue）
                 var rowFields = fieldTemplates
                     .Select(f => new FormFieldInputViewModel
                     {
@@ -82,10 +99,11 @@ public class FormService : IFormService
                         DROPDOWNSQL = f.DROPDOWNSQL,
                         OptionList = f.OptionList,
                         SOURCE_TABLE = f.SOURCE_TABLE,
-                        CurrentValue = row.GetValue(f.Column)
+                        CurrentValue = row.GetValue(f.Column) // 根據欄位名稱取出該欄位的實際值
                     })
                     .ToList();
 
+                // 組合單筆表單的資料 ViewModel
                 results.Add(new FormListDataViewModel
                 {
                     FormMasterId = master.ID,
@@ -95,8 +113,10 @@ public class FormService : IFormService
             }
         }
 
+        // 4. 回傳所有表單資料清單（含每列欄位顯示資料）
         return results;
     }
+
 
     /// <summary>
     /// 根據表單設定抓取主表欄位與現有資料（編輯時用）

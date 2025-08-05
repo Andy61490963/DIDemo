@@ -30,30 +30,41 @@ public class FormFieldMasterService : IFormFieldMasterService
             new { id }, transaction: tx);
     }
     
-    public List<(FORM_FIELD_Master Master, List<string> SchemaColumns, List<FormFieldConfigDto> FieldConfigs)> GetFormMetaAggregates(TableSchemaQueryType type)
+    /// <summary>
+    /// 根據指定的 SCHEMA_TYPE，取得所有表單主設定（FORM_FIELD_Master），
+    /// 並載入其對應的欄位設定（FORM_FIELD_CONFIG）。
+    /// </summary>
+    /// <param name="type">欲查詢的 SCHEMA_TYPE（主表、View 或 All）</param>
+    /// <returns>
+    /// 回傳每筆表單主設定及其對應欄位設定清單。
+    /// </returns>
+    public List<(FORM_FIELD_Master Master, List<FormFieldConfigDto> FieldConfigs)> GetFormMetaAggregates(TableSchemaQueryType type)
     {
+        // 1. 根據 SCHEMA_TYPE 查詢表單主設定（FORM_FIELD_Master）
         var masters = _con.Query<FORM_FIELD_Master>(
-            "/**/SELECT * FROM FORM_FIELD_Master WHERE SCHEMA_TYPE = @TYPE",
-            new { TYPE = type.ToInt() })
+                @"/**/
+SELECT * FROM FORM_FIELD_Master WHERE SCHEMA_TYPE = @TYPE",
+                new { TYPE = type.ToInt() })
             .ToList();
 
-        var result = new List<(FORM_FIELD_Master, List<string>, List<FormFieldConfigDto>)>();
+        // 2. 建立結果容器（每筆包含 Master 設定與欄位設定）
+        var result = new List<(FORM_FIELD_Master Master, List<FormFieldConfigDto> FieldConfigs)>();
 
+        // 3. 對每筆 master 查出對應欄位設定（FORM_FIELD_CONFIG）
         foreach (var master in masters)
         {
-            var columns = _con.Query<string>(
-                "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @viewTable",
-                new { viewTable = master.VIEW_TABLE_NAME })
-                .ToList();
-
             var configs = _con.Query<FormFieldConfigDto>(
-                "SELECT ID, COLUMN_NAME, CONTROL_TYPE, CAN_QUERY FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @id",
-                new { id = master.BASE_TABLE_ID })
+                    @"/**/
+SELECT ID, COLUMN_NAME, CONTROL_TYPE, CAN_QUERY 
+FROM FORM_FIELD_CONFIG 
+WHERE FORM_FIELD_Master_ID = @id",
+                    new { id = master.BASE_TABLE_ID })
                 .ToList();
 
-            result.Add((master, columns, configs));
+            result.Add((master, configs));
         }
 
+        // 4. 回傳整理後資料
         return result;
     }
 
