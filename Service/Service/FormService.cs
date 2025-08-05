@@ -37,9 +37,9 @@ public class FormService : IFormService
 
     /// <summary>
     /// 取得指定 SCHEMA_TYPE 下的表單資料清單，
-    /// 已自動將下拉選欄位的值轉為顯示文字（OptionText）
+    /// 已自動將下拉選欄位的值轉為顯示文字（OptionText）。
     /// </summary>
-    public List<FormListDataViewModel> GetFormList()
+    public List<FormListDataViewModel> GetFormList(IEnumerable<FormQueryCondition>? conditions = null)
     {
         var metas = _formFieldMasterService.GetFormMetaAggregates(TableSchemaQueryType.All);
 
@@ -47,7 +47,7 @@ public class FormService : IFormService
 
         foreach (var (master, _, fieldConfigs) in metas)
         {
-            var rawRows = _formDataService.GetRows(master.VIEW_TABLE_NAME);
+            var rawRows = _formDataService.GetRows(master.VIEW_TABLE_NAME, conditions);
             var pk = _schemaService.GetPrimaryKeyColumn(master.BASE_TABLE_NAME);
 
             if (pk == null)
