@@ -25,11 +25,11 @@ public class FormHeaderViewModel
     /// <summary>
     /// 主要表單 Master ID
     /// </summary>
-    public Guid? BASE_TABLE_ID { get; set; }
+    public Guid BASE_TABLE_ID { get; set; }
 
     /// <summary>
     /// View 表單 Master ID
     /// </summary>
-    public Guid? VIEW_TABLE_ID { get; set; }
+    public Guid VIEW_TABLE_ID { get; set; }
 }
 
