@@ -10,6 +10,7 @@ using Microsoft.Data.SqlClient;
 using System.Data;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace DynamicForm.Service.Service;
 
@@ -71,6 +72,14 @@ public class FormService : IFormService
 
             var fieldTemplates = GetFields(master.BASE_TABLE_ID.Value, TableSchemaQueryType.All, master.BASE_TABLE_NAME);
 
+            foreach (var ddlField in fieldTemplates.Where(f => f.CONTROL_TYPE == FormControlType.Dropdown))
+            {
+                if (ddlField.ISUSESQL && ddlField.OptionList.Any(o => !string.IsNullOrWhiteSpace(o.OPTION_TABLE)))
+                {
+                    ddlField.OptionList = LoadDropdownOptions(ddlField.OptionList);
+                }
+            }
+
             foreach (var row in rows)
             {
                 var rowFields = fieldTemplates
@@ -103,6 +112,43 @@ public class FormService : IFormService
 
         return results;
     }
+
+    private List<FORM_FIELD_DROPDOWN_OPTIONS> LoadDropdownOptions(IEnumerable<FORM_FIELD_DROPDOWN_OPTIONS> optionConfigs)
+    {
+        var results = new List<FORM_FIELD_DROPDOWN_OPTIONS>();
+        foreach (var cfg in optionConfigs)
+        {
+            if (string.IsNullOrWhiteSpace(cfg.OPTION_TABLE))
+            {
+                results.Add(cfg);
+                continue;
+            }
+
+            if (!IsSafeIdentifier(cfg.OPTION_TABLE) ||
+                !IsSafeIdentifier(cfg.OPTION_VALUE) ||
+                !IsSafeIdentifier(cfg.OPTION_TEXT))
+            {
+                continue;
+            }
+
+            var sql = $"SELECT [{cfg.OPTION_VALUE}] AS OPTION_VALUE, [{cfg.OPTION_TEXT}] AS OPTION_TEXT FROM [{cfg.OPTION_TABLE}]";
+            var rows = _con.Query(sql);
+            foreach (var row in rows)
+            {
+                var dict = (IDictionary<string, object>)row;
+                results.Add(new FORM_FIELD_DROPDOWN_OPTIONS
+                {
+                    OPTION_VALUE = dict["OPTION_VALUE"]?.ToString() ?? string.Empty,
+                    OPTION_TEXT = dict["OPTION_TEXT"]?.ToString() ?? string.Empty
+                });
+            }
+        }
+
+        return results;
+    }
+
+    private static bool IsSafeIdentifier(string value) =>
+        Regex.IsMatch(value, "^[A-Za-z0-9_]+$");
 
     /// <summary>
     /// 根據表單設定抓取主表欄位與現有資料（編輯時用）
