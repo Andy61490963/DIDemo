@@ -1,5 +1,6 @@
 using ClassLibrary;
 using Dapper;
+using DynamicForm.Helper;
 using DynamicForm.Models;
 using DynamicForm.Service.Interface.FormLogicInterface;
 using Microsoft.Data.SqlClient;
@@ -15,9 +16,62 @@ public class FormDataService : IFormDataService
         _con = connection;
     }
     
-    public List<IDictionary<string, object?>> GetRows(string tableName)
+    public List<IDictionary<string, object?>> GetRows(string tableName, IEnumerable<FormQueryCondition>? conditions = null)
     {
-        var rows = _con.Query($"SELECT * FROM [{tableName}]");
+        var sql    = new System.Text.StringBuilder($"SELECT * FROM [{tableName}]");
+        var param  = new DynamicParameters();
+
+        if (conditions != null)
+        {
+            var whereList = new List<string>();
+            int i = 0;
+            foreach (var c in conditions)
+            {
+                if (string.IsNullOrWhiteSpace(c.Column))
+                    continue;
+
+                // 基礎欄位名稱驗證以避免 SQL Injection
+                var column = c.Column;
+                if (!System.Text.RegularExpressions.Regex.IsMatch(column, "^[A-Za-z0-9_]+$"))
+                    continue;
+
+                // 若前端僅提供 QueryConditionType，則映射為 ConditionType
+                var condType = c.ConditionType;
+                if (c.QueryConditionType.HasValue)
+                {
+                    condType = c.QueryConditionType.Value.ToConditionType();
+                }
+
+                var p1 = $"p{i++}";
+
+                switch (condType)
+                {
+                    case ConditionType.Equal:
+                        whereList.Add($"[{column}] = @{p1}");
+                        param.Add(p1, ConvertToColumnTypeHelper.Convert(c.DataType, c.Value));
+                        break;
+                    case ConditionType.Like:
+                        whereList.Add($"[{column}] LIKE @{p1}");
+                        var val = c.Value != null ? $"%{c.Value}%" : null;
+                        param.Add(p1, ConvertToColumnTypeHelper.Convert(c.DataType, val));
+                        break;
+                    case ConditionType.Between:
+                        var p2 = $"p{i++}";
+                        whereList.Add($"[{column}] BETWEEN @{p1} AND @{p2}");
+                        param.Add(p1, ConvertToColumnTypeHelper.Convert(c.DataType, c.Value));
+                        param.Add(p2, ConvertToColumnTypeHelper.Convert(c.DataType, c.Value2));
+                        break;
+                }
+            }
+
+            if (whereList.Count > 0)
+            {
+                sql.Append(" WHERE ");
+                sql.Append(string.Join(" AND ", whereList));
+            }
+        }
+
+        var rows = _con.Query(sql.ToString(), param);
         return rows.Cast<IDictionary<string, object?>>().ToList();
     }
 

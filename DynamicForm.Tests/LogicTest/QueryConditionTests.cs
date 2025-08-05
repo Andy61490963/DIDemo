@@ -3,6 +3,7 @@ using DynamicForm.Models;
 using DynamicForm.Service.Service;
 using Microsoft.Data.Sqlite;
 using ClassLibrary;
+using Xunit;
 
 namespace DynamicForm.Tests.LogicTest;
 
@@ -42,5 +43,15 @@ public class QueryConditionTests
     private class Config
     {
         public QueryConditionType QUERY_CONDITION_TYPE { get; set; }
+    }
+
+    [Theory]
+    [InlineData(QueryConditionType.Text, ConditionType.Like)]
+    [InlineData(QueryConditionType.Number, ConditionType.Between)]
+    [InlineData(QueryConditionType.Date, ConditionType.Between)]
+    [InlineData(QueryConditionType.Dropdown, ConditionType.Equal)]
+    public void QueryConditionType_MapsToConditionType(QueryConditionType input, ConditionType expected)
+    {
+        Assert.Equal(expected, input.ToConditionType());
     }
 }
