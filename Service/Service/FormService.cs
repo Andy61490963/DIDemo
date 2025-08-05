@@ -8,6 +8,8 @@ using DynamicForm.Service.Interface.TransactionInterface;
 using DynamicForm.ViewModels;
 using Microsoft.Data.SqlClient;
 using System.Data;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace DynamicForm.Service.Service;
 
@@ -41,55 +43,49 @@ public class FormService : IFormService
     /// 取得指定 SCHEMA_TYPE 下的表單資料清單，
     /// 已自動將下拉選欄位的值轉為顯示文字（OptionText）
     /// </summary>
-    public FormListDataViewModel GetFormList()
+    public List<FormListDataViewModel> GetFormList()
     {
-        // 1. 查詢主表（Form 設定 Master），根據 SCHEMA_TYPE 取得表單主設定
-        // var master = _formFieldMasterService.GetFormFieldMaster(TableSchemaQueryType.All);
-        //
-        // // [防呆] 找不到主表就直接回傳空的 ViewModel，避免後續 NullReference
-        // if (master == null) 
-        //     return new FormListDataViewModel();
-        //
-        // // 2. 取得檢視表的所有欄位名稱（資料表的 Schema）
-        // var columns = _schemaService.GetFormFieldMaster(master.VIEW_TABLE_NAME);
-        //
-        // // 3. 取得該表單的所有欄位設定（包含型別、控制項型態等）
-        // var fieldConfigs = _formFieldConfigService.GetFormFieldConfig(master.BASE_TABLE_ID);
+        var metas = _formFieldMasterService.GetFormMetaAggregates(TableSchemaQueryType.All);
 
-        var (master, columns, fieldConfigs) = _formFieldMasterService.GetFormMetaAggregate(TableSchemaQueryType.All);
-        
-        // 4. 取得檢視表的所有原始資料（rawRows 為每列 Dictionary<string, object?>）
-        var rawRows = _formDataService.GetRows(master.VIEW_TABLE_NAME);
+        var results = new List<FormListDataViewModel>();
 
-        var pk = _schemaService.GetPrimaryKeyColumn(master.BASE_TABLE_NAME);
-        
-        if (pk == null)
-            throw new InvalidOperationException("No primary key column found");
-        
-        // 5. 將 rawRows 轉換為 FormDataRow（每列帶主鍵 Id 與所有欄位 Cell）
-        //    同時收集所有資料列的主鍵 rowIds
-        var rows = _dropdownService.ToFormDataRows(rawRows, pk, out var rowIds);
-
-        // 6. 若無任何資料列，直接回傳結果，省略後面下拉選查詢
-        if (!rowIds.Any())
-            return new FormListDataViewModel { FormMasterId = master.ID, Columns = columns, Rows = rows };
-        
-        // 7. 取得所有資料列的下拉選答案（一次查全部，不 N+1）
-        var dropdownAnswers = _dropdownService.GetAnswers(rowIds);
-        
-        // 8. 取得所有 OptionId → OptionText 的對照表
-        var optionTextMap = _dropdownService.GetOptionTextMap(dropdownAnswers);
-        
-        // 9. 將 rows 裡所有下拉選欄位的值由 OptionId 轉換為 OptionText（顯示文字）
-        _dropdownService.ReplaceDropdownIdsWithTexts(rows, fieldConfigs, dropdownAnswers, optionTextMap);
-
-        // 10. 組裝並回傳最終的 ViewModel
-        return new FormListDataViewModel
+        foreach (var (master, configRows) in metas)
         {
-            FormMasterId = master.ID,
-            Columns = columns,
-            Rows = rows
-        };
+            var columns = _dropdownService.ToFormDataRows(configRows, "ID", out _);
+
+            var fieldConfigs = configRows.Select(r => new FormFieldConfigDto
+            {
+                ID = r.TryGetValue("ID", out var idVal) && Guid.TryParse(idVal?.ToString(), out var g) ? g : Guid.Empty,
+                COLUMN_NAME = r.TryGetValue("COLUMN_NAME", out var col) ? col?.ToString() ?? string.Empty : string.Empty,
+                CONTROL_TYPE = r.TryGetValue("CONTROL_TYPE", out var ctl) && Enum.TryParse<FormControlType>(ctl?.ToString(), out var ctrl)
+                    ? ctrl
+                    : default
+            }).ToList();
+
+            var rawRows = _formDataService.GetRows(master.VIEW_TABLE_NAME);
+            var pk = _schemaService.GetPrimaryKeyColumn(master.BASE_TABLE_NAME);
+
+            if (pk == null)
+                throw new InvalidOperationException("No primary key column found");
+
+            var rows = _dropdownService.ToFormDataRows(rawRows, pk, out var rowIds);
+
+            if (rowIds.Any())
+            {
+                var dropdownAnswers = _dropdownService.GetAnswers(rowIds);
+                var optionTextMap = _dropdownService.GetOptionTextMap(dropdownAnswers);
+                _dropdownService.ReplaceDropdownIdsWithTexts(rows, fieldConfigs, dropdownAnswers, optionTextMap);
+            }
+
+            results.Add(new FormListDataViewModel
+            {
+                FormMasterId = master.ID,
+                Columns = columns,
+                Rows = rows
+            });
+        }
+
+        return results;
     }
 
     /// <summary>
