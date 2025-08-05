@@ -150,7 +150,7 @@ public class FormDesignerService : IFormDesignerService
         var missingColumns = _requiredColumns
             .Where(req => !columns.Any(c => c.COLUMN_NAME.Equals(req, StringComparison.OrdinalIgnoreCase)))
             .ToList();
-        if (missingColumns.Count > 0)
+        if (missingColumns.Count > 0 && schemaType == TableSchemaQueryType.OnlyTable)
             throw new HttpStatusCodeException(
                 HttpStatusCode.BadRequest,
                 $"缺少必要欄位：{string.Join(", ", missingColumns)}");
@@ -165,12 +165,16 @@ public class FormDesignerService : IFormDesignerService
         var masterId = configs.Values.FirstOrDefault()?.FORM_FIELD_Master_ID
                        ?? GetOrCreateFormMasterId(model);
 
+        
+        var maxOrder = configs.Values.Any() ? configs.Values.Max(x => x.FIELD_ORDER) : 0;
+        var order = maxOrder;
         // 新增還沒存過的欄位
         foreach (var col in columns)
         {
             if (!configs.ContainsKey(col.COLUMN_NAME))
             {
-                var vm = CreateDefaultFieldConfig(col.COLUMN_NAME, col.DATA_TYPE, masterId, tableName, schemaType);
+                order++;
+                var vm = CreateDefaultFieldConfig(col.COLUMN_NAME, col.DATA_TYPE, masterId, tableName, order, schemaType);
                 UpsertField(vm, masterId);
             }
         }
@@ -201,11 +205,12 @@ public class FormDesignerService : IFormDesignerService
             CONTROL_TYPE = controlType,
             IS_REQUIRED = isRequired,
             model.IS_EDITABLE,
-            model.DEFAULT_VALUE
+            model.DEFAULT_VALUE,
+            model.FIELD_ORDER
         };
 
         var affected = _con.Execute(Sql.UpsertField, param);
-
+        
         if (affected == 0)
         {
             throw new InvalidOperationException($"Upsert 失敗：{model.COLUMN_NAME} 無法新增或更新");
@@ -607,7 +612,7 @@ public class FormDesignerService : IFormDesignerService
         return res;
     }
     
-    private FormFieldViewModel CreateDefaultFieldConfig(string columnName, string dataType, Guid masterId, string tableName, TableSchemaQueryType schemaType)
+    private FormFieldViewModel CreateDefaultFieldConfig(string columnName, string dataType, Guid masterId, string tableName, int index, TableSchemaQueryType schemaType)
     {
         return new FormFieldViewModel
         {
@@ -619,6 +624,7 @@ public class FormDesignerService : IFormDesignerService
             CONTROL_TYPE = FormFieldHelper.GetDefaultControlType(dataType), // 依型態決定 ControlType
             IS_REQUIRED = false,
             IS_EDITABLE = true,
+            FIELD_ORDER = index,
             DEFAULT_VALUE = "",
             SchemaType = schemaType
         };
@@ -689,15 +695,16 @@ WHEN MATCHED THEN
         IS_REQUIRED     = @IS_REQUIRED,
         IS_EDITABLE    = @IS_EDITABLE,
         DEFAULT_VALUE  = @DEFAULT_VALUE,
+        FIELD_ORDER    = @FIELD_ORDER,
         EDIT_TIME      = GETDATE()
 WHEN NOT MATCHED THEN
     INSERT (
         ID, FORM_FIELD_Master_ID, TABLE_NAME, COLUMN_NAME, DATA_TYPE,
-        CONTROL_TYPE, IS_REQUIRED, IS_EDITABLE, DEFAULT_VALUE, CREATE_TIME
+        CONTROL_TYPE, IS_REQUIRED, IS_EDITABLE, DEFAULT_VALUE, FIELD_ORDER, CREATE_TIME
     )
     VALUES (
         @ID, @FORM_FIELD_Master_ID, @TABLE_NAME, @COLUMN_NAME, @DATA_TYPE,
-        @CONTROL_TYPE, @IS_REQUIRED, @IS_EDITABLE, @DEFAULT_VALUE, GETDATE()
+        @CONTROL_TYPE, @IS_REQUIRED, @IS_EDITABLE, @DEFAULT_VALUE, @FIELD_ORDER, GETDATE()
     );";
 
         public const string CheckFieldExists         = @"/**/

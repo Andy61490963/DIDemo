@@ -48,6 +48,11 @@ public class FormFieldViewModel
     /// 是否必填
     /// </summary>
     public bool IS_REQUIRED { get; set; } = true;
+    
+    /// <summary>
+    /// 排序
+    /// </summary>
+    public int FIELD_ORDER { get; set; }
 
     /// <summary>
     /// 是否有輸入限制條件
