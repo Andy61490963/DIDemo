@@ -9,6 +9,7 @@ using DynamicForm.ViewModels;
 using Microsoft.Data.SqlClient;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace DynamicForm.Service.Service;
 
@@ -65,6 +66,15 @@ public class FormService : IFormService
                 continue;
 
             var fieldTemplates = GetFields(master.BASE_TABLE_ID.Value, TableSchemaQueryType.All, master.BASE_TABLE_NAME);
+
+            foreach (var field in fieldTemplates.Where(f => f.CONTROL_TYPE == FormControlType.Dropdown && f.ISUSESQL))
+            {
+                var sqlConfig = field.OptionList.FirstOrDefault();
+                if (sqlConfig is null)
+                    continue;
+
+                field.OptionList = LoadDropdownOptions(sqlConfig);
+            }
 
             foreach (var row in rows)
             {
@@ -223,6 +233,30 @@ public class FormService : IFormService
             DATA_TYPE = dataType,
             SOURCE_TABLE = TableSchemaQueryType.OnlyTable,
         };
+    }
+
+    /// <summary>
+    /// 以 <see cref="FORM_FIELD_DROPDOWN_OPTIONS"/> 設定動態載入下拉選單選項。
+    /// </summary>
+    private List<FORM_FIELD_DROPDOWN_OPTIONS> LoadDropdownOptions(FORM_FIELD_DROPDOWN_OPTIONS config)
+    {
+        if (!IsSafeIdentifier(config.OPTION_TABLE) ||
+            !IsSafeIdentifier(config.OPTION_VALUE) ||
+            !IsSafeIdentifier(config.OPTION_TEXT))
+        {
+            return new();
+        }
+
+        var sql = $"SELECT [{config.OPTION_VALUE}] AS OPTION_VALUE, [{config.OPTION_TEXT}] AS OPTION_TEXT FROM [{config.OPTION_TABLE}]";
+        return _con.Query<FORM_FIELD_DROPDOWN_OPTIONS>(sql).ToList();
+    }
+
+    /// <summary>
+    /// 驗證資料表與欄位識別名稱，避免 SQL Injection。
+    /// </summary>
+    private static bool IsSafeIdentifier(string? identifier)
+    {
+        return !string.IsNullOrWhiteSpace(identifier) && Regex.IsMatch(identifier, "^[A-Za-z0-9_]+$");
     }
 
     /// <summary>
