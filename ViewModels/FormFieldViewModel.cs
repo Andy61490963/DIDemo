@@ -73,5 +73,15 @@ public class FormFieldViewModel
     /// 資料表查詢類型，更新欄位設定後重新載入清單時使用
     /// </summary>
     public TableSchemaQueryType SchemaType { get; set; }
+
+    /// <summary>
+    /// 查詢元件類型，決定此欄位在搜尋條件中的顯示方式。
+    /// </summary>
+    public QueryConditionType QUERY_CONDITION_TYPE { get; set; } = QueryConditionType.Text;
+
+    /// <summary>
+    /// 若查詢元件為下拉選單，使用此 SQL 取得選項資料。
+    /// </summary>
+    public string QUERY_CONDITION_SQL { get; set; } = string.Empty;
 }
 

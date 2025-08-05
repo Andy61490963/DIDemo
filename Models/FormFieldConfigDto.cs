@@ -25,6 +25,16 @@ public class FormFieldConfigDto
     public bool IS_EDITABLE { get; set; }
 
     public int FIELD_ORDER { get; set; }
-    
+
     public string DATA_TYPE { get; set; }
+
+    /// <summary>
+    /// 查詢元件類型，決定該欄位在搜尋介面上的呈現方式。
+    /// </summary>
+    public QueryConditionType QUERY_CONDITION_TYPE { get; set; }
+
+    /// <summary>
+    /// 若為下拉選單查詢條件，使用此 SQL 取得選項資料。
+    /// </summary>
+    public string? QUERY_CONDITION_SQL { get; set; }
 }

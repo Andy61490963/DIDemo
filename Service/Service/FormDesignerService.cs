@@ -98,11 +98,11 @@ public class FormDesignerService : IFormDesignerService
         var res = columns.Select(col =>
         {
             var hasConfig = configs.TryGetValue(col.COLUMN_NAME, out var cfg);
-            var fieldId = hasConfig ? cfg!.ID : Guid.NewGuid();
-            var dataType = col.DATA_TYPE;
+                var fieldId = hasConfig ? cfg!.ID : Guid.NewGuid();
+                var dataType = col.DATA_TYPE;
 
-            return new FormFieldViewModel
-            {
+                return new FormFieldViewModel
+                {
                 ID = fieldId,
                 FORM_FIELD_Master_ID = cfg?.FORM_FIELD_Master_ID ?? Guid.Empty,
                 TableName = tableName,
@@ -115,7 +115,9 @@ public class FormDesignerService : IFormDesignerService
                 IS_VALIDATION_RULE = requiredFieldIds.Contains(fieldId),
                 IS_PK = pk.Contains(col.COLUMN_NAME),
                 DEFAULT_VALUE = cfg?.DEFAULT_VALUE ?? string.Empty,
-                SchemaType = schemaType
+                SchemaType = schemaType,
+                QUERY_CONDITION_TYPE = cfg?.QUERY_CONDITION_TYPE ?? QueryConditionType.Text,
+                QUERY_CONDITION_SQL = cfg?.QUERY_CONDITION_SQL ?? string.Empty
             };
         }).ToList();
         // 用設定檔過濾
@@ -206,7 +208,9 @@ public class FormDesignerService : IFormDesignerService
             IS_REQUIRED = isRequired,
             model.IS_EDITABLE,
             model.DEFAULT_VALUE,
-            model.FIELD_ORDER
+            model.FIELD_ORDER,
+            model.QUERY_CONDITION_TYPE,
+            model.QUERY_CONDITION_SQL
         };
 
         var affected = _con.Execute(Sql.UpsertField, param);
@@ -626,7 +630,9 @@ public class FormDesignerService : IFormDesignerService
             IS_EDITABLE = true,
             FIELD_ORDER = index,
             DEFAULT_VALUE = "",
-            SchemaType = schemaType
+            SchemaType = schemaType,
+            QUERY_CONDITION_TYPE = QueryConditionType.Text,
+            QUERY_CONDITION_SQL = string.Empty
         };
     }
 
@@ -696,15 +702,17 @@ WHEN MATCHED THEN
         IS_EDITABLE    = @IS_EDITABLE,
         DEFAULT_VALUE  = @DEFAULT_VALUE,
         FIELD_ORDER    = @FIELD_ORDER,
+        QUERY_CONDITION_TYPE = @QUERY_CONDITION_TYPE,
+        QUERY_CONDITION_SQL = @QUERY_CONDITION_SQL,
         EDIT_TIME      = GETDATE()
 WHEN NOT MATCHED THEN
     INSERT (
         ID, FORM_FIELD_Master_ID, TABLE_NAME, COLUMN_NAME, DATA_TYPE,
-        CONTROL_TYPE, IS_REQUIRED, IS_EDITABLE, DEFAULT_VALUE, FIELD_ORDER, CREATE_TIME
+        CONTROL_TYPE, IS_REQUIRED, IS_EDITABLE, DEFAULT_VALUE, FIELD_ORDER, QUERY_CONDITION_TYPE, QUERY_CONDITION_SQL, CREATE_TIME
     )
     VALUES (
         @ID, @FORM_FIELD_Master_ID, @TABLE_NAME, @COLUMN_NAME, @DATA_TYPE,
-        @CONTROL_TYPE, @IS_REQUIRED, @IS_EDITABLE, @DEFAULT_VALUE, @FIELD_ORDER, GETDATE()
+        @CONTROL_TYPE, @IS_REQUIRED, @IS_EDITABLE, @DEFAULT_VALUE, @FIELD_ORDER, @QUERY_CONDITION_TYPE, @QUERY_CONDITION_SQL, GETDATE()
     );";
 
         public const string CheckFieldExists         = @"/**/
