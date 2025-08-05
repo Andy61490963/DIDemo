@@ -48,9 +48,20 @@ public class FormService : IFormService
         var metas = _formFieldMasterService.GetFormMetaAggregates(TableSchemaQueryType.All);
 
         var results = new List<FormListDataViewModel>();
-
-        foreach (var (master, columns, fieldConfigs) in metas)
+        
+        foreach (var (master, configRows) in metas)
         {
+            var columns = _dropdownService.ToFormDataRows(configRows, "ID", out _);
+
+            var fieldConfigs = configRows.Select(r => new FormFieldConfigDto
+            {
+                ID = r.TryGetValue("ID", out var idVal) && Guid.TryParse(idVal?.ToString(), out var g) ? g : Guid.Empty,
+                COLUMN_NAME = r.TryGetValue("COLUMN_NAME", out var col) ? col?.ToString() ?? string.Empty : string.Empty,
+                CONTROL_TYPE = r.TryGetValue("CONTROL_TYPE", out var ctl) && Enum.TryParse<FormControlType>(ctl?.ToString(), out var ctrl)
+                    ? ctrl
+                    : default
+            }).ToList();
+
             var rawRows = _formDataService.GetRows(master.VIEW_TABLE_NAME);
             var pk = _schemaService.GetPrimaryKeyColumn(master.BASE_TABLE_NAME);
 
