@@ -47,7 +47,7 @@ public class FormFieldMasterService : IFormFieldMasterService
                 .ToList();
 
             var configs = _con.Query<FormFieldConfigDto>(
-                "SELECT ID, COLUMN_NAME, CONTROL_TYPE FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @id",
+                "SELECT ID, COLUMN_NAME, CONTROL_TYPE, CAN_QUERY FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @id",
                 new { id = master.BASE_TABLE_ID })
                 .ToList();
 

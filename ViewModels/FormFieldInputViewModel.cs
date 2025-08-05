@@ -19,6 +19,7 @@ public class FormFieldInputViewModel
     public string DROPDOWNSQL { get; set; } = string.Empty;
     
     public QueryConditionType QUERY_CONDITION_TYPE { get; set; }
+    public bool CAN_QUERY { get; set; }
     public List<FORM_FIELD_DROPDOWN_OPTIONS> OptionList { get; set; } = new();
 
     /// <summary>
