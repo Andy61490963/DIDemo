@@ -48,7 +48,7 @@ public class FormService : IFormService
         var metas = _formFieldMasterService.GetFormMetaAggregates(TableSchemaQueryType.All);
 
         var results = new List<FormListDataViewModel>();
-
+        
         foreach (var (master, configRows) in metas)
         {
             var columns = _dropdownService.ToFormDataRows(configRows, "ID", out _);
