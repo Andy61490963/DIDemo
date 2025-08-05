@@ -1,13 +1,15 @@
 ﻿using DynamicForm.ViewModels;
+using System.Collections.Generic;
 
 namespace DynamicForm.Service.Interface;
 
 public interface IFormService
 {
     /// <summary>
-    /// 取得 列表
+    /// 取得所有表單的資料列表。
     /// </summary>
-    FormListDataViewModel GetFormList();
+    /// <returns>每個表單對應的欄位與資料列集合。</returns>
+    List<FormListDataViewModel> GetFormList();
     
     /// <summary>
     /// 取得 單一
