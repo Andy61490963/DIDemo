@@ -9,14 +9,9 @@ public class FormQueryCondition
 {
     /// <summary>要比對的欄位名稱。</summary>
     public string Column { get; set; } = string.Empty;
-
-    /// <summary>比對運算子。</summary>
-    public ConditionType ConditionType { get; set; }
-        = ConditionType.Equal;
-
+    
     /// <summary>
-    /// 查詢元件類型，可由此自動推斷 <see cref="ConditionType"/>。
-    /// 若同時指定， <see cref="ConditionType"/> 優先。
+    /// 查詢元件類型，可由此自動推斷 ConditionType />。
     /// </summary>
     public QueryConditionType? QueryConditionType { get; set; }
         = null;

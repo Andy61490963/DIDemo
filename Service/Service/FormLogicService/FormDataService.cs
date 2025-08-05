@@ -35,13 +35,9 @@ public class FormDataService : IFormDataService
                 if (!System.Text.RegularExpressions.Regex.IsMatch(column, "^[A-Za-z0-9_]+$"))
                     continue;
 
-                // 若前端僅提供 QueryConditionType，則映射為 ConditionType
-                var condType = c.ConditionType;
-                if (c.QueryConditionType.HasValue)
-                {
-                    condType = c.QueryConditionType.Value.ToConditionType();
-                }
-
+                // 前端提供 QueryConditionType，映射為 ConditionType
+                var condType = c.QueryConditionType.Value.ToConditionType();
+                
                 var p1 = $"p{i++}";
 
                 switch (condType)

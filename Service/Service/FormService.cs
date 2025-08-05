@@ -73,6 +73,7 @@ public class FormService : IFormService
                         Column = f.Column,
                         DATA_TYPE = f.DATA_TYPE,
                         CONTROL_TYPE = f.CONTROL_TYPE,
+                        QUERY_CONDITION_TYPE = f.QUERY_CONDITION_TYPE,
                         DefaultValue = f.DefaultValue,
                         IS_REQUIRED = f.IS_REQUIRED,
                         IS_EDITABLE = f.IS_EDITABLE,
