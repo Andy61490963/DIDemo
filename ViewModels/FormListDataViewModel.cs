@@ -1,5 +1,3 @@
-using DynamicForm.Models;
-
 namespace DynamicForm.ViewModels
 {
     /// <summary>
@@ -8,7 +6,7 @@ namespace DynamicForm.ViewModels
     public class FormListDataViewModel
     {
         public Guid FormMasterId { get; set; }
-        public List<string> Columns { get; set; } = new();
+        public List<FormDataRow> Columns { get; set; } = new();
         public List<FormDataRow> Rows { get; set; } = new();
     }
 }
