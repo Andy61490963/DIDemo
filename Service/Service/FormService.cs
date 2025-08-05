@@ -7,6 +7,7 @@ using DynamicForm.Service.Interface.FormLogicInterface;
 using DynamicForm.Service.Interface.TransactionInterface;
 using DynamicForm.ViewModels;
 using Microsoft.Data.SqlClient;
+using System.Data;
 
 namespace DynamicForm.Service.Service;
 
@@ -213,9 +214,24 @@ public class FormService : IFormService
             ISUSESQL = isUseSql,
             DROPDOWNSQL = dropdown?.DROPDOWNSQL ?? string.Empty,
             DATA_TYPE = dataType,
-            SOURCE_TABLE = TableSchemaQueryType.OnlyTable
+            SOURCE_TABLE = TableSchemaQueryType.OnlyTable,
+            QUERY_CONDITION_TYPE = field.QUERY_CONDITION_TYPE,
+            QUERY_CONDITION_SQL = field.QUERY_CONDITION_SQL ?? string.Empty,
+            QUERY_OPTIONS = field.QUERY_CONDITION_TYPE == QueryConditionType.Dropdown && !string.IsNullOrWhiteSpace(field.QUERY_CONDITION_SQL)
+                ? ExecuteQueryConditionSql(_con, field.QUERY_CONDITION_SQL, new { }).ToList()
+                : new List<Option>()
         };
     }
+
+    /// <summary>
+    /// 以參數化查詢執行查詢條件的 SQL，避免 SQL Injection。
+    /// </summary>
+    /// <param name="connection">資料庫連線物件</param>
+    /// <param name="sql">查詢語句</param>
+    /// <param name="parameters">查詢參數</param>
+    /// <returns>回傳選項集合</returns>
+    public static IEnumerable<Option> ExecuteQueryConditionSql(IDbConnection connection, string sql, object parameters)
+        => connection.Query<Option>(sql, parameters);
 
     /// <summary>
     /// 儲存或更新表單資料（含下拉選項答案）
@@ -234,7 +250,7 @@ public class FormService : IFormService
             // 查欄位設定
             // 取得欄位設定並帶出 IS_EDITABLE 欄位，後續用於權限檢查
             var configs = _con.Query<FormFieldConfigDto>(
-                "SELECT ID, COLUMN_NAME, CONTROL_TYPE, DATA_TYPE, IS_EDITABLE FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @Id",
+                "SELECT ID, COLUMN_NAME, CONTROL_TYPE, DATA_TYPE, IS_EDITABLE, QUERY_CONDITION_TYPE, QUERY_CONDITION_SQL FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @Id",
                 new { Id = master.BASE_TABLE_ID },
                 transaction: tx).ToDictionary(x => x.ID);
 
