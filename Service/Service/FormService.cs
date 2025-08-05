@@ -49,7 +49,7 @@ public class FormService : IFormService
 
         var results = new List<FormListDataViewModel>();
 
-        foreach (var (master, columns, fieldConfigs) in metas)
+        foreach (var (master, _, fieldConfigs) in metas)
         {
             var rawRows = _formDataService.GetRows(master.VIEW_TABLE_NAME);
             var pk = _schemaService.GetPrimaryKeyColumn(master.BASE_TABLE_NAME);
@@ -66,12 +66,39 @@ public class FormService : IFormService
                 _dropdownService.ReplaceDropdownIdsWithTexts(rows, fieldConfigs, dropdownAnswers, optionTextMap);
             }
 
-            results.Add(new FormListDataViewModel
+            if (master.BASE_TABLE_ID is null)
+                continue;
+
+            var fieldTemplates = GetFields(master.BASE_TABLE_ID.Value, TableSchemaQueryType.All, master.BASE_TABLE_NAME);
+
+            foreach (var row in rows)
             {
-                FormMasterId = master.ID,
-                Columns = columns,
-                Rows = rows
-            });
+                var rowFields = fieldTemplates
+                    .Select(f => new FormFieldInputViewModel
+                    {
+                        FieldConfigId = f.FieldConfigId,
+                        Column = f.Column,
+                        DATA_TYPE = f.DATA_TYPE,
+                        CONTROL_TYPE = f.CONTROL_TYPE,
+                        DefaultValue = f.DefaultValue,
+                        IS_REQUIRED = f.IS_REQUIRED,
+                        IS_EDITABLE = f.IS_EDITABLE,
+                        ValidationRules = f.ValidationRules,
+                        ISUSESQL = f.ISUSESQL,
+                        DROPDOWNSQL = f.DROPDOWNSQL,
+                        OptionList = f.OptionList,
+                        SOURCE_TABLE = f.SOURCE_TABLE,
+                        CurrentValue = row.GetValue(f.Column)
+                    })
+                    .ToList();
+
+                results.Add(new FormListDataViewModel
+                {
+                    FormMasterId = master.ID,
+                    Pk = row.PkId?.ToString() ?? string.Empty,
+                    Fields = rowFields
+                });
+            }
         }
 
         return results;
