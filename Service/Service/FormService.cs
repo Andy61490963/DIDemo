@@ -47,7 +47,15 @@ public class FormService : IFormService
 
         foreach (var (master, _, fieldConfigs) in metas)
         {
-            var rawRows = _formDataService.GetRows(master.VIEW_TABLE_NAME, conditions);
+            var allowedColumns = fieldConfigs
+                .Where(f => f.CAN_QUERY)
+                .Select(f => f.COLUMN_NAME)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var filteredConditions = conditions?
+                .Where(c => allowedColumns.Contains(c.Column));
+
+            var rawRows = _formDataService.GetRows(master.VIEW_TABLE_NAME, filteredConditions);
             var pk = _schemaService.GetPrimaryKeyColumn(master.BASE_TABLE_NAME);
 
             if (pk == null)
@@ -211,6 +219,7 @@ public class FormService : IFormService
             Column = field.COLUMN_NAME,
             CONTROL_TYPE = field.CONTROL_TYPE,
             QUERY_CONDITION_TYPE = field.QUERY_CONDITION_TYPE,
+            CAN_QUERY = field.CAN_QUERY,
             DefaultValue = field.DEFAULT_VALUE,
             IS_REQUIRED = field.IS_REQUIRED,
             IS_EDITABLE = field.IS_EDITABLE,

@@ -218,7 +218,8 @@ public class FormDesignerService : IFormDesignerService
             model.IS_EDITABLE,
             model.DEFAULT_VALUE,
             model.FIELD_ORDER,
-            model.QUERY_CONDITION_TYPE
+            model.QUERY_CONDITION_TYPE,
+            model.CAN_QUERY
         };
 
         var affected = _con.Execute(Sql.UpsertField, param);
@@ -640,7 +641,8 @@ public class FormDesignerService : IFormDesignerService
             DEFAULT_VALUE = "",
             SchemaType = schemaType,
             QUERY_CONDITION_TYPE = QueryConditionType.Text,
-            QUERY_CONDITION_SQL = string.Empty
+            QUERY_CONDITION_SQL = string.Empty,
+            CAN_QUERY = false
         };
     }
 
@@ -711,15 +713,16 @@ WHEN MATCHED THEN
         DEFAULT_VALUE  = @DEFAULT_VALUE,
         FIELD_ORDER    = @FIELD_ORDER,
         QUERY_CONDITION_TYPE = @QUERY_CONDITION_TYPE,
+        CAN_QUERY      = @CAN_QUERY,
         EDIT_TIME      = GETDATE()
 WHEN NOT MATCHED THEN
     INSERT (
         ID, FORM_FIELD_Master_ID, TABLE_NAME, COLUMN_NAME, DATA_TYPE,
-        CONTROL_TYPE, IS_REQUIRED, IS_EDITABLE, DEFAULT_VALUE, FIELD_ORDER, QUERY_CONDITION_TYPE, CREATE_TIME
+        CONTROL_TYPE, IS_REQUIRED, IS_EDITABLE, DEFAULT_VALUE, FIELD_ORDER, QUERY_CONDITION_TYPE, CAN_QUERY, CREATE_TIME
     )
     VALUES (
         @ID, @FORM_FIELD_Master_ID, @TABLE_NAME, @COLUMN_NAME, @DATA_TYPE,
-        @CONTROL_TYPE, @IS_REQUIRED, @IS_EDITABLE, @DEFAULT_VALUE, @FIELD_ORDER, @QUERY_CONDITION_TYPE, GETDATE()
+        @CONTROL_TYPE, @IS_REQUIRED, @IS_EDITABLE, @DEFAULT_VALUE, @FIELD_ORDER, @QUERY_CONDITION_TYPE, @CAN_QUERY, GETDATE()
     );";
 
         public const string CheckFieldExists         = @"/**/

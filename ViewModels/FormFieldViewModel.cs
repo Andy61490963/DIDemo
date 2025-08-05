@@ -73,6 +73,11 @@ public class FormFieldViewModel
     /// 若查詢元件為下拉選單，使用此 SQL 取得選項資料。
     /// </summary>
     public string QUERY_CONDITION_SQL { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 是否允許作為查詢條件欄位。
+    /// </summary>
+    public bool CAN_QUERY { get; set; } = false;
     
     /// <summary>
     /// 控制選擇白名單

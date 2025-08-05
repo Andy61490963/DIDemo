@@ -30,6 +30,7 @@
 | `IS_EDITABLE` | BIT | 是否可編輯（預設為 true） |
 | `IS_REQUIRED` | BIT | 是否必填（預設為 true） |
 | `FIELD_ORDER` | INT | 頁面上顯示順序（預設為 0） |
+| `CAN_QUERY` | BIT | 是否允許查詢條件欄位（預設為 false） |
 | `CREATE_USER` | NVARCHAR(50) | 建立者帳號 |
 | `CREATE_TIME` | DATETIME | 建立時間 |
 | `EDIT_USER` | NVARCHAR(50) | 最後修改人帳號 |
