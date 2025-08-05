@@ -1,4 +1,5 @@
-﻿using DynamicForm.Service.Interface;
+﻿using DynamicForm.Models;
+using DynamicForm.Service.Interface;
 using DynamicForm.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 
@@ -18,10 +19,10 @@ public class FormController : ControllerBase
         _formService = formService;
     }
     
-    [HttpGet]
-    public IActionResult GetForms()
+    [HttpPost("search")]
+    public IActionResult GetForms([FromBody] List<FormQueryCondition>? conditions)
     {
-        var vm = _formService.GetFormList();
+        var vm = _formService.GetFormList(conditions);
         return Ok(vm);
     }
     
