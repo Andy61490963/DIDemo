@@ -62,20 +62,8 @@ public class FormService : IFormService
                 _dropdownService.ReplaceDropdownIdsWithTexts(rows, fieldConfigs, dropdownAnswers, optionTextMap);
             }
 
-            if (master.BASE_TABLE_ID is null)
-                continue;
-
-            var fieldTemplates = GetFields(master.BASE_TABLE_ID.Value, TableSchemaQueryType.All, master.BASE_TABLE_NAME);
-
-            foreach (var field in fieldTemplates.Where(f => f.CONTROL_TYPE == FormControlType.Dropdown && f.ISUSESQL))
-            {
-                var sqlConfig = field.OptionList.FirstOrDefault();
-                if (sqlConfig is null)
-                    continue;
-
-                field.OptionList = LoadDropdownOptions(sqlConfig);
-            }
-
+            var fieldTemplates = GetFields(master.VIEW_TABLE_ID, TableSchemaQueryType.OnlyView, master.VIEW_TABLE_NAME);
+            
             foreach (var row in rows)
             {
                 var rowFields = fieldTemplates
@@ -119,11 +107,9 @@ public class FormService : IFormService
         var master = _formFieldMasterService.GetFormFieldMasterFromId(formMasterId);
         if (master == null)
             throw new InvalidOperationException($"FORM_FIELD_Master {formMasterId} not found");
-        if (master.BASE_TABLE_ID is null)
-            throw new InvalidOperationException("主表設定不完整");
 
         // 2. 取得主表欄位（只抓主表，不抓 view）
-        var fields = GetFields(master.BASE_TABLE_ID.Value, TableSchemaQueryType.OnlyTable, master.BASE_TABLE_NAME);
+        var fields = GetFields(master.BASE_TABLE_ID, TableSchemaQueryType.OnlyTable, master.BASE_TABLE_NAME);
 
         // 3. 撈主表實際資料（如果是編輯模式）
         IDictionary<string, object?>? dataRow = null;
@@ -223,6 +209,7 @@ public class FormService : IFormService
             FieldConfigId = field.ID,
             Column = field.COLUMN_NAME,
             CONTROL_TYPE = field.CONTROL_TYPE,
+            QUERY_CONDITION_TYPE = field.QUERY_CONDITION_TYPE,
             DefaultValue = field.DEFAULT_VALUE,
             IS_REQUIRED = field.IS_REQUIRED,
             IS_EDITABLE = field.IS_EDITABLE,
