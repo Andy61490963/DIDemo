@@ -8,6 +8,12 @@ namespace ClassLibrary;
 public enum FormControlType
 {
     /// <summary>
+    /// None
+    /// </summary>
+    [Display(Name = "無")]
+    None,
+    
+    /// <summary>
     /// 單行文字輸入欄位（對應 input type="text"）。
     /// 適用於一般名稱、代碼、簡短描述等文字資料。
     /// </summary>

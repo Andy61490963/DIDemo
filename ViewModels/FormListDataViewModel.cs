@@ -7,7 +7,7 @@ namespace DynamicForm.ViewModels
     /// </summary>
     public class FormListDataViewModel
     {
-        public Guid FormId { get; set; }
+        public Guid FormMasterId { get; set; }
         public List<string> Columns { get; set; } = new();
         public List<FormDataRow> Rows { get; set; } = new();
     }

@@ -13,7 +13,7 @@ public class FormFieldInputViewModel
     public bool IS_REQUIRED { get; set; }
     public bool IS_EDITABLE { get; set; }
 
-    public List<FormFieldValidationRuleDto> ValidationRules { get; set; } = new();
+    public List<FormFieldValidationRuleDto>? ValidationRules { get; set; }
 
     public bool ISUSESQL { get; set; }
     public string DROPDOWNSQL { get; set; } = string.Empty;

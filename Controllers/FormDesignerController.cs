@@ -85,6 +85,9 @@ public class FormDesignerController : ControllerBase
                 return NotFound();
             }
 
+            if (schemaType == TableSchemaQueryType.OnlyTable && (model.QUERY_CONDITION_TYPE != QueryConditionType.None || model.QUERY_CONDITION_SQL != string.Empty))
+                return Conflict("無法往主表寫入查詢條件");
+            
             if (model.ID != Guid.Empty &&
                 _formDesignerService.HasValidationRules(model.ID) &&
                 _formDesignerService.GetControlTypeByFieldId(model.ID) != model.CONTROL_TYPE)

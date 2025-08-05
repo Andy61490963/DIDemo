@@ -72,7 +72,7 @@ public class FormService : IFormService
 
         // 6. 若無任何資料列，直接回傳結果，省略後面下拉選查詢
         if (!rowIds.Any())
-            return new FormListDataViewModel { FormId = master.ID, Columns = columns, Rows = rows };
+            return new FormListDataViewModel { FormMasterId = master.ID, Columns = columns, Rows = rows };
         
         // 7. 取得所有資料列的下拉選答案（一次查全部，不 N+1）
         var dropdownAnswers = _dropdownService.GetAnswers(rowIds);
@@ -86,7 +86,7 @@ public class FormService : IFormService
         // 10. 組裝並回傳最終的 ViewModel
         return new FormListDataViewModel
         {
-            FormId = master.ID,
+            FormMasterId = master.ID,
             Columns = columns,
             Rows = rows
         };

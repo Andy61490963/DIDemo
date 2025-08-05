@@ -31,7 +31,7 @@ public class DropdownService : IDropdownService
             {
                 if (string.Equals(col, pkColumn, StringComparison.OrdinalIgnoreCase))
                 {
-                    vmRow.Id = val!;
+                    vmRow.PkId = val!;
                     rowIds.Add(val!);
                 }
                 vmRow.Cells.Add(new FormDataCell { ColumnName = col, Value = val });
@@ -84,7 +84,7 @@ public class DropdownService : IDropdownService
 
         foreach (var row in rows)
         {
-            var rowIdStr = row.Id?.ToString() ?? string.Empty;
+            var rowIdStr = row.PkId?.ToString() ?? string.Empty;
             if (!answerMap.TryGetValue(rowIdStr, out var answerFields)) continue;
 
             foreach (var (colName, configId) in dropdownColumns)

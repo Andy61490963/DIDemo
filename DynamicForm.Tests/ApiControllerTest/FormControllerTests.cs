@@ -24,7 +24,7 @@ public class FormControllerTests
     [Fact]
     public void GetForms_ReturnsOkWithViewModel()
     {
-        var vm = new FormListDataViewModel { FormId = Guid.NewGuid() };
+        var vm = new FormListDataViewModel { FormMasterId = Guid.NewGuid() };
         _serviceMock.Setup(s => s.GetFormList()).Returns(vm);
 
         var result = _controller.GetForms() as OkObjectResult;

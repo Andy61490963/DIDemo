@@ -8,26 +8,32 @@ namespace ClassLibrary;
 public enum QueryConditionType
 {
     /// <summary>
+    /// 無
+    /// </summary>
+    [Display(Name = "無")]
+    None = 0,
+    
+    /// <summary>
     /// 以單行文字輸入作為條件。
     /// </summary>
     [Display(Name = "文字")]
-    Text = 0,
+    Text = 1,
 
     /// <summary>
     /// 數值輸入條件。
     /// </summary>
     [Display(Name = "數字")]
-    Number = 1,
+    Number = 2,
 
     /// <summary>
     /// 日期輸入條件。
     /// </summary>
     [Display(Name = "日期")]
-    Date = 2,
+    Date = 3,
 
     /// <summary>
     /// 下拉選單條件。
     /// </summary>
     [Display(Name = "下拉選單")]
-    Dropdown = 3
+    Dropdown = 4
 }

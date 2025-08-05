@@ -4,7 +4,7 @@ namespace DynamicForm.ViewModels;
 
 public class FormDataRow
 {
-    public object Id { get; set; }
+    public object PkId { get; set; }
     public List<FormDataCell> Cells { get; set; } = new();
 
     public object? GetValue(string columnName)
