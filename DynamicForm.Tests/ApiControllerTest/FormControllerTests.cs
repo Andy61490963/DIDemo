@@ -29,6 +29,7 @@ public class FormControllerTests
         var vm = new List<FormListDataViewModel> { new FormListDataViewModel { FormMasterId = Guid.NewGuid() } };
         _serviceMock.Setup(s => s.GetFormList(null)).Returns(vm);
 
+
         var result = _controller.GetForms(null) as OkObjectResult;
 
         Assert.NotNull(result);
