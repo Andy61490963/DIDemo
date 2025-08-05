@@ -1,4 +1,4 @@
-﻿using DynamicForm.Service.Interface;
+using DynamicForm.Service.Interface;
 using DynamicForm.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 
@@ -21,8 +21,8 @@ public class FormController : ControllerBase
     [HttpGet]
     public IActionResult GetForms()
     {
-        var vm = _formService.GetFormList();
-        return Ok(vm);
+        var vms = _formService.GetFormList();
+        return Ok(vms);
     }
     
     /// <summary>

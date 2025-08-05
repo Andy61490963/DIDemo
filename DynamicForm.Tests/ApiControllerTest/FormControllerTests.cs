@@ -3,6 +3,7 @@ using DynamicForm.Service.Interface;
 using DynamicForm.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
+using System.Collections.Generic;
 
 namespace DynamicForm.Tests.ApiControllerTest;
 
@@ -24,13 +25,13 @@ public class FormControllerTests
     [Fact]
     public void GetForms_ReturnsOkWithViewModel()
     {
-        var vm = new FormListDataViewModel { FormMasterId = Guid.NewGuid() };
-        _serviceMock.Setup(s => s.GetFormList()).Returns(vm);
+        var vms = new List<FormListDataViewModel> { new FormListDataViewModel { FormMasterId = Guid.NewGuid() } };
+        _serviceMock.Setup(s => s.GetFormList()).Returns(vms);
 
         var result = _controller.GetForms() as OkObjectResult;
 
         Assert.NotNull(result);
-        Assert.Equal(vm, result.Value);
+        Assert.Equal(vms, result.Value);
     }
 
     [Fact]
@@ -71,4 +72,5 @@ public class FormControllerTests
         Assert.NotNull(result);
     }
 }
+
 

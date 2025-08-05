@@ -8,6 +8,7 @@ using DynamicForm.Service.Interface.TransactionInterface;
 using DynamicForm.ViewModels;
 using Microsoft.Data.SqlClient;
 using System.Data;
+using System.Collections.Generic;
 
 namespace DynamicForm.Service.Service;
 
@@ -41,54 +42,64 @@ public class FormService : IFormService
     /// 取得指定 SCHEMA_TYPE 下的表單資料清單，
     /// 已自動將下拉選欄位的值轉為顯示文字（OptionText）
     /// </summary>
-    public FormListDataViewModel GetFormList()
+    public List<FormListDataViewModel> GetFormList()
     {
-        // 1. 查詢主表（Form 設定 Master），根據 SCHEMA_TYPE 取得表單主設定
-        // var master = _formFieldMasterService.GetFormFieldMaster(TableSchemaQueryType.All);
-        //
-        // // [防呆] 找不到主表就直接回傳空的 ViewModel，避免後續 NullReference
-        // if (master == null) 
-        //     return new FormListDataViewModel();
-        //
-        // // 2. 取得檢視表的所有欄位名稱（資料表的 Schema）
-        // var columns = _schemaService.GetFormFieldMaster(master.VIEW_TABLE_NAME);
-        //
-        // // 3. 取得該表單的所有欄位設定（包含型別、控制項型態等）
-        // var fieldConfigs = _formFieldConfigService.GetFormFieldConfig(master.BASE_TABLE_ID);
+        // 1. 讀取綜合主檔（含主表/檢視表設定）與欄位設定
+        var (master, _, fieldConfigs) = _formFieldMasterService.GetFormMetaAggregate(TableSchemaQueryType.All);
 
-        var (master, columns, fieldConfigs) = _formFieldMasterService.GetFormMetaAggregate(TableSchemaQueryType.All);
-        
+        // 2. 若主檔或檢視表設定不存在，直接回傳空集合避免 NullReference
+        if (master == null || master.VIEW_TABLE_ID == null)
+            return new List<FormListDataViewModel>();
+
+        // 3. 從檢視表對應的欄位設定組裝 Columns
+        var columnConfigs = _formFieldConfigService.GetFormFieldConfig(master.VIEW_TABLE_ID.Value);
+        var columns = columnConfigs.Select(cfg => new FormDataRow
+        {
+            PkId = cfg.ID,
+            Cells = new List<FormDataCell>
+            {
+                new FormDataCell { ColumnName = nameof(FormFieldConfigDto.COLUMN_NAME), Value = cfg.COLUMN_NAME },
+                new FormDataCell { ColumnName = nameof(FormFieldConfigDto.CONTROL_TYPE), Value = cfg.CONTROL_TYPE }
+            }
+        }).ToList();
+
         // 4. 取得檢視表的所有原始資料（rawRows 為每列 Dictionary<string, object?>）
         var rawRows = _formDataService.GetRows(master.VIEW_TABLE_NAME);
 
         var pk = _schemaService.GetPrimaryKeyColumn(master.BASE_TABLE_NAME);
-        
+
         if (pk == null)
             throw new InvalidOperationException("No primary key column found");
-        
+
         // 5. 將 rawRows 轉換為 FormDataRow（每列帶主鍵 Id 與所有欄位 Cell）
         //    同時收集所有資料列的主鍵 rowIds
         var rows = _dropdownService.ToFormDataRows(rawRows, pk, out var rowIds);
 
         // 6. 若無任何資料列，直接回傳結果，省略後面下拉選查詢
         if (!rowIds.Any())
-            return new FormListDataViewModel { FormMasterId = master.ID, Columns = columns, Rows = rows };
-        
+            return new List<FormListDataViewModel>
+            {
+                new FormListDataViewModel { FormMasterId = master.ID, Columns = columns, Rows = rows }
+            };
+
         // 7. 取得所有資料列的下拉選答案（一次查全部，不 N+1）
         var dropdownAnswers = _dropdownService.GetAnswers(rowIds);
-        
+
         // 8. 取得所有 OptionId → OptionText 的對照表
         var optionTextMap = _dropdownService.GetOptionTextMap(dropdownAnswers);
-        
+
         // 9. 將 rows 裡所有下拉選欄位的值由 OptionId 轉換為 OptionText（顯示文字）
         _dropdownService.ReplaceDropdownIdsWithTexts(rows, fieldConfigs, dropdownAnswers, optionTextMap);
 
         // 10. 組裝並回傳最終的 ViewModel
-        return new FormListDataViewModel
+        return new List<FormListDataViewModel>
         {
-            FormMasterId = master.ID,
-            Columns = columns,
-            Rows = rows
+            new FormListDataViewModel
+            {
+                FormMasterId = master.ID,
+                Columns = columns,
+                Rows = rows
+            }
         };
     }
 
