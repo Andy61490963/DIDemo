@@ -11,6 +11,8 @@ using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.WebHost.UseUrls("http://0.0.0.0:5000");
+
 // Swagger 註冊
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
