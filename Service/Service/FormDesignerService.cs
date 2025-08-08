@@ -197,6 +197,8 @@ public class FormDesignerService : IFormDesignerService
             STATUS = (int)TableStatusType.Draft,
             SCHEMA_TYPE = schemaType
         };
+        
+        // 根據傳進來的formMasterId判斷為哪次操作的資料
         var configs = GetFieldConfigs(tableName, formMasterId);
         var masterId = formMasterId
                        ?? configs.Values.FirstOrDefault()?.FORM_FIELD_Master_ID
@@ -644,9 +646,7 @@ public class FormDesignerService : IFormDesignerService
     /// <returns>回傳以 COLUMN_NAME 為鍵的設定資料</returns>
     private Dictionary<string, FormFieldConfigDto> GetFieldConfigs(string tableName, Guid? formMasterId)
     {
-        var sql = Sql.FieldConfigSelect + " WHERE TABLE_NAME = @TableName";
-        if (formMasterId.HasValue)
-            sql += " AND FORM_FIELD_Master_ID = @FormMasterId";
+        var sql = Sql.FieldConfigSelect + " WHERE TABLE_NAME = @TableName AND FORM_FIELD_Master_ID = @FormMasterId";
         var res = _con.Query<FormFieldConfigDto>(sql, new { TableName = tableName, FormMasterId = formMasterId })
             .ToDictionary(x => x.COLUMN_NAME, StringComparer.OrdinalIgnoreCase);
         return res;

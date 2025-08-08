@@ -63,10 +63,10 @@ public class FormDesignerController : ControllerBase
     /// 取得單一欄位設定
     /// </summary>
     [HttpGet("tables/{tableName}/fields/{columnName}")]
-    public IActionResult GetField(string tableName, string columnName, [FromQuery] TableSchemaQueryType schemaType)
+    public IActionResult GetField(string tableName, string columnName, Guid? id, [FromQuery] TableSchemaQueryType schemaType)
     {
         var field = _formDesignerService
-                    .GetFieldsByTableName(tableName, null, schemaType)
+                    .GetFieldsByTableName(tableName, id, schemaType)
                     .Fields.FirstOrDefault(x => x.COLUMN_NAME == columnName);
         return Ok(field);
     }
