@@ -22,8 +22,9 @@ public class FormService : IFormService
     private readonly IFormFieldConfigService _formFieldConfigService;
     private readonly IFormDataService _formDataService;
     private readonly IDropdownService _dropdownService;
+    private readonly IConfiguration _configuration;
     
-    public FormService(SqlConnection connection, ITransactionService txService, IFormFieldMasterService formFieldMasterService, ISchemaService schemaService, IFormFieldConfigService formFieldConfigService, IDropdownService dropdownService, IFormDataService formDataService)
+    public FormService(SqlConnection connection, ITransactionService txService, IFormFieldMasterService formFieldMasterService, ISchemaService schemaService, IFormFieldConfigService formFieldConfigService, IDropdownService dropdownService, IFormDataService formDataService, IConfiguration configuration)
     {
         _con = connection;
         _txService = txService;
@@ -32,7 +33,13 @@ public class FormService : IFormService
         _formFieldConfigService = formFieldConfigService;
         _formDataService = formDataService;
         _dropdownService = dropdownService;
+        _configuration = configuration;
+        _excludeColumns = _configuration.GetSection("FormDesignerSettings:RequiredColumns").Get<List<string>>() ?? new();
+        _excludeColumnsId = _configuration.GetSection("DropdownSqlSettings:ExcludeColumns").Get<List<string>>() ?? new();
     }
+    
+    private readonly List<string> _excludeColumns;
+    private readonly List<string> _excludeColumnsId;
     
     /// <summary>
     /// 取得所有表單的資料清單（含對應欄位值），
@@ -101,8 +108,18 @@ public class FormService : IFormService
                         SOURCE_TABLE = f.SOURCE_TABLE,
                         CurrentValue = row.GetValue(f.Column) // 根據欄位名稱取出該欄位的實際值
                     })
-                    .ToList();
+                    .Where(f =>
+                        // 1. 排除固定欄位（精確比對）
+                        !_excludeColumns.Any(col => col.Equals(f.Column, StringComparison.OrdinalIgnoreCase))
 
+                        // 2. 排除 ID/SID 相關欄位（_excludeColumnsId 模糊比對，含 ABC_ID / XYZ_SID）
+                        && !_excludeColumnsId.Any(col =>
+                                f.Column.Equals(col, StringComparison.OrdinalIgnoreCase) ||       // 精確
+                                f.Column.EndsWith($"_{col}", StringComparison.OrdinalIgnoreCase)  // 結尾為 _ID / _SID
+                        )
+                    )
+                    .ToList();
+                
                 // 組合單筆表單的資料 ViewModel
                 results.Add(new FormListDataViewModel
                 {
