@@ -78,6 +78,21 @@ public static class FormFieldHelper
     };
 
     /// <summary>
+    /// 各 SQL 資料型別對應允許使用的查詢條件元件清單。
+    /// </summary>
+    private static readonly Dictionary<SqlDataType, List<QueryConditionType>> QueryConditionTypeWhitelistMap = new()
+    {
+        { SqlDataType.DateTime, new() { QueryConditionType.Date } },
+        { SqlDataType.Bit,      new() { QueryConditionType.Dropdown } },
+        { SqlDataType.Int,      new() { QueryConditionType.Number, QueryConditionType.Text, QueryConditionType.Dropdown } },
+        { SqlDataType.Decimal,  new() { QueryConditionType.Number, QueryConditionType.Text } },
+        { SqlDataType.NVarChar, new() { QueryConditionType.Number, QueryConditionType.Text, QueryConditionType.Dropdown } },
+        { SqlDataType.VarChar,  new() { QueryConditionType.Number, QueryConditionType.Text, QueryConditionType.Dropdown } },
+        { SqlDataType.Text,     new() { QueryConditionType.Text } },
+        { SqlDataType.Unknown,  new() { QueryConditionType.Text } }
+    };
+
+    /// <summary>
     /// 取得允許的控制元件清單。
     /// </summary>
     /// <param name="dataType">SQL 資料型別字串（來源為 schema）</param>
@@ -87,6 +102,18 @@ public static class FormFieldHelper
         return ControlTypeWhitelistMap.TryGetValue(sqlType, out var list)
             ? list
             : ControlTypeWhitelistMap[SqlDataType.Unknown];
+    }
+
+    /// <summary>
+    /// 取得允許的查詢條件元件清單。
+    /// </summary>
+    /// <param name="dataType">SQL 資料型別字串（來源為 schema）</param>
+    public static List<QueryConditionType> GetQueryConditionTypeWhitelist(string dataType)
+    {
+        var sqlType = ParseSqlDataType(dataType);
+        return QueryConditionTypeWhitelistMap.TryGetValue(sqlType, out var list)
+            ? list
+            : QueryConditionTypeWhitelistMap[SqlDataType.Unknown];
     }
 
     /// <summary>
