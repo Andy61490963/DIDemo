@@ -8,8 +8,8 @@ public interface IFormDesignerService
 {
     FormDesignerIndexViewModel GetFormDesignerIndexViewModel(Guid? id);
     Guid GetOrCreateFormMasterId(FORM_FIELD_Master model);
-    FormFieldListViewModel? EnsureFieldsSaved(string tableName, TableSchemaQueryType type);
-    FormFieldListViewModel GetFieldsByTableName(string tableName, TableSchemaQueryType schemaType);
+    FormFieldListViewModel? EnsureFieldsSaved(string tableName, Guid? formMasterId, TableSchemaQueryType type);
+    FormFieldListViewModel GetFieldsByTableName(string tableName, Guid? formMasterId, TableSchemaQueryType schemaType);
 
     /// <summary>
     /// 依欄位設定 ID 取得單一欄位設定。
