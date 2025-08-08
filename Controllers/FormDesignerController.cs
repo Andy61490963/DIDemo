@@ -41,11 +41,11 @@ public class FormDesignerController : ControllerBase
     /// 取得資料表所有欄位設定
     /// </summary>
     [HttpGet("tables/{tableName}/fields")]
-    public IActionResult GetFields(string tableName, [FromQuery] TableSchemaQueryType schemaType)
+    public IActionResult GetFields(string tableName, Guid? id, [FromQuery] TableSchemaQueryType schemaType)
     {
         try
         {
-            var result = _formDesignerService.EnsureFieldsSaved(tableName, schemaType);
+            var result = _formDesignerService.EnsureFieldsSaved(tableName, id, schemaType);
 
             if (result == null)
             {
@@ -66,7 +66,7 @@ public class FormDesignerController : ControllerBase
     public IActionResult GetField(string tableName, string columnName, [FromQuery] TableSchemaQueryType schemaType)
     {
         var field = _formDesignerService
-                    .GetFieldsByTableName(tableName, schemaType)
+                    .GetFieldsByTableName(tableName, null, schemaType)
                     .Fields.FirstOrDefault(x => x.COLUMN_NAME == columnName);
         return Ok(field);
     }
@@ -79,7 +79,10 @@ public class FormDesignerController : ControllerBase
     {
         try
         {
-            var ensure = _formDesignerService.EnsureFieldsSaved(model.TableName, schemaType);
+            var ensure = _formDesignerService.EnsureFieldsSaved(
+                model.TableName,
+                model.FORM_FIELD_Master_ID == Guid.Empty ? null : model.FORM_FIELD_Master_ID,
+                schemaType);
             if (ensure == null)
             {
                 return NotFound();
@@ -100,7 +103,7 @@ public class FormDesignerController : ControllerBase
             var formMasterId = _formDesignerService.GetOrCreateFormMasterId(master);
 
             _formDesignerService.UpsertField(model, formMasterId);
-            var fields = _formDesignerService.GetFieldsByTableName(model.TableName, schemaType);
+            var fields = _formDesignerService.GetFieldsByTableName(model.TableName, formMasterId, schemaType);
             fields.ID = formMasterId;
             fields.SchemaQueryType = schemaType;
             return Ok(fields);
@@ -127,7 +130,7 @@ public class FormDesignerController : ControllerBase
             return BadRequest("僅支援檢視欄位清單的批次設定。");
 
         _formDesignerService.SetAllEditable(formMasterId, tableName, isEditable);
-        var fields = _formDesignerService.GetFieldsByTableName(tableName, schemaType);
+        var fields = _formDesignerService.GetFieldsByTableName(tableName, formMasterId, schemaType);
         fields.ID = formMasterId;
         fields.SchemaQueryType = schemaType;
         return Ok(fields);
@@ -147,7 +150,7 @@ public class FormDesignerController : ControllerBase
             return BadRequest("僅支援檢視欄位清單的批次設定。");
 
         _formDesignerService.SetAllRequired(formMasterId, tableName, isRequired);
-        var fields = _formDesignerService.GetFieldsByTableName(tableName, schemaType);
+        var fields = _formDesignerService.GetFieldsByTableName(tableName, formMasterId, schemaType);
         fields.ID = formMasterId;
         fields.SchemaQueryType = schemaType;
         return Ok(fields);

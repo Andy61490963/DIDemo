@@ -52,7 +52,7 @@ public class FormDesignerControllerTests
         var controller = CreateController();
         var formId = Guid.NewGuid();
         var fields = new FormFieldListViewModel();
-        _designerMock.Setup(s => s.GetFieldsByTableName("t", TableSchemaQueryType.OnlyTable)).Returns(fields);
+        _designerMock.Setup(s => s.GetFieldsByTableName("t", formId, TableSchemaQueryType.OnlyTable)).Returns(fields);
 
         var result = controller.BatchSetEditable(formId, "t", true, TableSchemaQueryType.OnlyTable) as OkObjectResult;
 
@@ -80,7 +80,7 @@ public class FormDesignerControllerTests
         var controller = CreateController();
         var formId = Guid.NewGuid();
         var fields = new FormFieldListViewModel();
-        _designerMock.Setup(s => s.GetFieldsByTableName("t", TableSchemaQueryType.OnlyTable)).Returns(fields);
+        _designerMock.Setup(s => s.GetFieldsByTableName("t", formId, TableSchemaQueryType.OnlyTable)).Returns(fields);
 
         var result = controller.BatchSetRequired(formId, "t", true, TableSchemaQueryType.OnlyTable) as OkObjectResult;
 
@@ -136,10 +136,10 @@ public class FormDesignerControllerTests
     {
         var controller = CreateController();
         _designerMock
-            .Setup(s => s.EnsureFieldsSaved("T", TableSchemaQueryType.OnlyTable))
+            .Setup(s => s.EnsureFieldsSaved("T", null, TableSchemaQueryType.OnlyTable))
             .Throws(new HttpStatusCodeException(HttpStatusCode.BadRequest, "缺少必要欄位"));
 
-        var result = controller.GetFields("T", TableSchemaQueryType.OnlyTable);
+        var result = controller.GetFields("T", null, TableSchemaQueryType.OnlyTable);
 
         var obj = Assert.IsType<ObjectResult>(result);
         Assert.Equal((int)HttpStatusCode.BadRequest, obj.StatusCode);
@@ -152,7 +152,7 @@ public class FormDesignerControllerTests
         var controller = CreateController();
         var vm = new FormFieldViewModel { TableName = "T" };
         _designerMock
-            .Setup(s => s.EnsureFieldsSaved("T", TableSchemaQueryType.OnlyTable))
+            .Setup(s => s.EnsureFieldsSaved("T", null, TableSchemaQueryType.OnlyTable))
             .Throws(new HttpStatusCodeException(HttpStatusCode.BadRequest, "缺少必要欄位"));
 
         var result = controller.UpsertField(vm, TableSchemaQueryType.OnlyTable);

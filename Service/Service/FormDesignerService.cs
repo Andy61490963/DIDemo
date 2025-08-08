@@ -43,13 +43,13 @@ public class FormDesignerService : IFormDesignerService
         };
 
         // 主表欄位
-        var baseFields = GetFieldsByTableName(master.BASE_TABLE_NAME, TableSchemaQueryType.OnlyTable);
+        var baseFields = GetFieldsByTableName(master.BASE_TABLE_NAME, master.ID, TableSchemaQueryType.OnlyTable);
         baseFields.ID = master.ID;
         baseFields.SchemaQueryType = TableSchemaQueryType.OnlyTable;
         result.BaseFields = baseFields;
 
         // View 欄位
-        var viewFields = GetFieldsByTableName(master.VIEW_TABLE_NAME, TableSchemaQueryType.OnlyView);
+        var viewFields = GetFieldsByTableName(master.VIEW_TABLE_NAME, master.ID, TableSchemaQueryType.OnlyView);
         viewFields.ID = master.ID;
         viewFields.SchemaQueryType = TableSchemaQueryType.OnlyView;
         result.ViewFields = viewFields;
@@ -84,13 +84,13 @@ public class FormDesignerService : IFormDesignerService
     /// </summary>
     /// <param name="tableName">使用者輸入的表名稱</param>
     /// <returns>回傳多筆 FormFieldViewModel</returns>
-    public FormFieldListViewModel GetFieldsByTableName(string tableName, TableSchemaQueryType schemaType)
+    public FormFieldListViewModel GetFieldsByTableName(string tableName, Guid? formMasterId, TableSchemaQueryType schemaType)
     {
         var columns = GetTableSchema(tableName, schemaType);
         if (columns.Count == 0) return new();
 
-        var configs= GetFieldConfigs(tableName);
-        var requiredFieldIds= GetRequiredFieldIds();
+        var configs = GetFieldConfigs(tableName, formMasterId);
+        var requiredFieldIds = GetRequiredFieldIds();
 
         // 查 PK
         var pk = _schemaService.GetPrimaryKeyColumns(tableName);
@@ -104,7 +104,7 @@ public class FormDesignerService : IFormDesignerService
                 return new FormFieldViewModel
                 {
                 ID = fieldId,
-                FORM_FIELD_Master_ID = cfg?.FORM_FIELD_Master_ID ?? Guid.Empty,
+                FORM_FIELD_Master_ID = cfg?.FORM_FIELD_Master_ID ?? formMasterId ?? Guid.Empty,
                 TableName = tableName,
                 COLUMN_NAME = col.COLUMN_NAME,
                 DATA_TYPE = dataType,
@@ -125,7 +125,7 @@ public class FormDesignerService : IFormDesignerService
         //     f.COLUMN_NAME.Contains(ex, StringComparison.OrdinalIgnoreCase)))
         // .ToList();
         
-        var masterId = configs.Values.FirstOrDefault()?.FORM_FIELD_Master_ID ?? Guid.Empty;
+        var masterId = formMasterId ?? configs.Values.FirstOrDefault()?.FORM_FIELD_Master_ID ?? Guid.Empty;
 
         var result = new FormFieldListViewModel
         {
@@ -143,7 +143,7 @@ public class FormDesignerService : IFormDesignerService
     /// </summary>
     /// <param name="tableName">資料表名稱</param>
     /// <returns>包含欄位設定的 ViewModel</returns>
-    public FormFieldListViewModel? EnsureFieldsSaved(string tableName, TableSchemaQueryType schemaType)
+    public FormFieldListViewModel? EnsureFieldsSaved(string tableName, Guid? formMasterId, TableSchemaQueryType schemaType)
     {
         var columns = GetTableSchema(tableName, schemaType);
 
@@ -163,8 +163,9 @@ public class FormDesignerService : IFormDesignerService
             STATUS = (int)TableStatusType.Draft,
             SCHEMA_TYPE = schemaType
         };
-        var configs = GetFieldConfigs(tableName);
-        var masterId = configs.Values.FirstOrDefault()?.FORM_FIELD_Master_ID
+        var configs = GetFieldConfigs(tableName, formMasterId);
+        var masterId = formMasterId
+                       ?? configs.Values.FirstOrDefault()?.FORM_FIELD_Master_ID
                        ?? GetOrCreateFormMasterId(model);
 
         
@@ -182,7 +183,7 @@ public class FormDesignerService : IFormDesignerService
         }
 
         // 重新查一次所有欄位，確保資料同步
-        var result = GetFieldsByTableName(tableName, schemaType);
+        var result = GetFieldsByTableName(tableName, masterId, schemaType);
         
         // 對於檢視表，先預設有下拉選單的設定
         if (schemaType == TableSchemaQueryType.OnlyView)
@@ -607,10 +608,12 @@ public class FormDesignerService : IFormDesignerService
     /// </summary>
     /// <param name="tableName">資料表名稱</param>
     /// <returns>回傳以 COLUMN_NAME 為鍵的設定資料</returns>
-    private Dictionary<string, FormFieldConfigDto> GetFieldConfigs(string tableName)
+    private Dictionary<string, FormFieldConfigDto> GetFieldConfigs(string tableName, Guid? formMasterId)
     {
         var sql = Sql.FieldConfigSelect + " WHERE TABLE_NAME = @TableName";
-        var res = _con.Query<FormFieldConfigDto>(sql, new { TableName = tableName })
+        if (formMasterId.HasValue)
+            sql += " AND FORM_FIELD_Master_ID = @FormMasterId";
+        var res = _con.Query<FormFieldConfigDto>(sql, new { TableName = tableName, FormMasterId = formMasterId })
             .ToDictionary(x => x.COLUMN_NAME, StringComparer.OrdinalIgnoreCase);
         return res;
     }
