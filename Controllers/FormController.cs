@@ -40,7 +40,7 @@ public class FormController : ControllerBase
             : _formService.GetFormSubmission(formId);
         return Ok(vm);
     }
-    
+
     [HttpPost]
     public IActionResult SubmitForm([FromBody] FormSubmissionInputModel input)
     {

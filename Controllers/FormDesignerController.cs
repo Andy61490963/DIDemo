@@ -38,14 +38,14 @@ public class FormDesignerController : ControllerBase
     // ────────── 欄位相關 ──────────
 
     /// <summary>
-    /// 取得資料表所有欄位設定
+    /// 取得資料表所有欄位設定(如果傳入空formMasterId，會創建一筆新的，如果有傳入，會取得舊的)
     /// </summary>
-    [HttpGet("tables/{tableName}/fields")]
-    public IActionResult GetFields(string tableName, [FromQuery] TableSchemaQueryType schemaType)
+    [HttpGet("tables/{formMasterId}/{tableName}/fields")]
+    public IActionResult GetFields(string tableName, Guid? formMasterId, [FromQuery] TableSchemaQueryType schemaType)
     {
         try
         {
-            var result = _formDesignerService.EnsureFieldsSaved(tableName, schemaType);
+            var result = _formDesignerService.EnsureFieldsSaved(tableName, formMasterId, schemaType);
 
             if (result == null)
             {
@@ -62,12 +62,14 @@ public class FormDesignerController : ControllerBase
     /// <summary>
     /// 取得單一欄位設定
     /// </summary>
-    [HttpGet("tables/{tableName}/fields/{columnName}")]
-    public IActionResult GetField(string tableName, string columnName, [FromQuery] TableSchemaQueryType schemaType)
+    [HttpGet("tables/{formMasterId}/{tableName}/fields/{columnName}")]
+    public IActionResult GetField(string tableName, string columnName, Guid? formMasterId, [FromQuery] TableSchemaQueryType schemaType)
     {
-        var field = _formDesignerService
-                    .GetFieldsByTableName(tableName, schemaType)
-                    .Fields.FirstOrDefault(x => x.COLUMN_NAME == columnName);
+        if (!formMasterId.HasValue || formMasterId.Value == Guid.Empty)
+            return BadRequest("id is required. Call GET /tables/{tableName}/fields first.");
+        
+        var list  = _formDesignerService.GetFieldsByTableName(tableName, formMasterId, schemaType);
+        var field = list.Fields.FirstOrDefault(x => x.COLUMN_NAME == columnName);
         return Ok(field);
     }
 
@@ -79,7 +81,10 @@ public class FormDesignerController : ControllerBase
     {
         try
         {
-            var ensure = _formDesignerService.EnsureFieldsSaved(model.TableName, schemaType);
+            var ensure = _formDesignerService.EnsureFieldsSaved(
+                model.TableName,
+                model.FORM_FIELD_Master_ID == Guid.Empty ? null : model.FORM_FIELD_Master_ID,
+                schemaType);
             if (ensure == null)
             {
                 return NotFound();
@@ -100,7 +105,7 @@ public class FormDesignerController : ControllerBase
             var formMasterId = _formDesignerService.GetOrCreateFormMasterId(master);
 
             _formDesignerService.UpsertField(model, formMasterId);
-            var fields = _formDesignerService.GetFieldsByTableName(model.TableName, schemaType);
+            var fields = _formDesignerService.GetFieldsByTableName(model.TableName, formMasterId, schemaType);
             fields.ID = formMasterId;
             fields.SchemaQueryType = schemaType;
             return Ok(fields);
@@ -124,10 +129,10 @@ public class FormDesignerController : ControllerBase
         [FromQuery] TableSchemaQueryType schemaType)
     {
         if (schemaType != TableSchemaQueryType.OnlyTable)
-            return BadRequest("僅支援檢視欄位清單的批次設定。");
+            return BadRequest("僅支援主檔欄位清單的批次設定。");
 
         _formDesignerService.SetAllEditable(formMasterId, tableName, isEditable);
-        var fields = _formDesignerService.GetFieldsByTableName(tableName, schemaType);
+        var fields = _formDesignerService.GetFieldsByTableName(tableName, formMasterId, schemaType);
         fields.ID = formMasterId;
         fields.SchemaQueryType = schemaType;
         return Ok(fields);
@@ -144,10 +149,10 @@ public class FormDesignerController : ControllerBase
         [FromQuery] TableSchemaQueryType schemaType)
     {
         if (schemaType != TableSchemaQueryType.OnlyTable)
-            return BadRequest("僅支援檢視欄位清單的批次設定。");
+            return BadRequest("僅支援主檔欄位清單的批次設定。");
 
         _formDesignerService.SetAllRequired(formMasterId, tableName, isRequired);
-        var fields = _formDesignerService.GetFieldsByTableName(tableName, schemaType);
+        var fields = _formDesignerService.GetFieldsByTableName(tableName, formMasterId, schemaType);
         fields.ID = formMasterId;
         fields.SchemaQueryType = schemaType;
         return Ok(fields);
@@ -166,7 +171,7 @@ public class FormDesignerController : ControllerBase
 
         var options = GetValidationTypeOptions(fieldId);
         var rules = _formDesignerService.GetValidationRulesByFieldId(fieldId);
-        return Ok(new { validationTypeOptions = options, rules });
+        return Ok(new { rules });
     }
 
     /// <summary>
@@ -179,7 +184,7 @@ public class FormDesignerController : ControllerBase
         var rule = _formDesignerService.CreateEmptyValidationRule(fieldId);
         _formDesignerService.InsertValidationRule(rule);
         var rules = _formDesignerService.GetValidationRulesByFieldId(fieldId);
-        return Ok(new { validationTypeOptions = options, rules });
+        return Ok(new { rules });
     }
 
     /// <summary>
@@ -201,7 +206,7 @@ public class FormDesignerController : ControllerBase
         _formDesignerService.DeleteValidationRule(id);
         var options = GetValidationTypeOptions(fieldConfigId);
         var rules = _formDesignerService.GetValidationRulesByFieldId(fieldConfigId);
-        return Ok(new { validationTypeOptions = options, rules });
+        return Ok(new { rules });
     }
 
     // ────────── Dropdown ──────────
