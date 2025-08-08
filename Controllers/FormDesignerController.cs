@@ -40,7 +40,7 @@ public class FormDesignerController : ControllerBase
     /// <summary>
     /// 取得資料表所有欄位設定
     /// </summary>
-    [HttpGet("tables/{tableName}/fields")]
+    [HttpGet("tables/{id}/{tableName}/fields")]
     public IActionResult GetFields(string tableName, Guid? id, [FromQuery] TableSchemaQueryType schemaType)
     {
         try
@@ -62,12 +62,14 @@ public class FormDesignerController : ControllerBase
     /// <summary>
     /// 取得單一欄位設定
     /// </summary>
-    [HttpGet("tables/{tableName}/fields/{columnName}")]
+    [HttpGet("tables/{id}/{tableName}/fields/{columnName}")]
     public IActionResult GetField(string tableName, string columnName, Guid? id, [FromQuery] TableSchemaQueryType schemaType)
     {
-        var field = _formDesignerService
-                    .GetFieldsByTableName(tableName, id, schemaType)
-                    .Fields.FirstOrDefault(x => x.COLUMN_NAME == columnName);
+        if (!id.HasValue || id.Value == Guid.Empty)
+            return BadRequest("id is required. Call GET /tables/{tableName}/fields first.");
+        
+        var list  = _formDesignerService.GetFieldsByTableName(tableName, id, schemaType);
+        var field = list.Fields.FirstOrDefault(x => x.COLUMN_NAME == columnName);
         return Ok(field);
     }
 
@@ -127,7 +129,7 @@ public class FormDesignerController : ControllerBase
         [FromQuery] TableSchemaQueryType schemaType)
     {
         if (schemaType != TableSchemaQueryType.OnlyTable)
-            return BadRequest("僅支援檢視欄位清單的批次設定。");
+            return BadRequest("僅支援主檔欄位清單的批次設定。");
 
         _formDesignerService.SetAllEditable(formMasterId, tableName, isEditable);
         var fields = _formDesignerService.GetFieldsByTableName(tableName, formMasterId, schemaType);
@@ -147,7 +149,7 @@ public class FormDesignerController : ControllerBase
         [FromQuery] TableSchemaQueryType schemaType)
     {
         if (schemaType != TableSchemaQueryType.OnlyTable)
-            return BadRequest("僅支援檢視欄位清單的批次設定。");
+            return BadRequest("僅支援主檔欄位清單的批次設定。");
 
         _formDesignerService.SetAllRequired(formMasterId, tableName, isRequired);
         var fields = _formDesignerService.GetFieldsByTableName(tableName, formMasterId, schemaType);
@@ -169,7 +171,7 @@ public class FormDesignerController : ControllerBase
 
         var options = GetValidationTypeOptions(fieldId);
         var rules = _formDesignerService.GetValidationRulesByFieldId(fieldId);
-        return Ok(new { validationTypeOptions = options, rules });
+        return Ok(new { rules });
     }
 
     /// <summary>
@@ -182,7 +184,7 @@ public class FormDesignerController : ControllerBase
         var rule = _formDesignerService.CreateEmptyValidationRule(fieldId);
         _formDesignerService.InsertValidationRule(rule);
         var rules = _formDesignerService.GetValidationRulesByFieldId(fieldId);
-        return Ok(new { validationTypeOptions = options, rules });
+        return Ok(new { rules });
     }
 
     /// <summary>
@@ -204,7 +206,7 @@ public class FormDesignerController : ControllerBase
         _formDesignerService.DeleteValidationRule(id);
         var options = GetValidationTypeOptions(fieldConfigId);
         var rules = _formDesignerService.GetValidationRulesByFieldId(fieldConfigId);
-        return Ok(new { validationTypeOptions = options, rules });
+        return Ok(new { rules });
     }
 
     // ────────── Dropdown ──────────

@@ -110,7 +110,7 @@ public class FormDesignerService : IFormDesignerService
                 DATA_TYPE = dataType,
                 CONTROL_TYPE = cfg?.CONTROL_TYPE,
                 CONTROL_TYPE_WHITELIST = FormFieldHelper.GetControlTypeWhitelist(dataType),
-                IS_REQUIRED = cfg?.IS_REQUIRED ?? true,
+                IS_REQUIRED = cfg?.IS_REQUIRED ?? false,
                 IS_EDITABLE = cfg?.IS_EDITABLE ?? true,
                 IS_VALIDATION_RULE = requiredFieldIds.Contains(fieldId),
                 IS_PK = pk.Contains(col.COLUMN_NAME),
