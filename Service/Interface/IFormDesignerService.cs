@@ -11,6 +11,13 @@ public interface IFormDesignerService
     FormFieldListViewModel? EnsureFieldsSaved(string tableName, TableSchemaQueryType type);
     FormFieldListViewModel GetFieldsByTableName(string tableName, TableSchemaQueryType schemaType);
 
+    /// <summary>
+    /// 依欄位設定 ID 取得單一欄位設定。
+    /// </summary>
+    /// <param name="fieldId">欄位設定唯一識別碼</param>
+    /// <returns>若找到欄位則回傳 <see cref="FormFieldViewModel"/>；否則回傳 null。</returns>
+    FormFieldViewModel? GetFieldById(Guid fieldId);
+
     void UpsertField(FormFieldViewModel model, Guid formMasterId);
 
     /// <summary>

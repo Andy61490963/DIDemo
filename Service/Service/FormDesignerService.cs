@@ -139,6 +139,40 @@ public class FormDesignerService : IFormDesignerService
     }
 
     /// <summary>
+    /// 依欄位設定 ID 取得單一欄位設定。
+    /// </summary>
+    /// <param name="fieldId">欄位設定唯一識別碼</param>
+    /// <returns>若找到欄位則回傳 <see cref="FormFieldViewModel"/>；否則回傳 null。</returns>
+    public FormFieldViewModel? GetFieldById(Guid fieldId)
+    {
+        var cfg = _con.QueryFirstOrDefault<FormFieldConfigDto>(
+            Sql.FieldConfigSelect + " WHERE ID = @fieldId", new { fieldId });
+        if (cfg == null) return null;
+
+        var pk = _schemaService.GetPrimaryKeyColumns(cfg.TABLE_NAME);
+
+        return new FormFieldViewModel
+        {
+            ID = cfg.ID,
+            FORM_FIELD_Master_ID = cfg.FORM_FIELD_Master_ID,
+            TableName = cfg.TABLE_NAME,
+            COLUMN_NAME = cfg.COLUMN_NAME,
+            DATA_TYPE = cfg.DATA_TYPE,
+            CONTROL_TYPE = cfg.CONTROL_TYPE,
+            CONTROL_TYPE_WHITELIST = FormFieldHelper.GetControlTypeWhitelist(cfg.DATA_TYPE),
+            IS_REQUIRED = cfg.IS_REQUIRED,
+            IS_EDITABLE = cfg.IS_EDITABLE,
+            IS_VALIDATION_RULE = HasValidationRules(cfg.ID),
+            IS_PK = pk.Contains(cfg.COLUMN_NAME),
+            DEFAULT_VALUE = cfg.DEFAULT_VALUE ?? string.Empty,
+            FIELD_ORDER = cfg.FIELD_ORDER,
+            QUERY_CONDITION_TYPE = cfg.QUERY_CONDITION_TYPE,
+            QUERY_CONDITION_SQL = cfg.QUERY_CONDITION_SQL ?? string.Empty,
+            CAN_QUERY = cfg.CAN_QUERY
+        };
+    }
+
+    /// <summary>
     /// 搜尋表格時，如設定檔不存在則先寫入預設欄位設定。
     /// </summary>
     /// <param name="tableName">資料表名稱</param>
