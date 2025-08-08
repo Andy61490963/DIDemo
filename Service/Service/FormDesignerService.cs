@@ -116,7 +116,7 @@ public class FormDesignerService : IFormDesignerService
                 IS_PK = pk.Contains(col.COLUMN_NAME),
                 DEFAULT_VALUE = cfg?.DEFAULT_VALUE ?? string.Empty,
                 SchemaType = schemaType,
-                QUERY_CONDITION_TYPE = cfg?.QUERY_CONDITION_TYPE ?? QueryConditionType.Text,
+                QUERY_CONDITION_TYPE = cfg?.QUERY_CONDITION_TYPE ?? QueryConditionType.None,
                 QUERY_CONDITION_SQL = cfg?.QUERY_CONDITION_SQL ?? string.Empty
             };
         }).ToList();
@@ -677,7 +677,7 @@ public class FormDesignerService : IFormDesignerService
             FIELD_ORDER = index,
             DEFAULT_VALUE = "",
             SchemaType = schemaType,
-            QUERY_CONDITION_TYPE = QueryConditionType.Text,
+            QUERY_CONDITION_TYPE = QueryConditionType.None,
             QUERY_CONDITION_SQL = string.Empty,
             CAN_QUERY = false
         };
