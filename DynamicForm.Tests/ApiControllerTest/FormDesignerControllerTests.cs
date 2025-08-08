@@ -147,6 +147,33 @@ public class FormDesignerControllerTests
     }
 
     [Fact]
+    public void GetField_ById_ReturnsField()
+    {
+        var controller = CreateController();
+        var fieldId = Guid.NewGuid();
+        var field = new FormFieldViewModel { ID = fieldId };
+        _designerMock.Setup(s => s.GetFieldById(fieldId)).Returns(field);
+
+        var result = controller.GetField(fieldId, TableSchemaQueryType.OnlyTable) as OkObjectResult;
+
+        Assert.NotNull(result);
+        var model = Assert.IsType<FormFieldViewModel>(result.Value);
+        Assert.Equal(TableSchemaQueryType.OnlyTable, model.SchemaType);
+    }
+
+    [Fact]
+    public void GetField_ById_NotFound()
+    {
+        var controller = CreateController();
+        var fieldId = Guid.NewGuid();
+        _designerMock.Setup(s => s.GetFieldById(fieldId)).Returns((FormFieldViewModel?)null);
+
+        var result = controller.GetField(fieldId, TableSchemaQueryType.OnlyTable);
+
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
     public void UpsertField_MissingSystemColumns_ReturnsBadRequest()
     {
         var controller = CreateController();
