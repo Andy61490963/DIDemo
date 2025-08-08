@@ -149,6 +149,9 @@ public class FormDesignerService : IFormDesignerService
             Sql.FieldConfigSelect + " WHERE ID = @fieldId", new { fieldId });
         if (cfg == null) return null;
 
+        var master = _con.QueryFirst<FORM_FIELD_Master>(
+            Sql.FormMasterById, new { id = cfg.FORM_FIELD_Master_ID });
+        
         var pk = _schemaService.GetPrimaryKeyColumns(cfg.TABLE_NAME);
 
         return new FormFieldViewModel
@@ -168,7 +171,8 @@ public class FormDesignerService : IFormDesignerService
             FIELD_ORDER = cfg.FIELD_ORDER,
             QUERY_CONDITION_TYPE = cfg.QUERY_CONDITION_TYPE,
             QUERY_CONDITION_SQL = cfg.QUERY_CONDITION_SQL ?? string.Empty,
-            CAN_QUERY = cfg.CAN_QUERY
+            CAN_QUERY = cfg.CAN_QUERY,
+            SchemaType = master.SCHEMA_TYPE
         };
     }
 

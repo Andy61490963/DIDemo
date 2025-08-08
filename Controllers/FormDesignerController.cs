@@ -60,16 +60,14 @@ public class FormDesignerController : ControllerBase
     }
 
     /// <summary>
-    /// 取得單一欄位設定
+    /// 依欄位設定 ID 取得單一欄位設定
     /// </summary>
-    [HttpGet("tables/{formMasterId}/{tableName}/fields/{columnName}")]
-    public IActionResult GetField(string tableName, string columnName, Guid? formMasterId, [FromQuery] TableSchemaQueryType schemaType)
+    /// <param name="fieldId">欄位設定唯一識別碼</param>
+    [HttpGet("fields/{fieldId}")]
+    public IActionResult GetField(Guid fieldId)
     {
-        if (!formMasterId.HasValue || formMasterId.Value == Guid.Empty)
-            return BadRequest("id is required. Call GET /tables/{tableName}/fields first.");
-        
-        var list  = _formDesignerService.GetFieldsByTableName(tableName, formMasterId, schemaType);
-        var field = list.Fields.FirstOrDefault(x => x.COLUMN_NAME == columnName);
+        var field = _formDesignerService.GetFieldById(fieldId);
+        if (field == null) return NotFound();
         return Ok(field);
     }
 
