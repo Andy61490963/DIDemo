@@ -38,14 +38,14 @@ public class FormDesignerController : ControllerBase
     // ────────── 欄位相關 ──────────
 
     /// <summary>
-    /// 取得資料表所有欄位設定
+    /// 取得資料表所有欄位設定(如果傳入空formMasterId，會創建一筆新的，如果有傳入，會取得舊的)
     /// </summary>
-    [HttpGet("tables/{id}/{tableName}/fields")]
-    public IActionResult GetFields(string tableName, Guid? id, [FromQuery] TableSchemaQueryType schemaType)
+    [HttpGet("tables/{formMasterId}/{tableName}/fields")]
+    public IActionResult GetFields(string tableName, Guid? formMasterId, [FromQuery] TableSchemaQueryType schemaType)
     {
         try
         {
-            var result = _formDesignerService.EnsureFieldsSaved(tableName, id, schemaType);
+            var result = _formDesignerService.EnsureFieldsSaved(tableName, formMasterId, schemaType);
 
             if (result == null)
             {
@@ -62,13 +62,13 @@ public class FormDesignerController : ControllerBase
     /// <summary>
     /// 取得單一欄位設定
     /// </summary>
-    [HttpGet("tables/{id}/{tableName}/fields/{columnName}")]
-    public IActionResult GetField(string tableName, string columnName, Guid? id, [FromQuery] TableSchemaQueryType schemaType)
+    [HttpGet("tables/{formMasterId}/{tableName}/fields/{columnName}")]
+    public IActionResult GetField(string tableName, string columnName, Guid? formMasterId, [FromQuery] TableSchemaQueryType schemaType)
     {
-        if (!id.HasValue || id.Value == Guid.Empty)
+        if (!formMasterId.HasValue || formMasterId.Value == Guid.Empty)
             return BadRequest("id is required. Call GET /tables/{tableName}/fields first.");
         
-        var list  = _formDesignerService.GetFieldsByTableName(tableName, id, schemaType);
+        var list  = _formDesignerService.GetFieldsByTableName(tableName, formMasterId, schemaType);
         var field = list.Fields.FirstOrDefault(x => x.COLUMN_NAME == columnName);
         return Ok(field);
     }
