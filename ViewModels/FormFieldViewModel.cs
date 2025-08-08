@@ -78,11 +78,16 @@ public class FormFieldViewModel
     /// 是否允許作為查詢條件欄位。
     /// </summary>
     public bool CAN_QUERY { get; set; } = false;
-    
+
     /// <summary>
     /// 控制選擇白名單
     /// </summary>
     public List<FormControlType> CONTROL_TYPE_WHITELIST { get; set; } = new();
+
+    /// <summary>
+    /// 查詢條件元件選擇白名單
+    /// </summary>
+    public List<QueryConditionType> QUERY_CONDITION_TYPE_WHITELIST { get; set; } = new();
 
     /// <summary>
     /// 資料表查詢類型，更新欄位設定後重新載入清單時使用
