@@ -1,8 +1,8 @@
 using ClassLibrary;
 using DynamicForm.Areas.Form.Controllers;
-using DynamicForm.Models;
-using DynamicForm.Service.Interface;
-using DynamicForm.ViewModels;
+using DynamicForm.Areas.Form.Models;
+using DynamicForm.Areas.Form.Interfaces;
+using DynamicForm.Areas.Form.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 using DynamicForm.Helper;

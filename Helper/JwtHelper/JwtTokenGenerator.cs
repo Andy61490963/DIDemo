@@ -2,8 +2,8 @@ using System;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using DynamicForm.Models;
-using DynamicForm.Service.Interface;
+using DynamicForm.Areas.Security.Models;
+using DynamicForm.Areas.Security.Interfaces;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 

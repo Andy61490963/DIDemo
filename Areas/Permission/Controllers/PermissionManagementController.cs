@@ -1,6 +1,6 @@
-using DynamicForm.Models;
-using DynamicForm.Service.Interface;
-using DynamicForm.ViewModels.PermissionManagement;
+using DynamicForm.Areas.Permission.Models;
+using DynamicForm.Areas.Permission.Interfaces;
+using DynamicForm.Areas.Permission.ViewModels.PermissionManagement;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DynamicForm.Areas.Permission.Controllers

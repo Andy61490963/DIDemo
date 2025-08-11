@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using DynamicForm.Models;
-using DynamicForm.Service.Service;
-using DynamicForm.Service.Interface;
-using DynamicForm.Service.Interface.FormLogicInterface;
-using DynamicForm.ViewModels;
+using DynamicForm.Areas.Form.Models;
+using DynamicForm.Areas.Form.Services;
+using DynamicForm.Areas.Form.Interfaces;
+using DynamicForm.Areas.Form.Interfaces.FormLogic;
+using DynamicForm.Areas.Form.ViewModels;
 using Moq;
 using Microsoft.Data.SqlClient;
 

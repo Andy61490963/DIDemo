@@ -1,6 +1,6 @@
 using Dapper;
-using DynamicForm.Models;
-using DynamicForm.Service.Service;
+using DynamicForm.Areas.Form.Models;
+using DynamicForm.Areas.Form.Services;
 using Microsoft.Data.Sqlite;
 using ClassLibrary;
 using Xunit;

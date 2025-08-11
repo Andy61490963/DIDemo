@@ -1,5 +1,5 @@
-using DynamicForm.Service.Interface;
-using DynamicForm.ViewModels;
+using DynamicForm.Areas.Security.Interfaces;
+using DynamicForm.Areas.Security.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DynamicForm.Areas.Security.Controllers

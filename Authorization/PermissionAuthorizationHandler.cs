@@ -1,7 +1,7 @@
 using System;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using DynamicForm.Service.Interface;
+using DynamicForm.Areas.Permission.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 
 namespace DynamicForm.Authorization

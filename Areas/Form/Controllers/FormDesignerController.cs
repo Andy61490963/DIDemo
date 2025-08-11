@@ -1,7 +1,7 @@
 using ClassLibrary;
-using DynamicForm.Models;
-using DynamicForm.Service.Interface;
-using DynamicForm.ViewModels;
+using DynamicForm.Areas.Form.Models;
+using DynamicForm.Areas.Form.Interfaces;
+using DynamicForm.Areas.Form.ViewModels;
 using DynamicForm.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
