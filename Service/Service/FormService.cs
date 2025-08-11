@@ -7,8 +7,6 @@ using DynamicForm.Service.Interface.FormLogicInterface;
 using DynamicForm.Service.Interface.TransactionInterface;
 using DynamicForm.ViewModels;
 using Microsoft.Data.SqlClient;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace DynamicForm.Service.Service;
@@ -294,11 +292,8 @@ public class FormService : IFormService
     {
         _txService.WithTransaction(tx =>
         {
-            var formId = input.FormId;
-            var pk = input.Pk;
-
             // 查表單主設定
-            var master = _formFieldMasterService.GetFormFieldMasterFromId(formId, tx);
+            var master = _formFieldMasterService.GetFormFieldMasterFromId(input.FormId, tx);
 
             // 查欄位設定
             // 取得欄位設定並帶出 IS_EDITABLE 欄位，後續用於權限檢查
@@ -311,8 +306,8 @@ public class FormService : IFormService
             var (normalFields, dropdownAnswers) = MapInputFields(input.InputFields, configs);
 
             // 2. Insert/Update 決策
-            var (pkName, pkType, typedRowId) = _schemaService.ResolvePk(master.BASE_TABLE_NAME, pk, tx);
-            bool isInsert = string.IsNullOrEmpty(pk);
+            var (pkName, pkType, typedRowId) = _schemaService.ResolvePk(master.BASE_TABLE_NAME, input.Pk, tx);
+            bool isInsert = string.IsNullOrEmpty(input.Pk);
             bool isIdentity = _schemaService.IsIdentityColumn(master.BASE_TABLE_NAME, pkName, tx);
             object? realRowId = typedRowId;
 
