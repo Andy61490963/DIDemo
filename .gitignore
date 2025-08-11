@@ -24,3 +24,5 @@ Thumbs.db
 # Others
 AppData/
 *.pdb
+/docker-compose.yml
+/Dockerfile
