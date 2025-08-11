@@ -35,7 +35,7 @@ namespace DynamicForm.Service.Service
         /// <inheritdoc />
         public async Task<LoginResponseViewModel?> AuthenticateAsync(string account, string password)
         {
-            const string sql = @"/**/SELECT ID, NAME AS Account, SWD AS PasswordHash, SWD_SALT AS PasswordSalt, ROLE FROM SYS_USER WHERE NAME = @Account AND IS_DELETE = 0";
+            const string sql = @"/**/SELECT ID, NAME AS Account, SWD AS PasswordHash, SWD_SALT AS PasswordSalt FROM SYS_USER WHERE NAME = @Account AND IS_DELETE = 0";
             var user = await _connection.QueryFirstOrDefaultAsync<UserAccount>(sql, new { Account = account });
             if (user == null)
             {
@@ -73,25 +73,23 @@ namespace DynamicForm.Service.Service
 
             // 3. 寫入資料庫
             var userId = Guid.NewGuid();
-            var role = "ADMIN";
             const string insertSql = @"/**/
-        INSERT INTO SYS_USER (ID, AC, NAME, SWD, SWD_SALT, ROLE, IS_DELETE)
-        VALUES (@Id, @AC, @Name, @Hash, @Salt, @Role, 0)";
+        INSERT INTO SYS_USER (ID, AC, NAME, SWD, SWD_SALT, IS_DELETE)
+        VALUES (@Id, @AC, @Name, @Hash, @Salt, 0)";
             await _connection.ExecuteAsync(insertSql, new
             {
                 Id = userId,
                 AC = account,
                 Name = account,
                 Hash = hash,
-                Salt = salt,
-                Role = role
+                Salt = salt
             });
 
             return new RegisterResponseViewModel
             {
                 UserId = userId,
                 Account = account,
-                Role = role
+                Role = "ADMIN"
             };
         }
 
