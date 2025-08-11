@@ -1,4 +1,6 @@
 using System.Reflection;
+using DynamicForm.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using DynamicForm.Service.Interface;
 using DynamicForm.Service.Service;
 using DynamicForm.Models;
@@ -64,6 +66,7 @@ builder.Services.AddSwaggerGen(options =>
 
 
 builder.Services.AddOptions();
+builder.Services.AddMemoryCache();
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
 
 builder.Services.AddScoped<ITransactionService, TransactionService>();
@@ -80,6 +83,10 @@ builder.Services.AddScoped<IFormFieldConfigService, FormFieldConfigService>();
 builder.Services.AddScoped<IDropdownService, DropdownService>();
 builder.Services.AddScoped<IFormDataService, FormDataService>();
 builder.Services.AddScoped<IFormService, FormService>();
+
+builder.Services.AddScoped<IPermissionService, PermissionService>();
+builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
 
 builder.Services.AddScoped<SqlConnection, SqlConnection>(_ =>
 {

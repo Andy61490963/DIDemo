@@ -2,6 +2,7 @@ using ClassLibrary;
 using DynamicForm.Models;
 using DynamicForm.Service.Interface;
 using DynamicForm.ViewModels;
+using DynamicForm.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using DynamicForm.Helper;
@@ -28,6 +29,7 @@ public class FormDesignerController : ControllerBase
     /// <summary>
     /// 取得指定表單的設計器主畫面資料
     /// </summary>
+    [RequirePermission("FormDesigner.View")]
     [HttpGet("{id:guid}")]
     public IActionResult GetDesigner(Guid id)
     {
@@ -74,6 +76,7 @@ public class FormDesignerController : ControllerBase
     /// <summary>
     /// 新增或更新單一欄位設定（ID 有值為更新，無值為新增）
     /// </summary>
+    [RequirePermission("FormDesigner.Edit")]
     [HttpPost("fields")]
     public IActionResult UpsertField([FromBody] FormFieldViewModel model, [FromQuery] TableSchemaQueryType schemaType)
     {
