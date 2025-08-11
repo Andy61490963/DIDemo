@@ -14,6 +14,8 @@ namespace DynamicForm.Service.Interface
         /// <param name="account">使用者帳號。</param>
         /// <param name="password">使用者密碼。</param>
         /// <returns>登入結果，失敗則回傳 null。</returns>
-        Task<LoginResponse?> AuthenticateAsync(string account, string password);
+        Task<LoginResponseViewModel?> AuthenticateAsync(string account, string password);
+
+        Task<RegisterResponseViewModel?> RegisterAsync(string account, string password);
     }
 }

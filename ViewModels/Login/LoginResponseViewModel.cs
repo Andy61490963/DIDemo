@@ -5,7 +5,7 @@ namespace DynamicForm.ViewModels
     /// <summary>
     /// 登入結果回傳給前端的內容。
     /// </summary>
-    public class LoginResponse : TokenResult
+    public class LoginResponseViewModel : TokenResult
     {
     }
 }

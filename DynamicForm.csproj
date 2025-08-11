@@ -25,4 +25,10 @@
       <None Remove="DynamicForm.Tests\**" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Reference Include="Microsoft.AspNetCore.Authentication.JwtBearer">
+      <HintPath>bin\Debug\net10.0\Microsoft.AspNetCore.Authentication.JwtBearer.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
 </Project>

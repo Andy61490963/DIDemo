@@ -1,4 +1,3 @@
-using System.Threading.Tasks;
 using DynamicForm.Service.Interface;
 using DynamicForm.ViewModels;
 using Microsoft.AspNetCore.Mvc;
@@ -13,7 +12,8 @@ namespace DynamicForm.Controllers
     public class LoginController : ControllerBase
     {
         private readonly IAuthenticationService _authService;
-
+        private const string AccountExistsMessage = "Account already exists.";
+        
         /// <summary>
         /// 建構函式注入驗證服務。
         /// </summary>
@@ -28,8 +28,8 @@ namespace DynamicForm.Controllers
         /// </summary>
         /// <param name="request">帳號與密碼。</param>
         /// <returns>JWT Token。</returns>
-        [HttpPost]
-        public async Task<IActionResult> Login([FromBody] LoginRequest request)
+        [HttpPost("login")]
+        public async Task<IActionResult> Login([FromBody] LoginRequestViewModel request)
         {
             var result = await _authService.AuthenticateAsync(request.Account, request.Password);
             if (result == null)
@@ -39,5 +39,22 @@ namespace DynamicForm.Controllers
 
             return Ok(result);
         }
+        
+        /// <summary>
+        /// 註冊新帳號。
+        /// </summary>
+        /// <param name="request">帳號、密碼、角色。</param>
+        /// <returns>註冊成功的帳號資訊。</returns>
+        [HttpPost("register")]
+        public async Task<IActionResult> Register([FromBody] RegisterRequestViewModel request)
+        {
+            var result = await _authService.RegisterAsync(request.Account, request.Password);
+            if (result == null)
+            {
+                return BadRequest(AccountExistsMessage);
+            }
+            return Ok(result);
+        }
+
     }
 }

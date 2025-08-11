@@ -28,14 +28,40 @@ builder.Services.AddSwaggerGen(options =>
         Description = "表單設計系統的 API 文件",
     });
 
-    // 加入 XML 註解（讓 <summary> 顯示在 Swagger UI）
     var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
     if (File.Exists(xmlPath))
     {
         options.IncludeXmlComments(xmlPath, includeControllerXmlComments: true);
     }
+
+    // JWT 定義（不用輸入 Bearer）
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "輸入 JWT Token（不需輸入 'Bearer ' 前綴）"
+    });
+
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
 });
+
 
 builder.Services.AddOptions();
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
