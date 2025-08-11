@@ -13,13 +13,13 @@ namespace DynamicForm.Service.Service
     /// </summary>
     public class PermissionService : IPermissionService
     {
-        private readonly SqlConnection _connection;
+        private readonly SqlConnection _con;
         private readonly IMemoryCache _cache;
         private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(5);
 
-        public PermissionService(SqlConnection connection, IMemoryCache cache)
+        public PermissionService(SqlConnection con, IMemoryCache cache)
         {
-            _connection = connection;
+            _con = con;
             _cache = cache;
         }
 
@@ -27,8 +27,8 @@ namespace DynamicForm.Service.Service
         public async Task<Guid> CreateGroupAsync(string name)
         {
             var id = Guid.NewGuid();
-            const string sql = @"INSERT INTO SYS_GROUP (ID, NAME) VALUES (@Id, @Name)";
-            await _connection.ExecuteAsync(sql, new { Id = id, Name = name });
+            const string sql = @"INSERT INTO SYS_GROUP (ID, NAME, IS_ACTIVE) VALUES (@Id, @Name, 1)";
+            await _con.ExecuteAsync(sql, new { Id = id, Name = name });
             return id;
         }
 
@@ -36,24 +36,26 @@ namespace DynamicForm.Service.Service
         public async Task<Guid> CreatePermissionAsync(string code)
         {
             var id = Guid.NewGuid();
-            const string sql = @"INSERT INTO SYS_PERMISSION (ID, CODE) VALUES (@Id, @Code)";
-            await _connection.ExecuteAsync(sql, new { Id = id, Code = code });
+            const string sql = @"INSERT INTO SYS_PERMISSION (ID, CODE, IS_ACTIVE) VALUES (@Id, @Code, 1)";
+            await _con.ExecuteAsync(sql, new { Id = id, Code = code });
             return id;
         }
 
         /// <inheritdoc />
         public Task AssignUserToGroupAsync(Guid userId, Guid groupId)
         {
-            const string sql = @"INSERT INTO SYS_USER_GROUP (USER_ID, GROUP_ID) VALUES (@UserId, @GroupId)";
+            var id = Guid.NewGuid();
+            const string sql = @"INSERT INTO SYS_USER_GROUP (ID, SYS_USER_ID, SYS_GROUP_ID) VALUES (@Id, @UserId, @GroupId)";
             _cache.Remove(GetCacheKey(userId));
-            return _connection.ExecuteAsync(sql, new { UserId = userId, GroupId = groupId });
+            return _con.ExecuteAsync(sql, new { Id = id, UserId = userId, GroupId = groupId });
         }
 
         /// <inheritdoc />
         public Task AssignPermissionToGroupAsync(Guid groupId, Guid permissionId)
         {
-            const string sql = @"INSERT INTO SYS_GROUP_PERMISSION (GROUP_ID, PERMISSION_ID) VALUES (@GroupId, @PermissionId)";
-            return _connection.ExecuteAsync(sql, new { GroupId = groupId, PermissionId = permissionId });
+            var id = Guid.NewGuid();
+            const string sql = @"INSERT INTO SYS_GROUP_PERMISSION (ID, SYS_GROUP_ID, SYS_PERMISSION_ID) VALUES (@Id, @GroupId, @PermissionId)";
+            return _con.ExecuteAsync(sql, new { Id = id, GroupId = groupId, PermissionId = permissionId });
         }
 
         /// <inheritdoc />
@@ -65,10 +67,10 @@ namespace DynamicForm.Service.Service
                 const string sql = @"
                     SELECT P.CODE
                     FROM SYS_PERMISSION P
-                    JOIN SYS_GROUP_PERMISSION GP ON GP.PERMISSION_ID = P.ID
-                    JOIN SYS_USER_GROUP UG ON UG.GROUP_ID = GP.GROUP_ID
-                    WHERE UG.USER_ID = @UserId";
-                var rows = await _connection.QueryAsync<string>(sql, new { UserId = userId });
+                    JOIN SYS_GROUP_PERMISSION GP ON GP.SYS_PERMISSION_ID = P.ID
+                    JOIN SYS_USER_GROUP UG ON UG.SYS_GROUP_ID = GP.SYS_GROUP_ID
+                    WHERE UG.SYS_USER_ID = @UserId";
+                var rows = await _con.QueryAsync<string>(sql, new { UserId = userId });
                 return new HashSet<string>(rows, StringComparer.OrdinalIgnoreCase);
             });
 
