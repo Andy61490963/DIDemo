@@ -17,7 +17,7 @@ namespace DynamicForm.Controllers
         /// 取得受保護的資料。
         /// </summary>
         /// <returns>簡單的訊息。</returns>
-        [RequirePermission(ActionAuthorizeHelper.Import)]
+        [RequirePermission(ActionAuthorize.Import)]
         [HttpGet("data")]
         public IActionResult GetSecureData()
         {

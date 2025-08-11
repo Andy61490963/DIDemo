@@ -1,5 +1,6 @@
 using System;
 using Microsoft.AspNetCore.Authorization;
+using DynamicForm.Helper;
 
 namespace DynamicForm.Authorization
 {
@@ -22,6 +23,15 @@ namespace DynamicForm.Authorization
         {
             // 將 Policy 設為帶有前綴的權限名稱，讓 PolicyProvider 能解析。
             Policy = PolicyPrefix + permissionCode;
+        }
+
+        /// <summary>
+        /// 以 <see cref="ActionAuthorize"/> 指定權限。
+        /// </summary>
+        /// <param name="action">預先定義的權限列舉。</param>
+        public RequirePermissionAttribute(ActionAuthorize action)
+            : this(action.ToString())
+        {
         }
 
         /// <summary>
