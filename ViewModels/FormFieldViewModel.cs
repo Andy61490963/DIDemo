@@ -77,7 +77,7 @@ public class FormFieldViewModel
     /// <summary>
     /// 是否允許作為查詢條件欄位。
     /// </summary>
-    public bool CAN_QUERY { get; set; } = false;
+    public bool CAN_QUERY { get; set; }
 
     /// <summary>
     /// 控制選擇白名單

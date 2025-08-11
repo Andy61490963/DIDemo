@@ -118,7 +118,8 @@ public class FormDesignerService : IFormDesignerService
                 DEFAULT_VALUE = cfg?.DEFAULT_VALUE ?? string.Empty,
                 SchemaType = schemaType,
                 QUERY_CONDITION_TYPE = cfg?.QUERY_CONDITION_TYPE ?? QueryConditionType.None,
-                QUERY_CONDITION_SQL = cfg?.QUERY_CONDITION_SQL ?? string.Empty
+                QUERY_CONDITION_SQL = cfg?.QUERY_CONDITION_SQL ?? string.Empty,
+                CAN_QUERY = cfg?.CAN_QUERY ?? false,
             };
         }).ToList();
         // 用設定檔過濾

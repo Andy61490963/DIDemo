@@ -19,6 +19,22 @@ public class FormController : ControllerBase
         _formService = formService;
     }
     
+    /// <summary>
+    /// 範例輸入：
+    /// <code>
+    /// [
+    ///   {
+    ///     "column": "STATUS_CALCD_TIME",
+    ///     "queryConditionType": 3,
+    ///     "value": "2024-12-31",
+    ///     "value2": "2025-01-02",
+    ///     "dataType": "datetime"
+    ///   }
+    /// ]
+    /// </code>
+    /// </summary>
+    /// <param name="conditions">查詢條件</param>
+    /// <returns>查詢結果</returns>
     [HttpPost("search")]
     public IActionResult GetForms([FromBody] List<FormQueryCondition>? conditions)
     {
