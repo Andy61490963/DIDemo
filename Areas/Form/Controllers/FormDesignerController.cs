@@ -333,6 +333,12 @@ public class FormDesignerController : ControllerBase
     {
         var controlType = _formDesignerService.GetControlTypeByFieldId(fieldId);
         var allowed = ValidationRulesMap.GetValidations(controlType);
-        return EnumExtensions.ToSelectList(allowed);
+        return EnumExtensions.ToSelectList(allowed)
+            .Select(item => new ValidationTypeOptionDto
+            {
+                Value = item.Value ?? string.Empty,
+                Text = item.Text ?? string.Empty
+            })
+            .ToList();
     }
 }

@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DynamicForm.csproj" />
+    <ProjectReference Include="..\ClassLibrary\ClassLibrary.csproj" />
   </ItemGroup>
 
 </Project>

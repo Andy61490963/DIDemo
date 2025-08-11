@@ -1,6 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Reflection;
-using DynamicForm.Areas.Form.Models;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace ClassLibrary;
@@ -29,10 +28,10 @@ public static class EnumExtensions
             .ToList();
     }
 
-    public static List<ValidationTypeOptionDto> ToSelectList<TEnum>(IEnumerable<TEnum> values) where TEnum : Enum
+    public static List<SelectListItem> ToSelectList<TEnum>(IEnumerable<TEnum> values) where TEnum : Enum
     {
         return values
-            .Select(e => new ValidationTypeOptionDto
+            .Select(e => new SelectListItem
             {
                 Value = Convert.ToInt32(e).ToString(),
                 Text = GetDisplayName(e)

@@ -31,4 +31,9 @@
     </Reference>
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- 引用共用函式與列舉的類別庫 -->
+    <ProjectReference Include="ClassLibrary/ClassLibrary.csproj" />
+  </ItemGroup>
+
 </Project>
