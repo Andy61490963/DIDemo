@@ -3,14 +3,15 @@ using DynamicForm.Helper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace DynamicForm.Controllers
+namespace DynamicForm.Areas.Security.Controllers
 {
     /// <summary>
     /// 需要 JWT 授權才能存取的範例端點。
     /// </summary>
+    [Area("Security")]
     [Authorize]
     [ApiController]
-    [Route("api/secure")]
+    [Route("[area]/[controller]")]
     public class SecureDataController : ControllerBase
     {
         /// <summary>

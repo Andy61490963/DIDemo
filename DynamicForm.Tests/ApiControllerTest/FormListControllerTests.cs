@@ -1,4 +1,4 @@
-using DynamicForm.Controllers;
+using DynamicForm.Areas.Form.Controllers;
 using DynamicForm.Models;
 using DynamicForm.Service.Interface;
 using Microsoft.AspNetCore.Mvc;

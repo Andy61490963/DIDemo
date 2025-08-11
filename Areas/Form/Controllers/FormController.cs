@@ -1,15 +1,16 @@
-﻿using DynamicForm.Models;
+using DynamicForm.Models;
 using DynamicForm.Service.Interface;
 using DynamicForm.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 
-namespace DynamicForm.Controllers;
+namespace DynamicForm.Areas.Form.Controllers;
 
 /// <summary>
 /// 表單主檔變更 API
 /// </summary>
+[Area("Form")]
 [ApiController]
-[Route("api/[controller]")]
+[Route("[area]/[controller]")]
 public class FormController : ControllerBase
 {
     private readonly IFormService _formService;

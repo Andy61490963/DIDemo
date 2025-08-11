@@ -7,10 +7,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using DynamicForm.Helper;
 
-namespace DynamicForm.Controllers;
+namespace DynamicForm.Areas.Form.Controllers;
 
+[Area("Form")]
 [ApiController]
-[Route("api/[controller]")]
+[Route("[area]/[controller]")]
 public class FormDesignerController : ControllerBase
 {
     private readonly IFormDesignerService _formDesignerService;

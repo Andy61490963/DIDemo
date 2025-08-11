@@ -3,13 +3,14 @@ using DynamicForm.Service.Interface;
 using DynamicForm.ViewModels.PermissionManagement;
 using Microsoft.AspNetCore.Mvc;
 
-namespace DynamicForm.Controllers
+namespace DynamicForm.Areas.Permission.Controllers
 {
     /// <summary>
     /// 提供群組與權限管理的 API。
     /// </summary>
+    [Area("Permission")]
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("[area]/[controller]")]
     public class PermissionManagementController : ControllerBase
     {
         private readonly IPermissionService _permissionService;

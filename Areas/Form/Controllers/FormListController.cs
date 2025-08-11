@@ -2,13 +2,14 @@ using DynamicForm.Models;
 using DynamicForm.Service.Interface;
 using Microsoft.AspNetCore.Mvc;
 
-namespace DynamicForm.Controllers;
+namespace DynamicForm.Areas.Form.Controllers;
 
 /// <summary>
 /// 表單主檔列表 API
 /// </summary>
+[Area("Form")]
 [ApiController]
-[Route("api/[controller]")]
+[Route("[area]/[controller]")]
 public class FormListController : ControllerBase
 {
     private readonly IFormListService _service;

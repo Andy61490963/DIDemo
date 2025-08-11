@@ -2,13 +2,14 @@ using DynamicForm.Service.Interface;
 using DynamicForm.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 
-namespace DynamicForm.Controllers
+namespace DynamicForm.Areas.Security.Controllers
 {
     /// <summary>
     /// 處理登入與取得 JWT 的 API。
     /// </summary>
+    [Area("Security")]
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("[area]/[controller]")]
     public class LoginController : ControllerBase
     {
         private readonly IAuthenticationService _authService;

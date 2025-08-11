@@ -139,6 +139,9 @@ app.UseSwaggerUI(options =>
     options.SwaggerEndpoint("/swagger/v1/swagger.json", "Dynamic Form API v1");
     options.RoutePrefix = string.Empty;
 });
+app.MapControllerRoute(
+    name: "areas",
+    pattern: "{area:exists}/{controller=Home}/{action=Index}/{id?}");
 
 app.MapControllers();
 app.Run();
