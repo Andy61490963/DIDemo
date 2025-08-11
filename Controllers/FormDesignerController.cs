@@ -90,7 +90,6 @@ public class FormDesignerController : ControllerBase
 
             if (schemaType == TableSchemaQueryType.OnlyTable &&
                 (model.QUERY_CONDITION_TYPE != QueryConditionType.None ||
-                 model.QUERY_CONDITION_SQL != string.Empty ||
                  model.CAN_QUERY))
                 return Conflict("無法往主表寫入查詢條件");
             

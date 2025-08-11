@@ -298,7 +298,7 @@ public class FormService : IFormService
             // 查欄位設定
             // 取得欄位設定並帶出 IS_EDITABLE 欄位，後續用於權限檢查
             var configs = _con.Query<FormFieldConfigDto>(
-                "SELECT ID, COLUMN_NAME, CONTROL_TYPE, DATA_TYPE, IS_EDITABLE, QUERY_CONDITION_TYPE, QUERY_CONDITION_SQL FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @Id",
+                "SELECT ID, COLUMN_NAME, CONTROL_TYPE, DATA_TYPE, IS_EDITABLE, QUERY_CONDITION_TYPE FROM FORM_FIELD_CONFIG WHERE FORM_FIELD_Master_ID = @Id",
                 new { Id = master.BASE_TABLE_ID },
                 transaction: tx).ToDictionary(x => x.ID);
 

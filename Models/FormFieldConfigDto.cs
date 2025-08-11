@@ -26,7 +26,7 @@ public class FormFieldConfigDto
     /// <summary>
     /// 若為下拉選單查詢條件，使用此 SQL 取得選項資料。
     /// </summary>
-    public string? QUERY_CONDITION_SQL { get; set; }
+    // public string? QUERY_CONDITION_SQL { get; set; }
 
     /// <summary>
     /// 是否允許此欄位作為查詢條件使用。

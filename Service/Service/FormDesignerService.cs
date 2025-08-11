@@ -118,7 +118,7 @@ public class FormDesignerService : IFormDesignerService
                 DEFAULT_VALUE = cfg?.DEFAULT_VALUE ?? string.Empty,
                 SchemaType = schemaType,
                 QUERY_CONDITION_TYPE = cfg?.QUERY_CONDITION_TYPE ?? QueryConditionType.None,
-                QUERY_CONDITION_SQL = cfg?.QUERY_CONDITION_SQL ?? string.Empty,
+                // QUERY_CONDITION_SQL = cfg?.QUERY_CONDITION_SQL ?? string.Empty,
                 CAN_QUERY = cfg?.CAN_QUERY ?? false,
             };
         }).ToList();
@@ -173,7 +173,7 @@ public class FormDesignerService : IFormDesignerService
             DEFAULT_VALUE = cfg.DEFAULT_VALUE ?? string.Empty,
             FIELD_ORDER = cfg.FIELD_ORDER,
             QUERY_CONDITION_TYPE = cfg.QUERY_CONDITION_TYPE,
-            QUERY_CONDITION_SQL = cfg.QUERY_CONDITION_SQL ?? string.Empty,
+            // QUERY_CONDITION_SQL = cfg.QUERY_CONDITION_SQL ?? string.Empty,
             CAN_QUERY = cfg.CAN_QUERY,
             SchemaType = master.SCHEMA_TYPE
         };
@@ -228,7 +228,7 @@ public class FormDesignerService : IFormDesignerService
         // 重新查一次所有欄位，確保資料同步
         var result = GetFieldsByTableName(tableName, masterId, schemaType);
         
-        // 對於檢視表，先預設有下拉選單的設定
+        // 對於檢視表，先預設有下拉選單的設定，創建的ISUSESQL欄位會為NULL
         if (schemaType == TableSchemaQueryType.OnlyView)
         {
             foreach (var field in result.Fields)
@@ -685,7 +685,7 @@ public class FormDesignerService : IFormDesignerService
             DEFAULT_VALUE = "",
             SchemaType = schemaType,
             QUERY_CONDITION_TYPE = QueryConditionType.None,
-            QUERY_CONDITION_SQL = string.Empty,
+            // QUERY_CONDITION_SQL = string.Empty,
             CAN_QUERY = false
         };
     }
