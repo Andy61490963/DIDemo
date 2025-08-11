@@ -19,5 +19,10 @@ namespace DynamicForm.Models
         /// 用於簽章的秘密金鑰。
         /// </summary>
         public string SecretKey { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Token 有效分鐘數。
+        /// </summary>
+        public int ExpiresMinutes { get; set; }
     }
 }

@@ -10,23 +10,23 @@ using Microsoft.IdentityModel.Tokens;
 namespace DynamicForm.Helper
 {
     /// <summary>
-    /// 產生 JWT Token 的協助類別。
+    /// 使用設定檔產生 JWT Token。
     /// </summary>
-    public class JwtTokenHelper : IJwtTokenGenerator
+    public class JwtTokenGenerator : ITokenGenerator
     {
         private readonly JwtSettings _jwtSettings;
 
         /// <summary>
-        /// 建構函式注入設定值。
+        /// 初始化 JWT 產生器。
         /// </summary>
-        /// <param name="jwtOptions">JWT 設定值。</param>
-        public JwtTokenHelper(IOptions<JwtSettings> jwtOptions)
+        /// <param name="jwtOptions">JWT 設定。</param>
+        public JwtTokenGenerator(IOptions<JwtSettings> jwtOptions)
         {
             _jwtSettings = jwtOptions.Value;
         }
 
         /// <inheritdoc />
-        public (string Token, DateTime Expiration) GenerateToken(UserAccount user)
+        public TokenResult GenerateToken(UserAccount user)
         {
             var claims = new[]
             {
@@ -37,7 +37,7 @@ namespace DynamicForm.Helper
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.SecretKey));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-            var expiration = DateTime.UtcNow.AddHours(1);
+            var expiration = DateTime.UtcNow.AddMinutes(_jwtSettings.ExpiresMinutes);
 
             var token = new JwtSecurityToken(
                 issuer: _jwtSettings.Issuer,
@@ -48,7 +48,11 @@ namespace DynamicForm.Helper
             );
 
             var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
-            return (tokenString, expiration);
+            return new TokenResult
+            {
+                Token = tokenString,
+                Expiration = expiration
+            };
         }
     }
 }

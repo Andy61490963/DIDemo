@@ -12,13 +12,13 @@ namespace DynamicForm.Controllers
     [Route("api/[controller]")]
     public class LoginController : ControllerBase
     {
-        private readonly IAuthService _authService;
+        private readonly IAuthenticationService _authService;
 
         /// <summary>
         /// 建構函式注入驗證服務。
         /// </summary>
         /// <param name="authService">驗證服務。</param>
-        public LoginController(IAuthService authService)
+        public LoginController(IAuthenticationService authService)
         {
             _authService = authService;
         }

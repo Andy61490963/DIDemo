@@ -25,7 +25,7 @@ builder.Services.AddSwaggerGen(options =>
     {
         Title = "Dynamic Form API",
         Version = "v1",
-        Description = "表單設計系統的 API 文件"
+        Description = "表單設計系統的 API 文件",
     });
 
     // 加入 XML 註解（讓 <summary> 顯示在 Swagger UI）
@@ -37,8 +37,6 @@ builder.Services.AddSwaggerGen(options =>
     }
 });
 
-
-builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOptions();
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
 
@@ -46,8 +44,9 @@ builder.Services.AddScoped<ITransactionService, TransactionService>();
 // Service
 builder.Services.AddScoped<IFormListService, FormListService>();
 builder.Services.AddScoped<IFormDesignerService, FormDesignerService>();
-builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenHelper>();
+builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
+builder.Services.AddScoped<ITokenGenerator, JwtTokenGenerator>();
+builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 
 builder.Services.AddScoped<IFormFieldMasterService, FormFieldMasterService>();
 builder.Services.AddScoped<ISchemaService, SchemaService>();
@@ -55,8 +54,6 @@ builder.Services.AddScoped<IFormFieldConfigService, FormFieldConfigService>();
 builder.Services.AddScoped<IDropdownService, DropdownService>();
 builder.Services.AddScoped<IFormDataService, FormDataService>();
 builder.Services.AddScoped<IFormService, FormService>();
-
-
 
 builder.Services.AddScoped<SqlConnection, SqlConnection>(_ =>
 {
@@ -107,7 +104,7 @@ app.UseSwagger();
 app.UseSwaggerUI(options =>
 {
     options.SwaggerEndpoint("/swagger/v1/swagger.json", "Dynamic Form API v1");
-    options.RoutePrefix = ""; 
+    options.RoutePrefix = string.Empty;
 });
 
 app.MapControllers();

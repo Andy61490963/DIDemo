@@ -10,7 +10,7 @@ namespace DynamicForm.Models
         /// <summary>
         /// 使用者唯一識別碼。
         /// </summary>
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
         /// <summary>
         /// 登入帳號。
@@ -18,10 +18,14 @@ namespace DynamicForm.Models
         public string Account { get; set; } = string.Empty;
 
         /// <summary>
-        /// 密碼雜湊值。
-        /// 實務上請儲存雜湊後的密碼，而非明碼。
+        /// 密碼雜湊值（對應資料表 SWD）。
         /// </summary>
         public string PasswordHash { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Base64 編碼的鹽值（對應資料表 PASSWORD_SALT）。
+        /// </summary>
+        public string PasswordSalt { get; set; } = string.Empty;
 
         /// <summary>
         /// 使用者角色。
