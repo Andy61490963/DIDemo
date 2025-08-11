@@ -154,7 +154,7 @@ public class FormDesignerControllerTests
         var field = new FormFieldViewModel { ID = fieldId };
         _designerMock.Setup(s => s.GetFieldById(fieldId)).Returns(field);
 
-        var result = controller.GetField(fieldId, TableSchemaQueryType.OnlyTable) as OkObjectResult;
+        var result = controller.GetField(fieldId) as OkObjectResult;
 
         Assert.NotNull(result);
         var model = Assert.IsType<FormFieldViewModel>(result.Value);
@@ -168,7 +168,7 @@ public class FormDesignerControllerTests
         var fieldId = Guid.NewGuid();
         _designerMock.Setup(s => s.GetFieldById(fieldId)).Returns((FormFieldViewModel?)null);
 
-        var result = controller.GetField(fieldId, TableSchemaQueryType.OnlyTable);
+        var result = controller.GetField(fieldId);
 
         Assert.IsType<NotFoundResult>(result);
     }

@@ -37,7 +37,7 @@ namespace DynamicForm.Areas.Permission.Controllers
         public async Task<IActionResult> CreatePermission([FromBody] CreatePermissionRequest request)
         {
             var id = await _permissionService.CreatePermissionAsync(request.Code);
-            return Ok(new Permission { Id = id, Code = request.Code });
+            return Ok(new Models.Permission { Id = id, Code = request.Code });
         }
 
         /// <summary>

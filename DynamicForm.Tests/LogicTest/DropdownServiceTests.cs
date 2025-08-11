@@ -26,7 +26,7 @@ public class DropdownServiceTests
         Assert.Equal(new object[] { 1, 2 }, rowIds);
 
         var firstRow = rows[0];
-        Assert.Equal(1, firstRow.Id);
+        Assert.Equal(1, firstRow.PkId);
         Assert.Contains(firstRow.Cells, c => c.ColumnName == "Id" && (int)c.Value! == 1);
         Assert.Contains(firstRow.Cells, c => c.ColumnName == "Name" && (string)c.Value! == "Alice");
     }
@@ -47,6 +47,6 @@ public class DropdownServiceTests
         // Assert
         Assert.Single(rows);
         Assert.Single(rowIds);
-        Assert.Equal(99, rows[0].Id);
+        Assert.Equal(99, rows[0].PkId);
     }
 }
