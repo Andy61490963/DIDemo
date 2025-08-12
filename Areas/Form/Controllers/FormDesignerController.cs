@@ -170,7 +170,7 @@ public class FormDesignerController : ControllerBase
         if (fieldId == Guid.Empty)
             return BadRequest("請先設定控制元件後再新增驗證條件。");
 
-        var options = GetValidationTypeOptions(fieldId);
+        // var options = GetValidationTypeOptions(fieldId);
         var rules = _formDesignerService.GetValidationRulesByFieldId(fieldId);
         return Ok(new { rules });
     }
@@ -181,7 +181,7 @@ public class FormDesignerController : ControllerBase
     [HttpPost("fields/{fieldId:guid}/rules")]
     public IActionResult AddEmptyValidationRule(Guid fieldId)
     {
-        var options = GetValidationTypeOptions(fieldId);
+        // var options = GetValidationTypeOptions(fieldId);
         var rule = _formDesignerService.CreateEmptyValidationRule(fieldId);
         _formDesignerService.InsertValidationRule(rule);
         var rules = _formDesignerService.GetValidationRulesByFieldId(fieldId);
@@ -205,7 +205,7 @@ public class FormDesignerController : ControllerBase
     public IActionResult DeleteValidationRule(Guid id, [FromQuery] Guid fieldConfigId)
     {
         _formDesignerService.DeleteValidationRule(id);
-        var options = GetValidationTypeOptions(fieldConfigId);
+        // var options = GetValidationTypeOptions(fieldConfigId);
         var rules = _formDesignerService.GetValidationRulesByFieldId(fieldConfigId);
         return Ok(new { rules });
     }
@@ -329,10 +329,10 @@ public class FormDesignerController : ControllerBase
     }
 
     // ────────── Util ──────────
-    private List<ValidationTypeOptionDto> GetValidationTypeOptions(Guid fieldId)
-    {
-        var controlType = _formDesignerService.GetControlTypeByFieldId(fieldId);
-        var allowed = ValidationRulesMap.GetValidations(controlType);
-        return EnumExtensions.ToSelectList(allowed);
-    }
+    // private List<ValidationTypeOptionDto> GetValidationTypeOptions(Guid fieldId)
+    // {
+    //     var controlType = _formDesignerService.GetControlTypeByFieldId(fieldId);
+    //     var allowed = ValidationRulesMap.GetValidations(controlType);
+    //     return EnumExtensions.ToSelectList(allowed);
+    // }
 }

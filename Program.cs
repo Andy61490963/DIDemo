@@ -18,6 +18,8 @@ using Microsoft.Data.SqlClient;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using DynamicForm.Areas.Enum.Interfaces;
+using DynamicForm.Areas.Enum.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -75,6 +77,8 @@ builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSet
 
 builder.Services.AddScoped<ITransactionService, TransactionService>();
 // Service
+builder.Services.AddScoped<IEnumListService, EnumListService>();
+
 builder.Services.AddScoped<IFormListService, FormListService>();
 builder.Services.AddScoped<IFormDesignerService, FormDesignerService>();
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
