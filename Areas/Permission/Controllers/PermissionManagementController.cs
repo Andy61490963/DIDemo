@@ -4,6 +4,7 @@ using DynamicForm.Areas.Permission.Models;
 using DynamicForm.Areas.Permission.ViewModels.PermissionManagement;
 using Microsoft.AspNetCore.Mvc;
 using System;
+using DynamicForm.Helper;
 
 namespace DynamicForm.Areas.Permission.Controllers
 {
@@ -12,6 +13,7 @@ namespace DynamicForm.Areas.Permission.Controllers
     /// </summary>
     [Area("Permission")]
     [ApiController]
+    [ApiExplorerSettings(GroupName = SwaggerGroups.Permission)]
     [Route("[area]/[controller]")]
     [Produces("application/json")]
     public class PermissionManagementController : ControllerBase

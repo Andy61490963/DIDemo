@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApiExplorer;
+using DynamicForm.Helper;
 
 namespace DynamicForm.Areas.ApiStats.Controllers
 {
@@ -9,6 +10,7 @@ namespace DynamicForm.Areas.ApiStats.Controllers
     /// 此段純 GPT 生成，方便參考而已，不需維護
     /// </summary>
     [ApiController]
+    [ApiExplorerSettings(GroupName = SwaggerGroups.ApiStats)]
     [Route("tools/apistats")]
     [Produces("application/json")]
     public class ApiStatsController : ControllerBase

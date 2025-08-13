@@ -11,6 +11,7 @@ namespace DynamicForm.Areas.Form.Controllers;
 
 [Area("Form")]
 [ApiController]
+[ApiExplorerSettings(GroupName = SwaggerGroups.Form)]
 [Route("[area]/[controller]")]
 public class FormDesignerController : ControllerBase
 {

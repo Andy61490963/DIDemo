@@ -25,6 +25,15 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHttpContextAccessor();
 
 builder.WebHost.UseUrls("http://0.0.0.0:5000");
+ 
+var swaggerGroups = new[]
+{
+    SwaggerGroups.Form,
+    SwaggerGroups.Permission,
+    SwaggerGroups.Security,
+    SwaggerGroups.Enum,
+    SwaggerGroups.ApiStats
+};
 
 // Swagger 註冊
 builder.Services.AddEndpointsApiExplorer();
@@ -36,6 +45,15 @@ builder.Services.AddSwaggerGen(options =>
         Version = "v1",
         Description = "表單設計系統的 API 文件",
     });
+
+    foreach (var group in swaggerGroups)
+    {
+        options.SwaggerDoc(group, new OpenApiInfo
+        {
+            Title = $"{group} API",
+            Version = "v1"
+        });
+    }
 
     var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
@@ -68,6 +86,13 @@ builder.Services.AddSwaggerGen(options =>
             },
             Array.Empty<string>()
         }
+    });
+
+    options.DocInclusionPredicate((docName, apiDesc) =>
+    {
+        if (docName == "v1")
+            return true;
+        return string.Equals(apiDesc.GroupName, docName, StringComparison.OrdinalIgnoreCase);
     });
 });
 
@@ -147,6 +172,10 @@ app.UseSwagger();
 app.UseSwaggerUI(options =>
 {
     options.SwaggerEndpoint("/swagger/v1/swagger.json", "Dynamic Form API v1");
+    foreach (var group in swaggerGroups)
+    {
+        options.SwaggerEndpoint($"/swagger/{group}/swagger.json", $"{group} API");
+    }
     options.RoutePrefix = string.Empty;
 });
 app.MapControllerRoute(

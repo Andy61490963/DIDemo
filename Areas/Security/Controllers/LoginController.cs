@@ -1,6 +1,7 @@
 using DynamicForm.Areas.Security.Interfaces;
 using DynamicForm.Areas.Security.ViewModels;
 using Microsoft.AspNetCore.Mvc;
+using DynamicForm.Helper;
 
 namespace DynamicForm.Areas.Security.Controllers
 {
@@ -9,6 +10,7 @@ namespace DynamicForm.Areas.Security.Controllers
     /// </summary>
     [Area("Security")]
     [ApiController]
+    [ApiExplorerSettings(GroupName = SwaggerGroups.Security)]
     [Route("[area]/[controller]")]
     public class LoginController : ControllerBase
     {

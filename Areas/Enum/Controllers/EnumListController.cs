@@ -2,6 +2,7 @@ using ClassLibrary;
 using DynamicForm.Areas.Enum.Interfaces;
 using DynamicForm.Areas.Enum.Models;
 using Microsoft.AspNetCore.Mvc;
+using DynamicForm.Helper;
 
 namespace DynamicForm.Areas.Enum.Controllers;
 
@@ -10,6 +11,7 @@ namespace DynamicForm.Areas.Enum.Controllers;
 /// </summary>
 [Area("Enum")]
 [ApiController]
+[ApiExplorerSettings(GroupName = SwaggerGroups.Enum)]
 [Route("[area]/[controller]")]
 public class EnumListController : ControllerBase
 {

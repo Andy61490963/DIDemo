@@ -1,6 +1,7 @@
 using DynamicForm.Areas.Form.Models;
 using DynamicForm.Areas.Form.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using DynamicForm.Helper;
 
 namespace DynamicForm.Areas.Form.Controllers;
 
@@ -9,6 +10,7 @@ namespace DynamicForm.Areas.Form.Controllers;
 /// </summary>
 [Area("Form")]
 [ApiController]
+[ApiExplorerSettings(GroupName = SwaggerGroups.Form)]
 [Route("[area]/[controller]")]
 public class FormListController : ControllerBase
 {
