@@ -22,48 +22,6 @@ namespace DynamicForm.Areas.Permission.Controllers
             _permissionService = permissionService;
         }
 
-        // 使用者 CRUD
-        [HttpPost("users")]
-        public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
-        {
-            var id = await _permissionService.CreateUserAsync(new User
-            {
-                Account = request.Account,
-                Name = request.Name,
-                PasswordHash = request.PasswordHash,
-                PasswordSalt = request.PasswordSalt
-            });
-            return Ok(new User { Id = id, Account = request.Account, Name = request.Name });
-        }
-
-        [HttpGet("users/{id}")]
-        public async Task<IActionResult> GetUser(Guid id)
-        {
-            var user = await _permissionService.GetUserAsync(id);
-            return user == null ? NotFound() : Ok(user);
-        }
-
-        [HttpPut("users/{id}")]
-        public async Task<IActionResult> UpdateUser(Guid id, [FromBody] UpdateUserRequest request)
-        {
-            await _permissionService.UpdateUserAsync(new User
-            {
-                Id = id,
-                Account = request.Account,
-                Name = request.Name,
-                PasswordHash = request.PasswordHash,
-                PasswordSalt = request.PasswordSalt
-            });
-            return Ok();
-        }
-
-        [HttpDelete("users/{id}")]
-        public async Task<IActionResult> DeleteUser(Guid id)
-        {
-            await _permissionService.DeleteUserAsync(id);
-            return Ok();
-        }
-
         // 群組 CRUD
         [HttpPost("groups")]
         public async Task<IActionResult> CreateGroup([FromBody] CreateGroupRequest request)

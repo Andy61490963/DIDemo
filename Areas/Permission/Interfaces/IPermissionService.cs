@@ -9,12 +9,6 @@ namespace DynamicForm.Areas.Permission.Interfaces
     /// </summary>
     public interface IPermissionService
     {
-        // 使用者
-        Task<Guid> CreateUserAsync(User user);
-        Task<User?> GetUserAsync(Guid id);
-        Task UpdateUserAsync(User user);
-        Task DeleteUserAsync(Guid id);
-
         // 群組
         Task<Guid> CreateGroupAsync(string name);
         Task<Group?> GetGroupAsync(Guid id);

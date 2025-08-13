@@ -23,57 +23,6 @@ namespace DynamicForm.Areas.Permission.Services
             _cache = cache;
         }
 
-        // 使用者 CRUD
-        public async Task<Guid> CreateUserAsync(User user)
-        {
-            var id = Guid.NewGuid();
-            const string sql =
-                @"INSERT INTO SYS_USER (ID, AC, NAME, SWD, SWD_SALT, IS_DELETE)
-                  VALUES (@Id, @Ac, @Name, @Pwd, @Salt, 0)";
-            await _con.ExecuteAsync(sql, new
-            {
-                Id = id,
-                Ac = user.Account,
-                Name = user.Name,
-                Pwd = user.PasswordHash,
-                Salt = user.PasswordSalt
-            });
-            return id;
-        }
-
-        public Task<User?> GetUserAsync(Guid id)
-        {
-            const string sql =
-                @"SELECT ID, AC AS Account, NAME, SWD AS PasswordHash, SWD_SALT AS PasswordSalt
-                  FROM SYS_USER
-                  WHERE ID = @Id AND IS_DELETE = 0";
-            return _con.QuerySingleOrDefaultAsync<User>(sql, new { Id = id });
-        }
-
-        public Task UpdateUserAsync(User user)
-        {
-            const string sql =
-                @"UPDATE SYS_USER
-                  SET AC = @Ac, NAME = @Name, SWD = @Pwd, SWD_SALT = @Salt, EDIT_TIME = GETDATE()
-                  WHERE ID = @Id AND IS_DELETE = 0";
-            _cache.Remove(GetCacheKey(user.Id));
-            return _con.ExecuteAsync(sql, new
-            {
-                Id = user.Id,
-                Ac = user.Account,
-                Name = user.Name,
-                Pwd = user.PasswordHash,
-                Salt = user.PasswordSalt
-            });
-        }
-
-        public Task DeleteUserAsync(Guid id)
-        {
-            const string sql = @"UPDATE SYS_USER SET IS_DELETE = 1 WHERE ID = @Id";
-            _cache.Remove(GetCacheKey(id));
-            return _con.ExecuteAsync(sql, new { Id = id });
-        }
-
         // 群組 CRUD
         public async Task<Guid> CreateGroupAsync(string name)
         {
