@@ -116,6 +116,9 @@ namespace DynamicForm.Areas.Permission.Controllers
             if (!System.Enum.IsDefined(typeof(ActionType), request.Code))
                 return ValidationProblem($"Invalid ActionType: {request.Code}");
 
+            if (await _permissionService.PermissionCodeExistsAsync(request.Code))
+                return Conflict($"權限碼已存在: {request.Code}");
+
             var id = await _permissionService.CreatePermissionAsync(request.Code);
             var result = new PermissionModel { Id = id, Code = request.Code };
             return CreatedAtAction(nameof(GetPermission), new { id }, result);
@@ -143,6 +146,9 @@ namespace DynamicForm.Areas.Permission.Controllers
 
             if (await _permissionService.GetPermissionAsync(id) is null)
                 return NotFound();
+
+            if (await _permissionService.PermissionCodeExistsAsync(request.Code, id))
+                return Conflict($"權限碼已存在: {request.Code}");
 
             await _permissionService.UpdatePermissionAsync(new PermissionModel { Id = id, Code = request.Code });
             return NoContent();

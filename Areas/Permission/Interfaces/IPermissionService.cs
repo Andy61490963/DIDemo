@@ -20,6 +20,7 @@ namespace DynamicForm.Areas.Permission.Interfaces
         Task<PermissionModel?> GetPermissionAsync(Guid id);
         Task UpdatePermissionAsync(PermissionModel permission);
         Task DeletePermissionAsync(Guid id);
+        Task<bool> PermissionCodeExistsAsync(ActionType code, Guid? excludeId = null);
 
         // 功能
         Task<Guid> CreateFunctionAsync(Function function);

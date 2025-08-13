@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Moq;
 using Xunit;
 using System;
+using ClassLibrary;
 
 namespace DynamicForm.Tests.ApiControllerTest;
 
@@ -93,6 +94,32 @@ public class PermissionManagementControllerTests
         var controller = CreateController();
 
         var result = await controller.UpdateMenu(id, request);
+
+        Assert.IsType<ConflictObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task CreatePermission_Duplicate_ReturnsConflict()
+    {
+        var request = new CreatePermissionRequest { Code = ActionType.Create };
+        _service.Setup(s => s.PermissionCodeExistsAsync(ActionType.Create, null)).ReturnsAsync(true);
+        var controller = CreateController();
+
+        var result = await controller.CreatePermission(request);
+
+        Assert.IsType<ConflictObjectResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task UpdatePermission_Duplicate_ReturnsConflict()
+    {
+        var id = Guid.NewGuid();
+        var request = new UpdatePermissionRequest { Code = ActionType.Create };
+        _service.Setup(s => s.GetPermissionAsync(id)).ReturnsAsync(new PermissionModel { Id = id, Code = ActionType.Read });
+        _service.Setup(s => s.PermissionCodeExistsAsync(ActionType.Create, id)).ReturnsAsync(true);
+        var controller = CreateController();
+
+        var result = await controller.UpdatePermission(id, request);
 
         Assert.IsType<ConflictObjectResult>(result);
     }

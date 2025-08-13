@@ -130,6 +130,20 @@ namespace DynamicForm.Areas.Permission.Services
             return _con.ExecuteAsync(sql, new { Id = id });
         }
 
+        /// <summary>
+        /// 檢查權限碼是否已存在。
+        /// </summary>
+        public async Task<bool> PermissionCodeExistsAsync(ActionType code, Guid? excludeId = null)
+        {
+            const string sql =
+                @"SELECT COUNT(1)
+                    FROM SYS_PERMISSION
+                    WHERE CODE = @Code AND IS_ACTIVE = 1
+                      AND (@ExcludeId IS NULL OR ID <> @ExcludeId)";
+            var count = await _con.ExecuteScalarAsync<int>(sql, new { Code = code, ExcludeId = excludeId });
+            return count > 0;
+        }
+
         #endregion
 
         #region 功能 CRUD
