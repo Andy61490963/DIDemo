@@ -17,7 +17,7 @@ namespace DynamicForm.Areas.Security.Controllers
 public class SecureDataController : ControllerBase
     {
         /// <summary>
-        /// 取得受保護的資料。
+        /// 測試登入、權限
         /// </summary>
         /// <returns>簡單的訊息。</returns>
         [RequireControllerPermission(ActionType.View)]

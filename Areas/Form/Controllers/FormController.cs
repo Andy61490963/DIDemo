@@ -7,7 +7,7 @@ using DynamicForm.Helper;
 namespace DynamicForm.Areas.Form.Controllers;
 
 /// <summary>
-/// 表單主檔變更 API
+/// 主檔變更
 /// </summary>
 [Area("Form")]
 [ApiController]

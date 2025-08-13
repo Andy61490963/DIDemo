@@ -7,7 +7,7 @@ using DynamicForm.Helper;
 namespace DynamicForm.Areas.Enum.Controllers;
 
 /// <summary>
-/// 列舉定義列表 API
+/// 列舉
 /// </summary>
 [Area("Enum")]
 [ApiController]

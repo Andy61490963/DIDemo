@@ -6,7 +6,7 @@ using DynamicForm.Helper;
 namespace DynamicForm.Areas.Security.Controllers
 {
     /// <summary>
-    /// 處理登入與取得 JWT 的 API。
+    /// 註冊、登入與取得 JWT
     /// </summary>
     [Area("Security")]
     [ApiController]

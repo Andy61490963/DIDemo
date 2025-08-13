@@ -9,6 +9,9 @@ using DynamicForm.Helper;
 
 namespace DynamicForm.Areas.Form.Controllers;
 
+/// <summary>
+/// 主檔維護設定
+/// </summary>
 [Area("Form")]
 [ApiController]
 [ApiExplorerSettings(GroupName = SwaggerGroups.Form)]

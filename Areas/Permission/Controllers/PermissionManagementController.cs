@@ -9,7 +9,7 @@ using DynamicForm.Helper;
 namespace DynamicForm.Areas.Permission.Controllers
 {
     /// <summary>
-    /// 提供群組、權限、功能、選單以及其關聯設定的 API 介面。
+    /// 群組、權限、功能、選單以及其關聯設定
     /// </summary>
     [Area("Permission")]
     [ApiController]
