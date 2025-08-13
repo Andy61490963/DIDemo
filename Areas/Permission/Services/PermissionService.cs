@@ -59,24 +59,46 @@ namespace DynamicForm.Areas.Permission.Services
         }
 
         /// <inheritdoc />
-        public async Task<bool> UserHasPermissionAsync(Guid userId, string permissionCode)
+        // public async Task<bool> UserHasPermissionAsync(Guid userId, string permissionCode)
+        // {
+        //     var permissions = await _cache.GetOrCreateAsync(GetCacheKey(userId), async entry =>
+        //     {
+        //         entry.AbsoluteExpirationRelativeToNow = CacheDuration;
+        //         const string sql = @"
+        //             SELECT P.CODE
+        //             FROM SYS_PERMISSION P
+        //             JOIN SYS_GROUP_PERMISSION GP ON GP.SYS_PERMISSION_ID = P.ID
+        //             JOIN SYS_USER_GROUP UG ON UG.SYS_GROUP_ID = GP.SYS_GROUP_ID
+        //             WHERE UG.SYS_USER_ID = @UserId";
+        //         var rows = await _con.QueryAsync<string>(sql, new { UserId = userId });
+        //         return new HashSet<string>(rows, StringComparer.OrdinalIgnoreCase);
+        //     });
+        //
+        //     return permissions.Contains(permissionCode);
+        // }
+
+        public async Task<bool> UserHasControllerPermissionAsync(
+            Guid userId, string area, string controller, string actionCode)
         {
-            var permissions = await _cache.GetOrCreateAsync(GetCacheKey(userId), async entry =>
-            {
-                entry.AbsoluteExpirationRelativeToNow = CacheDuration;
-                const string sql = @"
-                    SELECT P.CODE
-                    FROM SYS_PERMISSION P
-                    JOIN SYS_GROUP_PERMISSION GP ON GP.SYS_PERMISSION_ID = P.ID
-                    JOIN SYS_USER_GROUP UG ON UG.SYS_GROUP_ID = GP.SYS_GROUP_ID
-                    WHERE UG.SYS_USER_ID = @UserId";
-                var rows = await _con.QueryAsync<string>(sql, new { UserId = userId });
-                return new HashSet<string>(rows, StringComparer.OrdinalIgnoreCase);
-            });
+            // 每個 (user, area, ctrl, action) 快取 60 秒，可視情況拉長/用 Redis
+            var cacheKey = $"perm:{userId}:{area}:{controller}:{actionCode}";
+            if (_cache.TryGetValue(cacheKey, out bool ok)) return ok;
 
-            return permissions.Contains(permissionCode);
+            const string sql = /* 上面那段 SQL，略… */ @"
+-- 放進此處
+";
+
+            var has = await _con.ExecuteScalarAsync<int>(sql, new {
+                UserId = userId,
+                Area = area ?? "",
+                Controller = controller,
+                ActionCode = actionCode
+            }) > 0;
+
+            _cache.Set(cacheKey, has, TimeSpan.FromSeconds(60));
+            return has;
         }
-
+        
         private static string GetCacheKey(Guid userId) => $"user_permissions:{userId}";
     }
 }

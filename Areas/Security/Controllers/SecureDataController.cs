@@ -1,3 +1,4 @@
+using ClassLibrary;
 using DynamicForm.Authorization;
 using DynamicForm.Helper;
 using Microsoft.AspNetCore.Authorization;
@@ -18,7 +19,7 @@ namespace DynamicForm.Areas.Security.Controllers
         /// 取得受保護的資料。
         /// </summary>
         /// <returns>簡單的訊息。</returns>
-        [RequirePermission(ActionAuthorizeHelper.Import)]
+        [RequireControllerPermission(ActionType.View)]
         [HttpGet("data")]
         public IActionResult GetSecureData()
         {

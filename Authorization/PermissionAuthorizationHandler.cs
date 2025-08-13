@@ -9,34 +9,47 @@ namespace DynamicForm.Authorization
     /// <summary>
     /// 透過資料庫或快取驗證使用者是否具有指定權限。
     /// </summary>
-    public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionRequirement>
+    public class PermissionRequirementScopedToController : IAuthorizationRequirement
+    {
+        public string ActionCode { get; }
+        public PermissionRequirementScopedToController(string actionCode) => ActionCode = actionCode;
+    }
+
+    public class PermissionAuthorizationHandler
+        : AuthorizationHandler<PermissionRequirementScopedToController>
     {
         private readonly IPermissionService _permissionService;
+        private readonly IHttpContextAccessor _http;
 
-        public PermissionAuthorizationHandler(IPermissionService permissionService)
+        public PermissionAuthorizationHandler(IPermissionService ps, IHttpContextAccessor http)
         {
-            _permissionService = permissionService;
+            _permissionService = ps;
+            _http = http;
         }
 
-        /// <inheritdoc />
-        protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, PermissionRequirement requirement)
+        protected override async Task HandleRequirementAsync(
+            AuthorizationHandlerContext context,
+            PermissionRequirementScopedToController requirement)
         {
-            if (context.User.Identity?.IsAuthenticated != true)
-            {
-                return; // 未登入則直接拒絕
-            }
+            if (context.User.Identity?.IsAuthenticated != true) return;
 
-            var userIdString = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!Guid.TryParse(userIdString, out var userId))
-            {
-                return; // 取不到使用者 ID
-            }
+            var userIdStr = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdStr, out var userId)) return;
 
-            var hasPermission = await _permissionService.UserHasPermissionAsync(userId, requirement.PermissionCode);
-            if (hasPermission)
-            {
-                context.Succeed(requirement);
-            }
+            var route = _http.HttpContext?.GetEndpoint()?.Metadata
+                ?.GetMetadata<Microsoft.AspNetCore.Routing.EndpointNameMetadata>();
+
+            // 取得 Area / Controller（用 RouteValues 最穩）
+            var routeValues = _http.HttpContext?.GetRouteData()?.Values;
+            var area = (routeValues?["area"]?.ToString() ?? "").Trim();
+            var controller = (routeValues?["controller"]?.ToString() ?? "").Trim();
+
+            // 呼叫 Service：只檢查這個 (Area, Controller, Action)
+            var ok = await _permissionService.UserHasControllerPermissionAsync(
+                userId, area, controller, requirement.ActionCode);
+
+            if (ok) context.Succeed(requirement);
         }
     }
+
 }

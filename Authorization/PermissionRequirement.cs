@@ -8,7 +8,7 @@ namespace DynamicForm.Authorization
     public class PermissionRequirement : IAuthorizationRequirement
     {
         /// <summary>
-        /// 功能代碼，例如：FormDesigner.Edit。
+        /// 功能代碼，例如：Edit。
         /// </summary>
         public string PermissionCode { get; }
 

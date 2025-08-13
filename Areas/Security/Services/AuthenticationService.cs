@@ -35,7 +35,7 @@ namespace DynamicForm.Areas.Security.Services
         /// <inheritdoc />
         public async Task<LoginResponseViewModel?> AuthenticateAsync(string account, string password)
         {
-            const string sql = @"/**/SELECT ID, NAME AS Account, SWD AS PasswordHash, SWD_SALT AS PasswordSalt, ROLE FROM SYS_USER WHERE NAME = @Account AND IS_DELETE = 0";
+            const string sql = @"/**/SELECT ID, NAME AS Account, SWD AS PasswordHash, SWD_SALT AS PasswordSalt FROM SYS_USER WHERE NAME = @Account AND IS_DELETE = 0";
             var user = await _connection.QueryFirstOrDefaultAsync<UserAccount>(sql, new { Account = account });
             if (user == null)
             {

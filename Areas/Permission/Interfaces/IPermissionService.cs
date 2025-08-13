@@ -31,6 +31,7 @@ namespace DynamicForm.Areas.Permission.Interfaces
         /// <summary>
         /// 檢查使用者是否擁有指定權限。
         /// </summary>
-        Task<bool> UserHasPermissionAsync(Guid userId, string permissionCode);
+        Task<bool> UserHasControllerPermissionAsync(
+            Guid userId, string area, string controller, string actionCode);
     }
 }

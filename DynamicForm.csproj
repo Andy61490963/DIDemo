@@ -9,7 +9,14 @@
 	    <GenerateDocumentationFile>true</GenerateDocumentationFile>
 	    <NoWarn>$(NoWarn);1591</NoWarn> <!-- 避免每個未標註 <summary> 都報警告 -->
 		
-		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+		<!-- <generateassemblyinfo>false</generateassemblyinfo> -->
+		<!-- 組件資訊交給 SDK 產生 -->
+	    <Company>DynamicForm</Company>
+	    <Product>DynamicForm</Product>
+	    <Version>1.0.0</Version>
+	    <AssemblyTitle>DynamicForm</AssemblyTitle>
+	    <Authors>WeYu</Authors>
+	    <Description>DynamicForm Web Application</Description>
     </PropertyGroup>
 
     <ItemGroup>

@@ -10,32 +10,27 @@ namespace DynamicForm.Authorization
     /// </summary>
     public class PermissionPolicyProvider : IAuthorizationPolicyProvider
     {
-        private readonly DefaultAuthorizationPolicyProvider _fallbackPolicyProvider;
-        private const string PREFIX = RequirePermissionAttribute.PolicyPrefix;
+        private readonly DefaultAuthorizationPolicyProvider _fallback;
 
         public PermissionPolicyProvider(IOptions<AuthorizationOptions> options)
-        {
-            _fallbackPolicyProvider = new DefaultAuthorizationPolicyProvider(options);
-        }
+            => _fallback = new DefaultAuthorizationPolicyProvider(options);
 
         public Task<AuthorizationPolicy?> GetPolicyAsync(string policyName)
         {
-            if (policyName.StartsWith(PREFIX, StringComparison.OrdinalIgnoreCase))
-            {
-                var permission = policyName.Substring(PREFIX.Length);
-                var policy = new AuthorizationPolicyBuilder()
-                    .AddRequirements(new PermissionRequirement(permission))
-                    .Build();
-                return Task.FromResult<AuthorizationPolicy?>(policy);
-            }
+            if (!policyName.StartsWith(RequireControllerPermissionAttribute.PolicyPrefix)) 
+                return _fallback.GetPolicyAsync(policyName);
 
-            return _fallbackPolicyProvider.GetPolicyAsync(policyName);
+            // policyName 目前像 "PERM:View"
+            var action = policyName.Substring(RequireControllerPermissionAttribute.PolicyPrefix.Length);
+
+            var policy = new AuthorizationPolicyBuilder()
+                .AddRequirements(new PermissionRequirement(action)) // 換成有範圍的 Requirement
+                .Build();
+
+            return Task.FromResult<AuthorizationPolicy?>(policy);
         }
 
-        public Task<AuthorizationPolicy> GetDefaultPolicyAsync() =>
-            _fallbackPolicyProvider.GetDefaultPolicyAsync();
-
-        public Task<AuthorizationPolicy?> GetFallbackPolicyAsync() =>
-            _fallbackPolicyProvider.GetFallbackPolicyAsync();
+        public Task<AuthorizationPolicy> GetDefaultPolicyAsync() => _fallback.GetDefaultPolicyAsync();
+        public Task<AuthorizationPolicy?> GetFallbackPolicyAsync() => _fallback.GetFallbackPolicyAsync();
     }
 }

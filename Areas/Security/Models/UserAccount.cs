@@ -31,10 +31,5 @@ namespace DynamicForm.Areas.Security.Models
         /// Base64 編碼的鹽值（對應資料表 SWD_SALT）
         /// </summary>
         public string PasswordSalt { get; set; } = string.Empty;
-
-        /// <summary>
-        /// 使用者角色
-        /// </summary>
-        public string Role { get; set; } = string.Empty;
     }
 }

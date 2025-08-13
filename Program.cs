@@ -22,6 +22,7 @@ using DynamicForm.Areas.Enum.Interfaces;
 using DynamicForm.Areas.Enum.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddHttpContextAccessor();
 
 builder.WebHost.UseUrls("http://0.0.0.0:5000");
 
@@ -76,6 +77,7 @@ builder.Services.AddMemoryCache();
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
 
 builder.Services.AddScoped<ITransactionService, TransactionService>();
+builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
 // Service
 builder.Services.AddScoped<IEnumListService, EnumListService>();
 
