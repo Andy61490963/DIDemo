@@ -44,9 +44,9 @@ builder.Services.AddSwaggerGen(options =>
     // 加回 v1（包含全部 API，解決 UI 預設抓 /swagger/v1/swagger.json 404）
     options.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "Dynamic Form API v1 (All)",
+        Title = "API (All)",
         Version = "v1",
-        Description = "All endpoints"
+        Description = "右上角有分類可以選取"
     });
 
     // 各分組 doc
@@ -54,7 +54,7 @@ builder.Services.AddSwaggerGen(options =>
     {
         options.SwaggerDoc(group, new OpenApiInfo
         {
-            Title = $"{group} API",
+            Title = $"{SwaggerGroups.DisplayNames[group]} API",
             Version = "v1",
             Description = $"DynamicForm - {group} endpoints"
         });
@@ -72,7 +72,7 @@ builder.Services.AddSwaggerGen(options =>
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         In = ParameterLocation.Header,
-        Description = "JWT Authorization header using the Bearer scheme. Example: \"Bearer {token}\"",
+        Description = "輸入Token",
         Name = "Authorization",
         Type = SecuritySchemeType.Http,
         Scheme = "bearer",
@@ -178,16 +178,11 @@ app.UseAuthorization();
 app.UseSwagger();
 app.UseSwaggerUI(options =>
 {
-    // 讓 UI 預設第一個載入 v1，避免去找不到的 /swagger/v1/swagger.json
-    options.SwaggerEndpoint("/swagger/v1/swagger.json", "All APIs v1");
-
-    // 再掛上各分組
+    options.SwaggerEndpoint("./swagger/v1/swagger.json", "All APIs v1");
     foreach (var group in swaggerGroups)
-    {
-        options.SwaggerEndpoint($"/swagger/{group}/swagger.json", $"{group} API v1");
-    }
+        options.SwaggerEndpoint($"./swagger/{group}/swagger.json", $"{group} API v1");
 
-    options.RoutePrefix = string.Empty; // 讓 / 顯示 Swagger（index.html）
+    options.RoutePrefix = string.Empty;
 });
 
 // Area 路由
