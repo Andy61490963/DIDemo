@@ -1,6 +1,13 @@
 using System.Reflection;
-using DynamicForm.Authorization;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Data.SqlClient;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using DynamicForm.Authorization;
+using DynamicForm.Areas.Enum.Interfaces;
+using DynamicForm.Areas.Enum.Services;
 using DynamicForm.Areas.Form.Interfaces;
 using DynamicForm.Areas.Form.Interfaces.FormLogic;
 using DynamicForm.Areas.Form.Interfaces.Transaction;
@@ -10,22 +17,16 @@ using DynamicForm.Areas.Form.Services.Transaction;
 using DynamicForm.Areas.Permission.Interfaces;
 using DynamicForm.Areas.Permission.Services;
 using DynamicForm.Areas.Security.Interfaces;
-using DynamicForm.Areas.Security.Services;
 using DynamicForm.Areas.Security.Models;
+using DynamicForm.Areas.Security.Services;
 using DynamicForm.Helper;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.Data.SqlClient;
-using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models;
-using System.Text;
-using DynamicForm.Areas.Enum.Interfaces;
-using DynamicForm.Areas.Enum.Services;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddHttpContextAccessor();
 
-builder.WebHost.UseUrls("http://0.0.0.0:5000");
- 
+builder.Services.AddHttpContextAccessor();
+builder.WebHost.UseUrls("http://0.0.0.0:5000"); // 目前只開 HTTP
+
+// ---- Swagger Groups ----
 var swaggerGroups = new[]
 {
     SwaggerGroups.Form,
@@ -35,26 +36,31 @@ var swaggerGroups = new[]
     SwaggerGroups.ApiStats
 };
 
-// Swagger 註冊
+// ---- Swagger ----
+// ---- Swagger ----
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
+    // 加回 v1（包含全部 API，解決 UI 預設抓 /swagger/v1/swagger.json 404）
     options.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "Dynamic Form API",
+        Title = "Dynamic Form API v1 (All)",
         Version = "v1",
-        Description = "表單設計系統的 API 文件",
+        Description = "All endpoints"
     });
 
+    // 各分組 doc
     foreach (var group in swaggerGroups)
     {
         options.SwaggerDoc(group, new OpenApiInfo
         {
             Title = $"{group} API",
-            Version = "v1"
+            Version = "v1",
+            Description = $"DynamicForm - {group} endpoints"
         });
     }
 
+    // XML 註解（需在 .csproj 打開 <GenerateDocumentationFile>true</GenerateDocumentationFile>）
     var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
     if (File.Exists(xmlPath))
@@ -62,67 +68,40 @@ builder.Services.AddSwaggerGen(options =>
         options.IncludeXmlComments(xmlPath, includeControllerXmlComments: true);
     }
 
-    // JWT 定義（不用輸入 Bearer）
+    // 正確的 Bearer 設定（Type=Http + Scheme=bearer）
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Name = "Authorization",
-        Type = SecuritySchemeType.ApiKey,
-        Scheme = "Bearer",
-        BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "輸入 JWT Token（需額外輸入 'Bearer ' 前綴）"
+        Description = "JWT Authorization header using the Bearer scheme. Example: \"Bearer {token}\"",
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT"
     });
 
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
+            new OpenApiSecurityScheme { Reference = new OpenApiReference
+                { Type = ReferenceType.SecurityScheme, Id = "Bearer" } },
             Array.Empty<string>()
         }
     });
 
+    // v1 顯示全部；分組只顯示自己的
     options.DocInclusionPredicate((docName, apiDesc) =>
     {
-        if (docName == "v1")
-            return true;
+        if (docName == "v1") return true; // 全部 API
         return string.Equals(apiDesc.GroupName, docName, StringComparison.OrdinalIgnoreCase);
     });
 });
 
-
+// ---- Options / Cache / Config ----
 builder.Services.AddOptions();
 builder.Services.AddMemoryCache();
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
 
-builder.Services.AddScoped<ITransactionService, TransactionService>();
-builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
-// Service
-builder.Services.AddScoped<IEnumListService, EnumListService>();
-
-builder.Services.AddScoped<IFormListService, FormListService>();
-builder.Services.AddScoped<IFormDesignerService, FormDesignerService>();
-builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
-builder.Services.AddScoped<ITokenGenerator, JwtTokenGenerator>();
-builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
-
-builder.Services.AddScoped<IFormFieldMasterService, FormFieldMasterService>();
-builder.Services.AddScoped<ISchemaService, SchemaService>();
-builder.Services.AddScoped<IFormFieldConfigService, FormFieldConfigService>();
-builder.Services.AddScoped<IDropdownService, DropdownService>();
-builder.Services.AddScoped<IFormDataService, FormDataService>();
-builder.Services.AddScoped<IFormService, FormService>();
-
-builder.Services.AddScoped<IPermissionService, PermissionService>();
-builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
-builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
-
+// ---- DI 註冊 ----
 builder.Services.AddScoped<SqlConnection, SqlConnection>(_ =>
 {
     var conn = new SqlConnection();
@@ -130,63 +109,91 @@ builder.Services.AddScoped<SqlConnection, SqlConnection>(_ =>
     return conn;
 });
 
-// Cors 先設定AllowAll
+// Authorization（避免重複註冊）
+builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
+
+// Services
+builder.Services.AddScoped<IEnumListService, EnumListService>();
+builder.Services.AddScoped<IFormListService, FormListService>();
+builder.Services.AddScoped<IFormDesignerService, FormDesignerService>();
+builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
+builder.Services.AddScoped<ITokenGenerator, JwtTokenGenerator>();
+builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
+builder.Services.AddScoped<IFormFieldMasterService, FormFieldMasterService>();
+builder.Services.AddScoped<ISchemaService, SchemaService>();
+builder.Services.AddScoped<IFormFieldConfigService, FormFieldConfigService>();
+builder.Services.AddScoped<IDropdownService, DropdownService>();
+builder.Services.AddScoped<IFormDataService, FormDataService>();
+builder.Services.AddScoped<IFormService, FormService>();
+builder.Services.AddScoped<IPermissionService, PermissionService>();
+builder.Services.AddScoped<ITransactionService, TransactionService>();
+
+// ---- CORS ----
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
-    {
         policy.AllowAnyOrigin()
-            .AllowAnyMethod()
-            .AllowAnyHeader();
-    });
+              .AllowAnyMethod()
+              .AllowAnyHeader());
 });
 
+// ---- AuthN / AuthZ ----
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
+        var jwt = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>()!;
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = jwtSettings.Issuer,
-            ValidAudience = jwtSettings.Audience,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SecretKey)),
+            ValidIssuer = jwt.Issuer,
+            ValidAudience = jwt.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.SecretKey)),
             ClockSkew = TimeSpan.Zero
         };
     });
 
 builder.Services.AddAuthorization();
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .ConfigureApiBehaviorOptions(opt =>
+    {
+        // 讓 400 維持 RFC 7807 ProblemDetails（可在此客製化）
+        // opt.InvalidModelStateResponseFactory = ...
+    });
+
 var app = builder.Build();
 
+// ---- Pipeline ----
 app.UseCors("AllowAll");
+
+// 目前因docker維持 http://0.0.0.0:5000，先不要轉 https，否則會 307 轉到不存在的 https 連線
+// app.UseHttpsRedirection();
+
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseHttpsRedirection();
 
-// 加入 Swagger 中介軟體（無論開發或正式環境都開啟）
 app.UseSwagger();
 app.UseSwaggerUI(options =>
 {
-    options.SwaggerEndpoint("/swagger/v1/swagger.json", "Dynamic Form API v1");
+    // 讓 UI 預設第一個載入 v1，避免去找不到的 /swagger/v1/swagger.json
+    options.SwaggerEndpoint("/swagger/v1/swagger.json", "All APIs v1");
+
+    // 再掛上各分組
     foreach (var group in swaggerGroups)
     {
-        options.SwaggerEndpoint($"/swagger/{group}/swagger.json", $"{group} API");
+        options.SwaggerEndpoint($"/swagger/{group}/swagger.json", $"{group} API v1");
     }
-    options.RoutePrefix = string.Empty;
+
+    options.RoutePrefix = string.Empty; // 讓 / 顯示 Swagger（index.html）
 });
+
+// Area 路由
 app.MapControllerRoute(
     name: "areas",
     pattern: "{area:exists}/{controller=Home}/{action=Index}/{id?}");
 
 app.MapControllers();
 app.Run();
-
-/// <summary>
-/// 為了讓 WebApplicationFactory 能抓到 top-level Program.cs 的啟動點所需
-/// https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests?view=aspnetcore-8.0&pivots=xunit
-/// </summary>
-public partial class Program { }
