@@ -1,5 +1,4 @@
-using System;
-using System.Threading.Tasks;
+using ClassLibrary;
 using DynamicForm.Areas.Permission.Models;
 
 namespace DynamicForm.Areas.Permission.Interfaces
@@ -16,9 +15,9 @@ namespace DynamicForm.Areas.Permission.Interfaces
         Task DeleteGroupAsync(Guid id);
 
         // 權限
-        Task<Guid> CreatePermissionAsync(string code);
-        Task<Permission?> GetPermissionAsync(Guid id);
-        Task UpdatePermissionAsync(Permission permission);
+        Task<Guid> CreatePermissionAsync(ActionType code);
+        Task<PermissionModel?> GetPermissionAsync(Guid id);
+        Task UpdatePermissionAsync(PermissionModel permission);
         Task DeletePermissionAsync(Guid id);
 
         // 功能

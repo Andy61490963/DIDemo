@@ -1,5 +1,3 @@
-using System;
-using System.Threading.Tasks;
 using DynamicForm.Areas.Permission.Interfaces;
 using DynamicForm.Areas.Permission.Models;
 using DynamicForm.Areas.Permission.ViewModels.PermissionManagement;
@@ -56,7 +54,7 @@ namespace DynamicForm.Areas.Permission.Controllers
         public async Task<IActionResult> CreatePermission([FromBody] CreatePermissionRequest request)
         {
             var id = await _permissionService.CreatePermissionAsync(request.Code);
-            return Ok(new Permission { Id = id, Code = request.Code });
+            return Ok(new PermissionModel { Id = id, Code = request.Code });
         }
 
         [HttpGet("permissions/{id}")]
@@ -69,7 +67,7 @@ namespace DynamicForm.Areas.Permission.Controllers
         [HttpPut("permissions/{id}")]
         public async Task<IActionResult> UpdatePermission(Guid id, [FromBody] UpdatePermissionRequest request)
         {
-            await _permissionService.UpdatePermissionAsync(new Permission { Id = id, Code = request.Code });
+            await _permissionService.UpdatePermissionAsync(new PermissionModel { Id = id, Code = request.Code });
             return Ok();
         }
 

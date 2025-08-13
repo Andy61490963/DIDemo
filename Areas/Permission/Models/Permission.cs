@@ -1,11 +1,11 @@
-using System;
+using ClassLibrary;
 
 namespace DynamicForm.Areas.Permission.Models
 {
     /// <summary>
     /// 功能權限。
     /// </summary>
-    public class Permission
+    public class PermissionModel
     {
         /// <summary>
         /// 權限唯一識別碼。
@@ -15,6 +15,6 @@ namespace DynamicForm.Areas.Permission.Models
         /// <summary>
         /// 權限代碼，例如：FormDesigner.Edit。
         /// </summary>
-        public string Code { get; set; } = string.Empty;
+        public ActionType Code { get; set; }
     }
 }

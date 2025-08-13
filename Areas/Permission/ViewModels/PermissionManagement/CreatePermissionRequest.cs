@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using ClassLibrary;
 
 namespace DynamicForm.Areas.Permission.ViewModels.PermissionManagement
 {
@@ -11,6 +12,6 @@ namespace DynamicForm.Areas.Permission.ViewModels.PermissionManagement
         /// 權限代碼，例如：FormDesigner.Edit。
         /// </summary>
         [Required]
-        public string Code { get; set; } = string.Empty;
+        public ActionType Code { get; set; }
     }
 }

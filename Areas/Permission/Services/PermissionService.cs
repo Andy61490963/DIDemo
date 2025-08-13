@@ -1,5 +1,4 @@
-using System;
-using System.Threading.Tasks;
+using ClassLibrary;
 using Dapper;
 using DynamicForm.Areas.Permission.Interfaces;
 using DynamicForm.Areas.Permission.Models;
@@ -53,7 +52,7 @@ namespace DynamicForm.Areas.Permission.Services
         }
 
         // 權限 CRUD
-        public async Task<Guid> CreatePermissionAsync(string code)
+        public async Task<Guid> CreatePermissionAsync(ActionType code)
         {
             var id = Guid.NewGuid();
             const string sql =
@@ -63,13 +62,13 @@ namespace DynamicForm.Areas.Permission.Services
             return id;
         }
 
-        public Task<Permission?> GetPermissionAsync(Guid id)
+        public Task<PermissionModel?> GetPermissionAsync(Guid id)
         {
             const string sql = @"SELECT ID, CODE FROM SYS_PERMISSION WHERE ID = @Id AND IS_ACTIVE = 1";
-            return _con.QuerySingleOrDefaultAsync<Permission>(sql, new { Id = id });
+            return _con.QuerySingleOrDefaultAsync<PermissionModel>(sql, new { Id = id });
         }
 
-        public Task UpdatePermissionAsync(Permission permission)
+        public Task UpdatePermissionAsync(PermissionModel permission)
         {
             const string sql = @"UPDATE SYS_PERMISSION SET CODE = @Code WHERE ID = @Id";
             return _con.ExecuteAsync(sql, new { Id = permission.Id, Code = permission.Code });

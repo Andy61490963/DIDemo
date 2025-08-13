@@ -1,3 +1,5 @@
+using ClassLibrary;
+
 namespace DynamicForm.Areas.Permission.ViewModels.PermissionManagement
 {
     /// <summary>
@@ -5,7 +7,7 @@ namespace DynamicForm.Areas.Permission.ViewModels.PermissionManagement
     /// </summary>
     public class UpdatePermissionRequest
     {
-        public string Code { get; set; } = string.Empty;
+        public ActionType Code { get; set; }
     }
 }
 
