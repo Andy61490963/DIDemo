@@ -15,7 +15,7 @@ namespace DynamicForm.Authorization
         public RequireControllerPermissionAttribute(ActionType action)
         {
             // 只先放動作，Area/Controller 在 PolicyProvider 取 RouteData 再組合
-            Policy = $"{PolicyPrefix}{action}";
+            Policy = $"{PolicyPrefix}{(int)action}";
         }
     }
 }

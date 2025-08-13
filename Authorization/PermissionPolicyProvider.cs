@@ -17,16 +17,16 @@ namespace DynamicForm.Authorization
 
         public Task<AuthorizationPolicy?> GetPolicyAsync(string policyName)
         {
-            if (!policyName.StartsWith(RequireControllerPermissionAttribute.PolicyPrefix)) 
+            if (!policyName.StartsWith(RequireControllerPermissionAttribute.PolicyPrefix))
                 return _fallback.GetPolicyAsync(policyName);
 
-            // policyName 目前像 "PERM:View"
-            var action = policyName.Substring(RequireControllerPermissionAttribute.PolicyPrefix.Length);
+            var actionStr = policyName.Substring(RequireControllerPermissionAttribute.PolicyPrefix.Length);
+            if (!int.TryParse(actionStr, out var actionCode))
+                return Task.FromResult<AuthorizationPolicy?>(null); 
 
             var policy = new AuthorizationPolicyBuilder()
-                .AddRequirements(new PermissionRequirement(action)) // 換成有範圍的 Requirement
+                .AddRequirements(new PermissionRequirementScopedToController(actionCode))
                 .Build();
-
             return Task.FromResult<AuthorizationPolicy?>(policy);
         }
 

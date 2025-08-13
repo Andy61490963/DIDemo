@@ -57,35 +57,30 @@ namespace DynamicForm.Areas.Permission.Services
             const string sql = @"INSERT INTO SYS_GROUP_PERMISSION (ID, SYS_GROUP_ID, SYS_PERMISSION_ID) VALUES (@Id, @GroupId, @PermissionId)";
             return _con.ExecuteAsync(sql, new { Id = id, GroupId = groupId, PermissionId = permissionId });
         }
-
-        /// <inheritdoc />
-        // public async Task<bool> UserHasPermissionAsync(Guid userId, string permissionCode)
-        // {
-        //     var permissions = await _cache.GetOrCreateAsync(GetCacheKey(userId), async entry =>
-        //     {
-        //         entry.AbsoluteExpirationRelativeToNow = CacheDuration;
-        //         const string sql = @"
-        //             SELECT P.CODE
-        //             FROM SYS_PERMISSION P
-        //             JOIN SYS_GROUP_PERMISSION GP ON GP.SYS_PERMISSION_ID = P.ID
-        //             JOIN SYS_USER_GROUP UG ON UG.SYS_GROUP_ID = GP.SYS_GROUP_ID
-        //             WHERE UG.SYS_USER_ID = @UserId";
-        //         var rows = await _con.QueryAsync<string>(sql, new { UserId = userId });
-        //         return new HashSet<string>(rows, StringComparer.OrdinalIgnoreCase);
-        //     });
-        //
-        //     return permissions.Contains(permissionCode);
-        // }
-
+        
         public async Task<bool> UserHasControllerPermissionAsync(
-            Guid userId, string area, string controller, string actionCode)
+            Guid userId, string area, string controller, int actionCode)
         {
             // 每個 (user, area, ctrl, action) 快取 60 秒，可視情況拉長/用 Redis
             var cacheKey = $"perm:{userId}:{area}:{controller}:{actionCode}";
             if (_cache.TryGetValue(cacheKey, out bool ok)) return ok;
 
-            const string sql = /* 上面那段 SQL，略… */ @"
--- 放進此處
+            const string sql = @"/**/
+SELECT CASE WHEN EXISTS (
+    SELECT 1
+    FROM SYS_USER_GROUP ug
+    JOIN SYS_GROUP_FUNCTION_PERMISSION gfp
+        ON gfp.SYS_GROUP_ID = ug.SYS_GROUP_ID         
+    JOIN SYS_FUNCTION f
+        ON f.ID = gfp.SYS_FUNCTION_ID
+       AND f.IS_DELETE = 0                            
+    JOIN SYS_PERMISSION p
+        ON p.ID = gfp.SYS_PERMISSION_ID
+    WHERE ug.SYS_USER_ID = @UserId
+      AND f.AREA       = @Area
+      AND f.CONTROLLER = @Controller
+      AND p.CODE       = @ActionCode
+) THEN 1 ELSE 0 END AS HasPermission;
 ";
 
             var has = await _con.ExecuteScalarAsync<int>(sql, new {

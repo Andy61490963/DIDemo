@@ -11,8 +11,8 @@ namespace DynamicForm.Authorization
     /// </summary>
     public class PermissionRequirementScopedToController : IAuthorizationRequirement
     {
-        public string ActionCode { get; }
-        public PermissionRequirementScopedToController(string actionCode) => ActionCode = actionCode;
+        public int ActionCode { get; }
+        public PermissionRequirementScopedToController(int actionCode) => ActionCode = actionCode;
     }
 
     public class PermissionAuthorizationHandler
