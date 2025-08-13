@@ -101,8 +101,8 @@ public class PermissionManagementControllerTests
     [Fact]
     public async Task CreatePermission_Duplicate_ReturnsConflict()
     {
-        var request = new CreatePermissionRequest { Code = ActionType.Create };
-        _service.Setup(s => s.PermissionCodeExistsAsync(ActionType.Create, null)).ReturnsAsync(true);
+        var request = new CreatePermissionRequest { Code = ActionType.View };
+        _service.Setup(s => s.PermissionCodeExistsAsync(ActionType.View, null)).ReturnsAsync(true);
         var controller = CreateController();
 
         var result = await controller.CreatePermission(request);
@@ -114,9 +114,9 @@ public class PermissionManagementControllerTests
     public async Task UpdatePermission_Duplicate_ReturnsConflict()
     {
         var id = Guid.NewGuid();
-        var request = new UpdatePermissionRequest { Code = ActionType.Create };
-        _service.Setup(s => s.GetPermissionAsync(id)).ReturnsAsync(new PermissionModel { Id = id, Code = ActionType.Read });
-        _service.Setup(s => s.PermissionCodeExistsAsync(ActionType.Create, id)).ReturnsAsync(true);
+        var request = new UpdatePermissionRequest { Code = ActionType.View };
+        _service.Setup(s => s.GetPermissionAsync(id)).ReturnsAsync(new PermissionModel { Id = id, Code = ActionType.View });
+        _service.Setup(s => s.PermissionCodeExistsAsync(ActionType.View, id)).ReturnsAsync(true);
         var controller = CreateController();
 
         var result = await controller.UpdatePermission(id, request);
