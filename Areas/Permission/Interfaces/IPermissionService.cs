@@ -13,6 +13,7 @@ namespace DynamicForm.Areas.Permission.Interfaces
         Task<Group?> GetGroupAsync(Guid id);
         Task UpdateGroupAsync(Group group);
         Task DeleteGroupAsync(Guid id);
+        Task<bool> GroupNameExistsAsync(string name, Guid? excludeId = null);
 
         // 權限
         Task<Guid> CreatePermissionAsync(ActionType code);
@@ -25,12 +26,14 @@ namespace DynamicForm.Areas.Permission.Interfaces
         Task<Function?> GetFunctionAsync(Guid id);
         Task UpdateFunctionAsync(Function function);
         Task DeleteFunctionAsync(Guid id);
+        Task<bool> FunctionNameExistsAsync(string name, Guid? excludeId = null);
 
         // 選單
         Task<Guid> CreateMenuAsync(Menu menu);
         Task<Menu?> GetMenuAsync(Guid id);
         Task UpdateMenuAsync(Menu menu);
         Task DeleteMenuAsync(Guid id);
+        Task<bool> MenuNameExistsAsync(string name, Guid? parentId, Guid? excludeId = null);
 
         // 使用者與群組關聯
         Task AssignUserToGroupAsync(Guid userId, Guid groupId);

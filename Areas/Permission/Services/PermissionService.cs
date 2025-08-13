@@ -72,6 +72,20 @@ namespace DynamicForm.Areas.Permission.Services
             return _con.ExecuteAsync(sql, new { Id = id });
         }
 
+        /// <summary>
+        /// 檢查群組名稱是否已存在。
+        /// </summary>
+        public async Task<bool> GroupNameExistsAsync(string name, Guid? excludeId = null)
+        {
+            const string sql =
+                @"SELECT COUNT(1)
+                    FROM SYS_GROUP
+                    WHERE NAME = @Name AND IS_ACTIVE = 1
+                      AND (@ExcludeId IS NULL OR ID <> @ExcludeId)";
+            var count = await _con.ExecuteScalarAsync<int>(sql, new { Name = name, ExcludeId = excludeId });
+            return count > 0;
+        }
+
         #endregion
 
         #region 權限 CRUD
@@ -178,6 +192,20 @@ namespace DynamicForm.Areas.Permission.Services
             return _con.ExecuteAsync(sql, new { Id = id });
         }
 
+        /// <summary>
+        /// 檢查功能名稱是否已存在。
+        /// </summary>
+        public async Task<bool> FunctionNameExistsAsync(string name, Guid? excludeId = null)
+        {
+            const string sql =
+                @"SELECT COUNT(1)
+                    FROM SYS_FUNCTION
+                    WHERE NAME = @Name AND IS_DELETE = 0
+                      AND (@ExcludeId IS NULL OR ID <> @ExcludeId)";
+            var count = await _con.ExecuteScalarAsync<int>(sql, new { Name = name, ExcludeId = excludeId });
+            return count > 0;
+        }
+
         #endregion
 
         #region 選單 CRUD
@@ -247,6 +275,21 @@ namespace DynamicForm.Areas.Permission.Services
         {
             const string sql = @"UPDATE SYS_MENU SET IS_DELETE = 1 WHERE ID = @Id";
             return _con.ExecuteAsync(sql, new { Id = id });
+        }
+
+        /// <summary>
+        /// 檢查同層級選單名稱是否重複。
+        /// </summary>
+        public async Task<bool> MenuNameExistsAsync(string name, Guid? parentId, Guid? excludeId = null)
+        {
+            const string sql =
+                @"SELECT COUNT(1)
+                    FROM SYS_MENU
+                    WHERE NAME = @Name AND IS_DELETE = 0
+                      AND ((@ParentId IS NULL AND PARENT_ID IS NULL) OR PARENT_ID = @ParentId)
+                      AND (@ExcludeId IS NULL OR ID <> @ExcludeId)";
+            var count = await _con.ExecuteScalarAsync<int>(sql, new { Name = name, ParentId = parentId, ExcludeId = excludeId });
+            return count > 0;
         }
 
         #endregion

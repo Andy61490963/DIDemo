@@ -53,6 +53,9 @@ namespace DynamicForm.Areas.Permission.Controllers
         public async Task<ActionResult<Group>> CreateGroup([FromBody] CreateGroupRequest request)
         {
             // 基礎驗證由 [ApiController] 自動處理；此處直入業務流程
+            if (await _permissionService.GroupNameExistsAsync(request.Name))
+                return Conflict($"群組名稱已存在: {request.Name}");
+
             var id = await _permissionService.CreateGroupAsync(request.Name);
             var result = new Group { Id = id, Name = request.Name };
 
@@ -79,6 +82,9 @@ namespace DynamicForm.Areas.Permission.Controllers
             // 前置檢查：不存在就 404，避免「成功但其實沒更新」
             if (await _permissionService.GetGroupAsync(id) is null)
                 return NotFound();
+
+            if (await _permissionService.GroupNameExistsAsync(request.Name, id))
+                return Conflict($"群組名稱已存在: {request.Name}");
 
             await _permissionService.UpdateGroupAsync(new Group { Id = id, Name = request.Name });
             return NoContent();
@@ -165,6 +171,9 @@ namespace DynamicForm.Areas.Permission.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<Function>> CreateFunction([FromBody] CreateFunctionRequest request)
         {
+            if (await _permissionService.FunctionNameExistsAsync(request.Name))
+                return Conflict($"功能名稱已存在: {request.Name}");
+
             var id = await _permissionService.CreateFunctionAsync(new Function
             {
                 Name = request.Name,
@@ -194,6 +203,9 @@ namespace DynamicForm.Areas.Permission.Controllers
         {
             if (await _permissionService.GetFunctionAsync(id) is null)
                 return NotFound();
+
+            if (await _permissionService.FunctionNameExistsAsync(request.Name, id))
+                return Conflict($"功能名稱已存在: {request.Name}");
 
             await _permissionService.UpdateFunctionAsync(new Function
             {
@@ -229,6 +241,9 @@ namespace DynamicForm.Areas.Permission.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<Menu>> CreateMenu([FromBody] CreateMenuRequest request)
         {
+            if (await _permissionService.MenuNameExistsAsync(request.Name, request.ParentId))
+                return Conflict($"選單名稱已存在: {request.Name}");
+
             var id = await _permissionService.CreateMenuAsync(new Menu
             {
                 ParentId = request.ParentId,
@@ -269,6 +284,9 @@ namespace DynamicForm.Areas.Permission.Controllers
         {
             if (await _permissionService.GetMenuAsync(id) is null)
                 return NotFound();
+
+            if (await _permissionService.MenuNameExistsAsync(request.Name, request.ParentId, id))
+                return Conflict($"選單名稱已存在: {request.Name}");
 
             await _permissionService.UpdateMenuAsync(new Menu
             {
