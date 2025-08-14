@@ -709,15 +709,22 @@ FROM FORM_FIELD_CONFIG";
 SELECT *
 FROM FORM_FIELD_VALIDATION_RULE";
 
+        // 20250814，主檔可以和主檔本身自我關聯
         public const string TableSchemaSelect = @"/**/
 SELECT COLUMN_NAME, DATA_TYPE, ORDINAL_POSITION
 FROM INFORMATION_SCHEMA.COLUMNS
 WHERE TABLE_NAME = @TableName
-  AND (
-      (@Type = 0 AND TABLE_NAME NOT LIKE 'V_%')
-      OR (@Type = 1 AND TABLE_NAME LIKE 'V_%')
-  )
 ORDER BY ORDINAL_POSITION";
+        
+//         public const string TableSchemaSelect = @"/**/
+// SELECT COLUMN_NAME, DATA_TYPE, ORDINAL_POSITION
+// FROM INFORMATION_SCHEMA.COLUMNS
+// WHERE TABLE_NAME = @TableName
+//   AND (
+//       (@Type = 0 AND TABLE_NAME NOT LIKE 'V_%')
+//       OR (@Type = 1 AND TABLE_NAME LIKE 'V_%')
+//   )
+// ORDER BY ORDINAL_POSITION";
 
         public const string UpsertFormMaster = @"/**/
 MERGE FORM_FIELD_Master AS target
