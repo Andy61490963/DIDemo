@@ -1,5 +1,6 @@
 using ClassLibrary;
 using DynamicForm.Areas.Permission.Models;
+using DynamicForm.Areas.Permission.ViewModels.Menu;
 
 namespace DynamicForm.Areas.Permission.Interfaces
 {
@@ -35,6 +36,7 @@ namespace DynamicForm.Areas.Permission.Interfaces
         Task UpdateMenuAsync(Menu menu);
         Task DeleteMenuAsync(Guid id);
         Task<bool> MenuNameExistsAsync(string name, Guid? parentId, Guid? excludeId = null);
+        Task<IEnumerable<MenuTreeItem>> GetUserMenuTreeAsync(Guid userId);
 
         // 使用者與群組關聯
         Task AssignUserToGroupAsync(Guid userId, Guid groupId);

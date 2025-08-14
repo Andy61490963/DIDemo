@@ -2,8 +2,11 @@ using ClassLibrary;
 using Dapper;
 using DynamicForm.Areas.Permission.Interfaces;
 using DynamicForm.Areas.Permission.Models;
+using DynamicForm.Areas.Permission.ViewModels.Menu;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Caching.Memory;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace DynamicForm.Areas.Permission.Services
 {
@@ -306,6 +309,79 @@ namespace DynamicForm.Areas.Permission.Services
             return count > 0;
         }
 
+        /// <summary>
+        /// 取得指定使用者可見的選單樹。
+        /// </summary>
+        public async Task<IEnumerable<MenuTreeItem>> GetUserMenuTreeAsync(Guid userId)
+        {
+            var cacheKey = GetMenuCacheKey(userId);
+            if (_cache.TryGetValue(cacheKey, out IEnumerable<MenuTreeItem> cached))
+                return cached;
+
+            const string sql = @"WITH BaseVisible AS (
+    SELECT m.ID
+    FROM SYS_MENU m
+    WHERE ISNULL(m.IS_DELETE, 0) = 0
+      AND (
+           m.IS_SHARE = 1
+        OR EXISTS (
+             SELECT 1
+             FROM SYS_GROUP_FUNCTION_PERMISSION gfp
+             JOIN SYS_USER_GROUP ug
+               ON ug.SYS_GROUP_ID = gfp.SYS_GROUP_ID
+              AND ug.SYS_USER_ID  = @UserId
+             JOIN SYS_GROUP g
+               ON g.ID = ug.SYS_GROUP_ID
+              AND ISNULL(g.IS_ACTIVE, 1) = 1
+             JOIN SYS_PERMISSION p
+               ON p.ID = gfp.SYS_PERMISSION_ID
+              AND ISNULL(p.IS_ACTIVE, 1) = 1
+             JOIN SYS_FUNCTION f
+               ON f.ID = gfp.SYS_FUNCTION_ID
+              AND ISNULL(f.IS_DELETE, 0) = 0
+             WHERE gfp.SYS_FUNCTION_ID = m.SYS_FUNCTION_ID
+           )
+      )
+),
+Tree AS (
+    SELECT m.*
+    FROM SYS_MENU m
+    WHERE m.ID IN (SELECT ID FROM BaseVisible)
+
+    UNION ALL
+
+    SELECT parent.*
+    FROM SYS_MENU parent
+    JOIN Tree child ON child.PARENT_ID = parent.ID
+    WHERE ISNULL(parent.IS_DELETE, 0) = 0
+)
+SELECT DISTINCT
+    t.ID, t.PARENT_ID, t.SYS_FUNCTION_ID, t.NAME, t.SORT, t.IS_SHARE,
+    f.AREA, f.CONTROLLER
+FROM Tree t
+LEFT JOIN SYS_FUNCTION f ON f.ID = t.SYS_FUNCTION_ID
+ORDER BY t.SORT, t.NAME
+OPTION (MAXRECURSION 32);";
+
+            var rows = (await _con.QueryAsync<MenuTreeItem>(sql, new { UserId = userId })).ToList();
+            var lookup = rows.ToLookup(r => r.ParentId);
+            foreach (var item in rows)
+            {
+                item.Children = lookup[item.Id]
+                    .OrderBy(c => c.Sort)
+                    .ThenBy(c => c.Name)
+                    .ToList();
+            }
+
+            var result = lookup[null]
+                .OrderBy(c => c.Sort)
+                .ThenBy(c => c.Name)
+                .ToList();
+
+            _cache.Set(cacheKey, result, CacheDuration);
+            return result;
+        }
+
         #endregion
 
         #region 使用者與群組關聯
@@ -320,6 +396,7 @@ namespace DynamicForm.Areas.Permission.Services
                 @"INSERT INTO SYS_USER_GROUP (ID, SYS_USER_ID, SYS_GROUP_ID)
                   VALUES (@Id, @UserId, @GroupId)";
             _cache.Remove(GetCacheKey(userId));
+            _cache.Remove(GetMenuCacheKey(userId));
             return _con.ExecuteAsync(sql, new { Id = id, UserId = userId, GroupId = groupId });
         }
 
@@ -332,6 +409,7 @@ namespace DynamicForm.Areas.Permission.Services
                 @"DELETE FROM SYS_USER_GROUP
                   WHERE SYS_USER_ID = @UserId AND SYS_GROUP_ID = @GroupId";
             _cache.Remove(GetCacheKey(userId));
+            _cache.Remove(GetMenuCacheKey(userId));
             return _con.ExecuteAsync(sql, new { UserId = userId, GroupId = groupId });
         }
 
@@ -424,6 +502,11 @@ namespace DynamicForm.Areas.Permission.Services
         /// 取得使用者權限快取的快取鍵。
         /// </summary>
         private static string GetCacheKey(Guid userId) => $"user_permissions:{userId}";
+
+        /// <summary>
+        /// 取得使用者側邊選單的快取鍵。
+        /// </summary>
+        private static string GetMenuCacheKey(Guid userId) => $"user_menu:{userId}";
 
         #endregion
     }
