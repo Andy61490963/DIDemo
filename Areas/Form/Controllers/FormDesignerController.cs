@@ -47,7 +47,7 @@ public class FormDesignerController : ControllerBase
     /// <summary>
     /// 取得資料表所有欄位設定(如果傳入空formMasterId，會創建一筆新的，如果有傳入，會取得舊的)
     /// </summary>
-    [HttpGet("tables/{formMasterId}/{tableName}/fields")]
+    [HttpGet("tables/{tableName}/fields")]
     public IActionResult GetFields(string tableName, Guid? formMasterId, [FromQuery] TableSchemaQueryType schemaType)
     {
         try

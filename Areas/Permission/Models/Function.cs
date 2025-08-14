@@ -18,6 +18,9 @@ namespace DynamicForm.Areas.Permission.Models
 
         /// <summary>控制器名稱。</summary>
         public string? Controller { get; set; }
+        
+        /// <summary>預設端點</summary>
+        public string? DEFAULT_ENDPOINT { get; set; }
 
         /// <summary>是否刪除。</summary>
         public bool IsDelete { get; set; }
