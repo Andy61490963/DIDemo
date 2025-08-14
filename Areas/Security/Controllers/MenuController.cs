@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using DynamicForm.Areas.Permission.Interfaces;
 using DynamicForm.Areas.Permission.ViewModels.Menu;

@@ -158,14 +158,15 @@ namespace DynamicForm.Areas.Permission.Services
         {
             var id = Guid.NewGuid();
             const string sql =
-                @"INSERT INTO SYS_FUNCTION (ID, NAME, AREA, CONTROLLER, IS_DELETE)
-                  VALUES (@Id, @Name, @Area, @Controller, 0)";
+                @"INSERT INTO SYS_FUNCTION (ID, NAME, AREA, CONTROLLER, DEFAULT_ENDPOINT, IS_DELETE)
+                  VALUES (@Id, @Name, @Area, @Controller, @Default_endpoint, 0)";
             await _con.ExecuteAsync(sql, new
             {
                 Id = id,
                 Name = function.Name,
                 Area = function.Area,
-                Controller = function.Controller
+                Controller = function.Controller,
+                Default_endpoint = function.DEFAULT_ENDPOINT
             });
             return id;
         }
@@ -176,7 +177,7 @@ namespace DynamicForm.Areas.Permission.Services
         public Task<Function?> GetFunctionAsync(Guid id)
         {
             const string sql =
-                @"SELECT ID, NAME, AREA, CONTROLLER, IS_DELETE
+                @"SELECT ID, NAME, AREA, CONTROLLER, DEFAULT_ENDPOINT, IS_DELETE
                   FROM SYS_FUNCTION
                   WHERE ID = @Id AND IS_DELETE = 0";
             return _con.QuerySingleOrDefaultAsync<Function>(sql, new { Id = id });
@@ -189,14 +190,15 @@ namespace DynamicForm.Areas.Permission.Services
         {
             const string sql =
                 @"UPDATE SYS_FUNCTION
-                  SET NAME = @Name, AREA = @Area, CONTROLLER = @Controller
+                  SET NAME = @Name, AREA = @Area, CONTROLLER = @Controller, DEFAULT_ENDPOINT = @Default_endpoint
                   WHERE ID = @Id AND IS_DELETE = 0";
             return _con.ExecuteAsync(sql, new
             {
                 Id = function.Id,
                 Name = function.Name,
                 Area = function.Area,
-                Controller = function.Controller
+                Controller = function.Controller,
+                Default_endpoint = function.DEFAULT_ENDPOINT
             });
         }
 
@@ -319,29 +321,29 @@ namespace DynamicForm.Areas.Permission.Services
                 return cached;
 
             const string sql = @"WITH BaseVisible AS (
-    SELECT m.ID
-    FROM SYS_MENU m
-    WHERE ISNULL(m.IS_DELETE, 0) = 0
-      AND (
-           m.IS_SHARE = 1
-        OR EXISTS (
-             SELECT 1
-             FROM SYS_GROUP_FUNCTION_PERMISSION gfp
-             JOIN SYS_USER_GROUP ug
-               ON ug.SYS_GROUP_ID = gfp.SYS_GROUP_ID
-              AND ug.SYS_USER_ID  = @UserId
-             JOIN SYS_GROUP g
-               ON g.ID = ug.SYS_GROUP_ID
-              AND ISNULL(g.IS_ACTIVE, 1) = 1
-             JOIN SYS_PERMISSION p
-               ON p.ID = gfp.SYS_PERMISSION_ID
-              AND ISNULL(p.IS_ACTIVE, 1) = 1
-             JOIN SYS_FUNCTION f
-               ON f.ID = gfp.SYS_FUNCTION_ID
-              AND ISNULL(f.IS_DELETE, 0) = 0
-             WHERE gfp.SYS_FUNCTION_ID = m.SYS_FUNCTION_ID
-           )
-      )
+SELECT m.ID
+FROM SYS_MENU m
+WHERE ISNULL(m.IS_DELETE, 0) = 0
+  AND (
+       m.IS_SHARE = 1
+    OR EXISTS (
+         SELECT 1
+         FROM SYS_GROUP_FUNCTION_PERMISSION gfp
+         JOIN SYS_USER_GROUP ug
+           ON ug.SYS_GROUP_ID = gfp.SYS_GROUP_ID
+          AND ug.SYS_USER_ID  = @UserId
+         JOIN SYS_GROUP g
+           ON g.ID = ug.SYS_GROUP_ID
+          AND ISNULL(g.IS_ACTIVE, 1) = 1
+         JOIN SYS_PERMISSION p
+           ON p.ID = gfp.SYS_PERMISSION_ID
+          AND ISNULL(p.IS_ACTIVE, 1) = 1
+         JOIN SYS_FUNCTION f
+           ON f.ID = gfp.SYS_FUNCTION_ID
+          AND ISNULL(f.IS_DELETE, 0) = 0
+         WHERE gfp.SYS_FUNCTION_ID = m.SYS_FUNCTION_ID
+       )
+  )
 ),
 Tree AS (
     SELECT m.*
@@ -357,26 +359,36 @@ Tree AS (
 )
 SELECT DISTINCT
     t.ID, t.PARENT_ID, t.SYS_FUNCTION_ID, t.NAME, t.SORT, t.IS_SHARE,
-    f.AREA, f.CONTROLLER
+    f.AREA, f.CONTROLLER, f.DEFAULT_ENDPOINT
 FROM Tree t
 LEFT JOIN SYS_FUNCTION f ON f.ID = t.SYS_FUNCTION_ID
 ORDER BY t.SORT, t.NAME
 OPTION (MAXRECURSION 32);";
 
             var rows = (await _con.QueryAsync<MenuTreeItem>(sql, new { UserId = userId })).ToList();
-            var lookup = rows.ToLookup(r => r.ParentId);
+            
+            // 依 PARENT_ID 分組，這邊只有兩種狀況，一種是父節點為null，一種不為null
+            var lookup = rows.ToLookup(r => r.PARENT_ID);
+            
+            // 掛子節點
             foreach (var item in rows)
             {
-                item.Children = lookup[item.Id]
-                    .OrderBy(c => c.Sort)
-                    .ThenBy(c => c.Name)
+                var children = lookup[item.ID] // 找出所有以自己為父的節點
+                    .OrderBy(c => c.SORT)
+                    .ThenBy(c => c.NAME)
                     .ToList();
+
+                item.Children = children; // 掛到 Children 屬性
             }
 
-            var result = lookup[null]
-                .OrderBy(c => c.Sort)
-                .ThenBy(c => c.Name)
+            // 根：沒有父或父不在 rows 清單（被刪除/被過濾）
+            var idSet = rows.Select(x => x.ID).ToHashSet();
+            var result = rows
+                .Where(x => x.PARENT_ID == null || !idSet.Contains(x.PARENT_ID.Value)) // 孤兒節點會被升級成父節點
+                .OrderBy(x => x.SORT)
+                .ThenBy(x => x.NAME)
                 .ToList();
+
 
             _cache.Set(cacheKey, result, CacheDuration);
             return result;
